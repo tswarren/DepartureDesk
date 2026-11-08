@@ -12,7 +12,7 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         Rails.root.join("db/structure.sql").to_s
       )
 
-      tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
+      tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline)/).sort
       assert_equal %w[
         supplier_category_assignments
         supplier_contact_email_addresses
@@ -78,11 +78,11 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         );
       SQL
 
-      assert_equal 0, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).size
+      assert_equal 0, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline)/).size
 
       migrate_to!(20260914200000)
 
-      tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
+      tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline)/).sort
       assert_equal %w[
         supplier_category_assignments
         supplier_email_addresses
@@ -102,7 +102,7 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
       assert_equal 1, supplier_sequences.to_i
 
       migrate_to!(20260914183000)
-      assert_equal 0, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).size
+      assert_equal 0, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline)/).size
       remaining_supplier_sequences = ActiveRecord::Base.connection.select_value(<<~SQL)
         SELECT count(*)
         FROM reference_sequences
@@ -127,7 +127,7 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         supplier_postal_addresses
         supplier_websites
         suppliers
-      ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
+      ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline)/).sort
       reapplied_sequences = ActiveRecord::Base.connection.select_value(<<~SQL)
         SELECT count(*)
         FROM reference_sequences

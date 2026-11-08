@@ -195,7 +195,11 @@ Rails.application.routes.draw do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"
       resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
-      resources :rate_lines, only: %i[new create edit update destroy], controller: "supplier_rate_lines"
+      # S-14: the supplier rate grid (SUP-35).
+      resource :rates, only: %i[edit update], controller: "supplier_rates"
+      resource :rate_pattern, only: :update, controller: "supplier_rate_patterns"
+      resources :rate_bands, only: %i[create destroy], controller: "supplier_rate_bands"
+      resource :rate_copy, only: :create, controller: "supplier_rate_copies"
       resources :deadlines, only: %i[new create edit update], controller: "supplier_deadlines"
       resources :cost_lines, only: %i[new create edit update destroy]
       resources :schedule_lines, only: %i[new create edit update]

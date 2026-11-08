@@ -74,7 +74,7 @@ module ArrangementsHelper
     **(1..SupplierRateLine::MAX_GUEST_POSITION).to_h { |n| [ "guest_#{n}", "#{n.ordinalize} guest" ] }
   }.freeze
 
-  COMMISSION_BASE_LABELS = { "base_fare" => "Base fare", "base_fare_less_discount" => "Base fare less discount" }.freeze
+  COMMISSION_BASE_LABELS = { "base_fare" => "Commissionable fare", "base_fare_less_discount" => "Commissionable fare less discount" }.freeze
 
   def occupancy_position_label(value) = OCCUPANCY_POSITION_LABELS.fetch(value.to_s)
 

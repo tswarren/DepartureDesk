@@ -102,6 +102,11 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.capacity_rule_changed
     supplier_arrangement.capacity_changed
     supplier_arrangement.rate_line_added
+    supplier_arrangement.rates_saved
+    supplier_arrangement.rates_copied
+    supplier_arrangement.rate_pattern_set
+    supplier_arrangement.rate_band_added
+    supplier_arrangement.rate_band_removed
     supplier_arrangement.rate_line_updated
     supplier_arrangement.rate_line_removed
     supplier_arrangement.deadline_recorded

@@ -160,29 +160,29 @@ module AlphaFixture
   end
   private_class_method :confirm!
 
+  # The Alpha rate schedule as a rate grid (S-14): cruise bands, with port
+  # charges, taxes and commission entered once. A single fare is the 1st-guest
+  # fare and discount doubled, and carries double port charges (B6).
   def self.cruise_inventory!(agency, actor, departure, arrangement)
-    CRUISE_CABINS.each do |cabin|
-      group = group!(agency, actor, departure, arrangement, label: cabin[:label], service_category: "cruise",
-        quantity: 8, positions_per_unit: cabin[:positions], **CRUISE_DATES)
-      cruise_rates(cabin).each do |position, (base, nccf, taxes, discount)|
-        SaveSupplierRateLine.new(agency:, actor:, departure:, arrangement:, attributes: {
-          inventory_group_id: group.id, occupancy_position: position, base_fare: base.to_s, non_commissionable_fees: nccf.to_s,
-          taxes: taxes.to_s, discount: discount.to_s, commission_rate: CRUISE_COMMISSION_RATE
-        }).call
-      end
+    groups = CRUISE_CABINS.to_h do |cabin|
+      [ cabin, group!(agency, actor, departure, arrangement, label: cabin[:label], service_category: "cruise",
+        quantity: 8, positions_per_unit: cabin[:positions], **CRUISE_DATES) ]
     end
+    SetSupplierRatePattern.new(agency:, actor:, departure:, arrangement:, pattern: "cruise_bands").call
+    bands = arrangement.rate_bands.reload.index_by(&:label)
+    cells = groups.each_with_object({}) do |(cabin, group), all|
+      all[SupplierRateGrid.cell_key(group, bands.fetch("1st and 2nd guest"))] = { fare: cabin[:base].to_s, discount: cabin[:discount].to_s }
+      all[SupplierRateGrid.cell_key(group, bands.fetch("3rd and 4th guest"))] = { fare: cabin[:additional_base].to_s, discount: cabin[:additional_discount].to_s }
+      all[SupplierRateGrid.cell_key(group, bands.fetch("Single"))] = {
+        fare: (cabin[:base] * 2).to_s, discount: (cabin[:discount] * 2).to_s, override: { non_commissionable_fees: (CRUISE_NCCF * 2).to_s }
+      }
+    end
+    SaveSupplierRates.new(agency:, actor:, departure:, arrangement:, cells:, defaults: {
+      non_commissionable_fees: CRUISE_NCCF.to_s, taxes: CRUISE_TAXES.to_s,
+      commission_method: "percent", commission_rate: CRUISE_COMMISSION_RATE, commission_base: "base_fare"
+    }).call
   end
   private_class_method :cruise_inventory!
-
-  # { "guest_1" => [base fare, NCCF, taxes, discount], ... }
-  def self.cruise_rates(cabin)
-    first = [ cabin[:base], CRUISE_NCCF, CRUISE_TAXES, cabin[:discount] ]
-    additional = [ cabin[:additional_base], CRUISE_NCCF, CRUISE_TAXES, cabin[:additional_discount] ]
-    single = [ cabin[:base] * 2, CRUISE_NCCF * 2, CRUISE_TAXES, cabin[:discount] * 2 ]
-    { "single" => single, "guest_1" => first, "guest_2" => first }
-      .merge((3..cabin[:positions]).to_h { |n| [ "guest_#{n}", additional ] })
-  end
-  private_class_method :cruise_rates
 
   def self.hotel_inventory!(agency, actor, departure, arrangement)
     (1..5).each do |day|

@@ -8,12 +8,15 @@ class SupplierRateLine < ApplicationRecord
   OCCUPANCY_POSITIONS = [ "single", *(1..MAX_GUEST_POSITION).map { |n| "guest_#{n}" } ].freeze
   # SUP-21: there is no universal base; each rate says what it applies to.
   COMMISSION_BASES = %w[base_fare base_fare_less_discount].freeze
+  # Shared values a fare may override in the rate grid.
+  OVERRIDABLE_FIELDS = %w[non_commissionable_fees taxes commission].freeze
   AMOUNT_FIELDS = %w[base_fare_minor_units non_commissionable_fees_minor_units taxes_minor_units discount_minor_units commission_minor_units].freeze
 
   belongs_to :agency
   belongs_to :supplier_arrangement
   belongs_to :inventory_group
   belongs_to :traveler_type, optional: true
+  belongs_to :band, class_name: "SupplierRateBand", foreign_key: :supplier_rate_band_id, optional: true, inverse_of: :rate_lines
 
   attr_readonly :agency_id, :supplier_arrangement_id, :inventory_group_id, :currency
 

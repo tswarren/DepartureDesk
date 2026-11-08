@@ -385,6 +385,29 @@ $$;
 
 
 --
+-- Name: reject_frozen_supplier_rate_band_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_frozen_supplier_rate_band_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  arrangement_status text;
+BEGIN
+  IF TG_OP = 'UPDATE' AND (NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id) THEN
+    RAISE EXCEPTION 'supplier rate band ownership is immutable';
+  END IF;
+  SELECT status INTO arrangement_status FROM supplier_arrangements
+    WHERE id = CASE WHEN TG_OP = 'INSERT' THEN NEW.supplier_arrangement_id ELSE OLD.supplier_arrangement_id END;
+  IF arrangement_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'supplier rate bands are frozen once the arrangement leaves draft';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+
+--
 -- Name: reject_frozen_supplier_rate_line_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2033,6 +2056,13 @@ CREATE TABLE public.supplier_arrangements (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    rate_pattern character varying,
+    rate_non_commissionable_fees_minor_units bigint,
+    rate_taxes_minor_units bigint,
+    rate_commission_method character varying,
+    rate_commission_rate numeric(6,3),
+    rate_commission_base character varying,
+    rate_commission_minor_units bigint,
     CONSTRAINT supplier_arrangements_cancelled_at_pair CHECK ((((status)::text = 'cancelled'::text) = (cancelled_at IS NOT NULL))),
     CONSTRAINT supplier_arrangements_confirmed_complete CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'cancelled'::character varying])::text[])) OR ((group_reference IS NOT NULL) AND (payee_account_id IS NOT NULL) AND (confirmed_on IS NOT NULL) AND (confirmed_at IS NOT NULL)))),
     CONSTRAINT supplier_arrangements_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
@@ -2040,6 +2070,9 @@ CREATE TABLE public.supplier_arrangements (
     CONSTRAINT supplier_arrangements_group_reference CHECK (((group_reference IS NULL) OR ((btrim((group_reference)::text) <> ''::text) AND (char_length((group_reference)::text) <= 80)))),
     CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_arrangements_obligation_shape CHECK (((obligation_shape IS NULL) OR ((obligation_shape)::text = ANY ((ARRAY['per_unit_used'::character varying, 'committed_quantity'::character varying, 'fixed_resource_charge'::character varying, 'minimum_pickup'::character varying, 'mixed'::character varying])::text[])))),
+    CONSTRAINT supplier_arrangements_rate_amounts CHECK (((COALESCE(rate_non_commissionable_fees_minor_units, (0)::bigint) >= 0) AND (COALESCE(rate_taxes_minor_units, (0)::bigint) >= 0) AND (COALESCE(rate_commission_minor_units, (0)::bigint) >= 0))),
+    CONSTRAINT supplier_arrangements_rate_commission CHECK (COALESCE((((rate_commission_method IS NULL) AND (rate_commission_rate IS NULL) AND (rate_commission_base IS NULL) AND (rate_commission_minor_units IS NULL)) OR (((rate_commission_method)::text = 'percent'::text) AND (rate_commission_rate >= (0)::numeric) AND (rate_commission_rate <= (100)::numeric) AND ((rate_commission_base)::text = ANY ((ARRAY['base_fare'::character varying, 'base_fare_less_discount'::character varying])::text[])) AND (rate_commission_minor_units IS NULL)) OR (((rate_commission_method)::text = 'amount'::text) AND (rate_commission_minor_units IS NOT NULL) AND (rate_commission_rate IS NULL) AND (rate_commission_base IS NULL))), false)),
+    CONSTRAINT supplier_arrangements_rate_pattern CHECK (((rate_pattern IS NULL) OR ((rate_pattern)::text = ANY ((ARRAY['cruise_bands'::character varying, 'per_guest'::character varying, 'per_room'::character varying, 'custom'::character varying])::text[])))),
     CONSTRAINT supplier_arrangements_reference_format CHECK (((arrangement_reference)::text ~ '^ARR-[0-9]{4,}$'::text)),
     CONSTRAINT supplier_arrangements_reservation_scope CHECK (((reservation_scope)::text = ANY ((ARRAY['arrangement'::character varying, 'per_unit'::character varying, 'none'::character varying])::text[]))),
     CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'confirmed'::character varying, 'closed'::character varying, 'cancelled'::character varying])::text[])))
@@ -2296,6 +2329,26 @@ CREATE TABLE public.supplier_postal_addresses (
 
 
 --
+-- Name: supplier_rate_bands; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_rate_bands (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    label character varying NOT NULL,
+    positions character varying[] NOT NULL,
+    traveler_type_id uuid,
+    "position" integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_rate_bands_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 60))),
+    CONSTRAINT supplier_rate_bands_position CHECK (("position" >= 0)),
+    CONSTRAINT supplier_rate_bands_positions CHECK (((cardinality(positions) >= 1) AND (positions <@ ARRAY['single'::character varying, 'guest_1'::character varying, 'guest_2'::character varying, 'guest_3'::character varying, 'guest_4'::character varying, 'guest_5'::character varying, 'guest_6'::character varying, 'guest_7'::character varying, 'guest_8'::character varying, 'guest_9'::character varying])))
+);
+
+
+--
 -- Name: supplier_rate_lines; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2317,13 +2370,16 @@ CREATE TABLE public.supplier_rate_lines (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     commission_base character varying DEFAULT 'base_fare'::character varying NOT NULL,
+    supplier_rate_band_id uuid,
+    overridden_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     CONSTRAINT supplier_rate_lines_amounts_non_negative CHECK (((base_fare_minor_units >= 0) AND (non_commissionable_fees_minor_units >= 0) AND (taxes_minor_units >= 0) AND (discount_minor_units >= 0) AND ((commission_minor_units IS NULL) OR (commission_minor_units >= 0)))),
     CONSTRAINT supplier_rate_lines_commission_base CHECK (((commission_base)::text = ANY ((ARRAY['base_fare'::character varying, 'base_fare_less_discount'::character varying])::text[]))),
     CONSTRAINT supplier_rate_lines_commission_rate CHECK (((commission_rate IS NULL) OR ((commission_rate >= (0)::numeric) AND (commission_rate <= (100)::numeric)))),
     CONSTRAINT supplier_rate_lines_commission_rate_or_amount CHECK (((commission_rate IS NULL) OR (commission_minor_units IS NULL))),
     CONSTRAINT supplier_rate_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_rate_lines_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_rate_lines_occupancy_position CHECK ((((occupancy_position)::text = 'single'::text) OR ((occupancy_position)::text ~ '^guest_[1-9]$'::text)))
+    CONSTRAINT supplier_rate_lines_occupancy_position CHECK ((((occupancy_position)::text = 'single'::text) OR ((occupancy_position)::text ~ '^guest_[1-9]$'::text))),
+    CONSTRAINT supplier_rate_lines_overridden_fields CHECK ((overridden_fields <@ ARRAY['non_commissionable_fees'::character varying, 'taxes'::character varying, 'commission'::character varying]))
 );
 
 
@@ -3106,6 +3162,14 @@ ALTER TABLE ONLY public.supplier_phone_numbers
 
 ALTER TABLE ONLY public.supplier_postal_addresses
     ADD CONSTRAINT supplier_postal_addresses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_rate_bands supplier_rate_bands_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_bands
+    ADD CONSTRAINT supplier_rate_bands_pkey PRIMARY KEY (id);
 
 
 --
@@ -4779,10 +4843,31 @@ CREATE INDEX index_supplier_postals_on_agency_and_postal_code ON public.supplier
 
 
 --
+-- Name: index_supplier_rate_bands_on_arrangement_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_rate_bands_on_arrangement_and_position ON public.supplier_rate_bands USING btree (supplier_arrangement_id, "position");
+
+
+--
+-- Name: index_supplier_rate_bands_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_rate_bands_on_id_and_agency_id ON public.supplier_rate_bands USING btree (id, agency_id);
+
+
+--
 -- Name: index_supplier_rate_lines_on_arrangement; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_supplier_rate_lines_on_arrangement ON public.supplier_rate_lines USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_supplier_rate_lines_on_band; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_rate_lines_on_band ON public.supplier_rate_lines USING btree (supplier_rate_band_id);
 
 
 --
@@ -5364,6 +5449,13 @@ CREATE TRIGGER supplier_phone_numbers_reject_owner_change BEFORE UPDATE ON publi
 --
 
 CREATE TRIGGER supplier_postal_addresses_reject_owner_change BEFORE UPDATE ON public.supplier_postal_addresses FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_contact_owner_change();
+
+
+--
+-- Name: supplier_rate_bands supplier_rate_bands_reject_frozen_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_rate_bands_reject_frozen_change BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_rate_bands FOR EACH ROW EXECUTE FUNCTION public.reject_frozen_supplier_rate_band_change();
 
 
 --
@@ -6791,6 +6883,30 @@ ALTER TABLE ONLY public.supplier_deadlines
 
 
 --
+-- Name: supplier_rate_bands fk_supplier_rate_bands_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_bands
+    ADD CONSTRAINT fk_supplier_rate_bands_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_rate_bands fk_supplier_rate_bands_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_bands
+    ADD CONSTRAINT fk_supplier_rate_bands_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: supplier_rate_bands fk_supplier_rate_bands_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_bands
+    ADD CONSTRAINT fk_supplier_rate_bands_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
 -- Name: supplier_rate_lines fk_supplier_rate_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6812,6 +6928,14 @@ ALTER TABLE ONLY public.supplier_rate_lines
 
 ALTER TABLE ONLY public.supplier_rate_lines
     ADD CONSTRAINT fk_supplier_rate_lines_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: supplier_rate_lines fk_supplier_rate_lines_band_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT fk_supplier_rate_lines_band_same_agency FOREIGN KEY (supplier_rate_band_id, agency_id) REFERENCES public.supplier_rate_bands(id, agency_id);
 
 
 --
@@ -7085,6 +7209,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107160000'),
 ('20261107150000'),
 ('20261107140000'),
 ('20261107130000'),
