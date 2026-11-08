@@ -1,0 +1,105 @@
+<% content_for :title, "Hotel rooms by night · DepartureDesk" %>
+<% kinds = { "skip" => "Not held", "on_request" => "On request", "firm" => "Firm", "tracked" => "Firm, each room tracked" } %>
+<% rows = @room_types + Array.new([ 2, InventoryRoomNightsController::MAX_TYPES - @room_types.size ].min.clamp(0, InventoryRoomNightsController::MAX_TYPES)) { { name: nil, guests: nil } } %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "Rooms by night", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Arrangement · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title">Hotel rooms by night</h1>
+    <p class="dd-page-description">One group per night and room type, each for the night from that date to the next, so a stay uses one room each night (INV-13).</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The rooms weren't added</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">1. Nights and room types</h2></header>
+  <div class="dd-panel-body">
+    <%= form_with url: new_departure_arrangement_room_nights_path(@departure, @arrangement), method: :get, class: "dd-form", id: "room-night-setup" do |form| %>
+      <div class="dd-rate-inline">
+        <div class="dd-field-group">
+          <%= label_tag :first_night, "First night", class: "dd-label" %>
+          <%= date_field_tag :first_night, @first&.iso8601, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :last_night, "Last night", class: "dd-label" %>
+          <%= date_field_tag :last_night, @last&.iso8601, class: "dd-field" %>
+        </div>
+      </div>
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Room types</legend>
+        <% rows.each_with_index do |type, index| %>
+          <div class="dd-rate-inline">
+            <div class="dd-field-group">
+              <%= label_tag "room_types_#{index}_name", "Room type #{index + 1}", class: "dd-label" %>
+              <%= text_field_tag "room_types[#{index}][name]", type[:name], id: "room_types_#{index}_name", maxlength: 60, placeholder: ("Garden Queen" if index.zero?), class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "room_types_#{index}_guests", "Guests per room", class: "dd-label" %>
+              <%= number_field_tag "room_types[#{index}][guests]", type[:guests], id: "room_types_#{index}_guests", min: 1, step: 1, class: "dd-field dd-field--numeric dd-field--narrow" %>
+            </div>
+          </div>
+        <% end %>
+      </fieldset>
+      <div class="dd-form-actions"><%= form.submit @nights.any? && @room_types.any? ? "Update the nights" : "Set up the nights", class: "dd-button dd-button--secondary", name: nil %></div>
+    <% end %>
+  </div>
+</article>
+
+<% if @nights.any? && @room_types.any? %>
+  <%= form_with url: departure_arrangement_room_nights_path(@departure, @arrangement), class: "dd-stack", id: "room-night-grid", data: { controller: "unsaved-changes" } do |form| %>
+    <%= hidden_field_tag :first_night, @first.iso8601, id: nil %>
+    <%= hidden_field_tag :last_night, @last.iso8601, id: nil %>
+    <% @room_types.each_with_index do |type, index| %>
+      <%= hidden_field_tag "room_types[#{index}][name]", type[:name], id: nil %>
+      <%= hidden_field_tag "room_types[#{index}][guests]", type[:guests], id: nil %>
+    <% end %>
+    <article class="dd-panel">
+      <header class="dd-panel-header"><h2 class="dd-panel-title">2. What the hotel holds each night</h2></header>
+      <div class="dd-panel-body dd-stack">
+        <p class="dd-field-hint">On request holds no number. Firm is a count of interchangeable rooms; tracked makes each room its own unit at confirmation. Not held adds nothing for that night.</p>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table dd-rate-grid">
+            <caption class="dd-visually-hidden">Rooms held each night by room type</caption>
+            <thead><tr><th scope="col">Night</th><% @room_types.each do |type| %><th scope="col"><%= type[:name] %><% if type[:guests] %><span class="dd-cell-subtext">Up to <%= type[:guests] %></span><% end %></th><% end %></tr></thead>
+            <tbody>
+              <% @nights.each do |night| %>
+                <tr>
+                  <th scope="row"><%= night.strftime("%b %-d") %></th>
+                  <% @room_types.each do |type| %>
+                    <% key = "#{night.iso8601}|#{type[:name]}" %>
+                    <% submitted = params.dig(:cells, key) || {} %>
+                    <% id = "cell_#{night.iso8601}_#{type[:name].parameterize(separator: "_")}" %>
+                    <td>
+                      <span class="dd-cabin-field-label dd-visually-hidden"><%= type[:name] %></span>
+                      <div class="dd-rate-pair">
+                        <%= label_tag "#{id}_kind", "#{AddRoomNights.label(night, type[:name])}: held as", class: "dd-visually-hidden" %>
+                        <%= select_tag "cells[#{key}][kind]", options_for_select(kinds.invert, submitted[:kind] || "on_request"), id: "#{id}_kind", class: "dd-field" %>
+                        <%= label_tag "#{id}_count", "#{AddRoomNights.label(night, type[:name])}: rooms", class: "dd-visually-hidden" %>
+                        <%= number_field_tag "cells[#{key}][count]", submitted[:count], id: "#{id}_count", min: 1, step: 1, placeholder: "Rooms", class: "dd-field dd-field--numeric dd-rate-discount" %>
+                      </div>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+        <% if @room_types.any? { |type| type[:guests].nil? } %>
+          <p class="dd-field-hint">A tracked room needs its guests per room; set it above first.</p>
+        <% end %>
+        <div class="dd-form-actions">
+          <%= form.submit "Add rooms", class: "dd-button", name: nil %>
+          <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), class: "dd-button dd-button--quiet" %>
+        </div>
+      </div>
+    </article>
+  <% end %>
+<% end %>

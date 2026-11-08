@@ -211,6 +211,7 @@ Rails.application.routes.draw do
       resources :schedule_lines, only: %i[new create edit update]
       resources :trigger_events, only: %i[new create]
       resources :amounts_due, only: %i[new create], controller: "direct_amounts_due"
+      resource :room_nights, only: %i[new create], controller: "inventory_room_nights"
       resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
         resource :capacity_rule, only: :update, controller: "capacity_rules"
         resources :capacity_events, only: :create, controller: "capacity_events"

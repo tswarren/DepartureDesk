@@ -131,4 +131,45 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       assert_text "$500.00 for each cabin, due when a client booking for that cabin is confirmed, or on Mar 1, 2027 for any cabin still unbooked."
     end
   end
+
+  test "the add-group form fills in a kind's representation and shows only the fields it uses" do
+    departure = @alpha.departure
+    cruise = @alpha.arrangements.fetch(:cruise)
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_arrangement_group_path(departure, cruise)
+    choose "Cabins"
+    assert_select "Service category", selected: "Cruise"
+    assert_select "Representation", selected: "Unit shells"
+    assert_field "Positions per unit"
+    choose "Seats or places"
+    assert_select "Representation", selected: "Capacity pool"
+    assert_no_field "Positions per unit"
+    select "On request", from: "Availability promise"
+    assert_no_field "Units or places"
+  end
+
+  test "staff add a hotel's rooms night by night" do
+    departure = @alpha.departure
+    cruise = @alpha.arrangements.fetch(:cruise)
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_arrangement_room_nights_path(departure, cruise)
+    fill_in_html_date "First night", "2027-11-08"
+    fill_in_html_date "Last night", "2027-11-09"
+    fill_in "Room type 1", with: "Ocean King"
+    fill_in "room_types_0_guests", with: "2"
+    click_button "Set up the nights"
+    select "Firm", from: "Nov 8 Ocean King: held as"
+    fill_in "Nov 8 Ocean King: rooms", with: "3"
+    [ 1400, 375 ].each do |width|
+      resize_window(width)
+      assert_no_page_overflow
+    end
+    resize_window(1400)
+    click_button "Add rooms"
+    assert_text "2 groups added."
+    within("#inventory") do
+      assert_text "Nov 8 Ocean King"
+      assert_text "Nov 9 Ocean King"
+    end
+  end
 end

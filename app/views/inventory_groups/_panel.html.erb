@@ -4,7 +4,10 @@
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Inventory groups</h2>
     <% if manage && arrangement.draft? %>
-      <%= link_to "Add group", new_departure_arrangement_group_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+      <span class="dd-section-header">
+        <%= link_to "Add hotel rooms by night", new_departure_arrangement_room_nights_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Add group", new_departure_arrangement_group_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+      </span>
     <% end %>
   </header>
   <% groups = arrangement.inventory_groups %>
