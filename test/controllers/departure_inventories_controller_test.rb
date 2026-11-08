@@ -18,10 +18,13 @@ class DepartureInventoriesControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /Shells and pools are created when the arrangement is confirmed/
     assert_select "td", text: "Planned: 8 units, 3 positions each"
 
-    assert_select "ul[aria-label='Nov 5 Garden Queen shells'] li", count: 4
-    assert_select "ul[aria-label='Nov 5 Harbor Double shells'] li", text: /4 positions/, count: 4
-    assert_select "tr", text: /Nov 4 Harbor Double.*Firm block.*1 place\b/m
-    assert_select "tr", text: /Nov 1 Garden Queen.*On request.*On request/m
+    assert_select "h3", text: "Rooms by night"
+    assert_equal %w[Night Garden\ Queen Harbor\ Double], css_select("table.dd-night-grid thead th").map { |th| th.text.strip }
+    assert_equal [ "Mon Nov 1", "Tue Nov 2", "Wed Nov 3", "Thu Nov 4", "Fri Nov 5" ], css_select("table.dd-night-grid tbody th").map { |th| th.text.strip }
+    assert_select "table.dd-night-grid a[aria-label='Nov 5 Garden Queen: 4 of 4 left']"
+    assert_select "table.dd-night-grid a[aria-label='Nov 5 Harbor Double: 4 of 4 left']"
+    assert_select "table.dd-night-grid a[aria-label='Nov 4 Harbor Double: 1 of 1 left']"
+    assert_select "table.dd-night-grid a[aria-label='Nov 1 Garden Queen: On request']"
     assert_select "ul[aria-label='Private Miami tour shells'] li", text: /10 positions.*Available/m
     assert_no_match(/\$/, response.body, "inventory shows no supplier cost (ACC-31)")
   end

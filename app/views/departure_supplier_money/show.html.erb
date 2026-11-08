@@ -6,27 +6,122 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departure</p>
     <h1 class="dd-page-title"><%= @departure.name %></h1>
-    <p class="dd-page-description">What this departure owes its suppliers: committed cost and every amount due. Payments arrive in a later step.</p>
+    <p class="dd-page-description">What this departure owes its suppliers: committed cost, by arrangement or by booking, and every amount due. Payments arrive in a later step.</p>
   </div>
 </header>
 
 <%= render "departures/tabs", departure: @departure, current: :supplier_money %>
 
 <% currency = @departure.operating_currency %>
+<% committed = @cost_lines.select(&:stage_committed?) %>
 <article class="dd-panel" id="exposure">
   <header class="dd-panel-header"><h2 class="dd-panel-title">Committed cost</h2></header>
-  <div class="dd-panel-body">
+  <div class="dd-panel-body dd-stack">
     <% if currency %>
       <dl class="dd-definition-list">
-        <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(@cost_lines.select(&:stage_committed?).sum(&:amount_minor_units), currency) %></dd></div>
+        <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(committed.sum(&:amount_minor_units), currency) %></dd></div>
         <div><dt>Estimated, not committed</dt><dd class="dd-type-mono"><%= money(@cost_lines.select(&:stage_estimated?).sum(&:amount_minor_units), currency) %></dd></div>
+        <div><dt>Expected commission</dt><dd class="dd-type-mono"><%= money(@commissions.sum(&:amount_minor_units), currency) %></dd></div>
         <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(@amounts_due.sum(&:amount_minor_units), currency) %></dd></div>
       </dl>
+      <nav class="dd-segmented" aria-label="Break committed cost down">
+        <% [ [ "arrangement", "By arrangement" ], [ "booking", "By booking" ] ].each do |view, label| %>
+          <%= link_to label, departure_supplier_money_path(@departure, view:, anchor: "breakdown"), class: "dd-segmented-option dd-segmented-link", aria: { current: ("page" if view == @view) } %>
+        <% end %>
+      </nav>
     <% else %>
       <p class="dd-empty-copy">Set the departure's operating currency first.</p>
     <% end %>
   </div>
 </article>
+
+<% if currency %>
+  <article class="dd-panel" id="breakdown">
+    <header class="dd-panel-header"><h2 class="dd-panel-title"><%= @view == "booking" ? "By booking" : "By arrangement" %></h2></header>
+    <div class="dd-panel-body dd-stack">
+      <% if @cost_lines.empty? %>
+        <p class="dd-empty-copy">No cost recorded yet. A booking's cost is proposed from the rate table when it is confirmed.</p>
+      <% elsif @view == "booking" %>
+        <% by_booking = committed.group_by(&:client_booking) %>
+        <% commissions = @commissions.group_by(&:client_booking) %>
+        <% bookings = (by_booking.keys.compact + commissions.keys).uniq.sort_by(&:booking_reference) %>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table">
+            <caption class="dd-visually-hidden">Committed supplier cost and expected commission by booking</caption>
+            <thead><tr><th scope="col">Booking</th><th scope="col">Supplier cost</th><th scope="col" class="num">Committed</th><th scope="col" class="num">Expected commission</th><th scope="col" class="num">Net</th></tr></thead>
+            <tbody>
+              <% bookings.each do |booking| %>
+                <% lines = by_booking.fetch(booking, []) %>
+                <% cost = lines.sum(&:amount_minor_units) %>
+                <% commission = commissions.fetch(booking, []).sum(&:amount_minor_units) %>
+                <tr>
+                  <th scope="row"><%= link_to booking.booking_reference, client_booking_path(booking, step: "confirm", anchor: "supplier-cost"), class: "dd-type-mono" %><span class="dd-cell-subtext"><%= booking.client_trip.client.source.display_name %></span></th>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Supplier cost </span><%= lines.map { |line| "#{line.supplier_arrangement.supplier.display_name_for_directory}: #{line.description}" }.to_sentence.presence || "—" %></td>
+                  <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Committed </span><%= money(cost, currency) %></td>
+                  <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Expected commission </span><%= money(commission, currency) %></td>
+                  <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Net </span><%= money(cost - commission, currency) %></td>
+                </tr>
+              <% end %>
+              <% unbooked = by_booking.fetch(nil, []) %>
+              <% if unbooked.any? %>
+                <tr>
+                  <th scope="row">Not tied to a booking<span class="dd-cell-subtext">Unsold space and arrangement-wide cost</span></th>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Supplier cost </span><%= unbooked.map { |line| "#{line.supplier_arrangement.supplier.display_name_for_directory}: #{line.description}" }.to_sentence %></td>
+                  <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Committed </span><%= money(unbooked.sum(&:amount_minor_units), currency) %></td>
+                  <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Expected commission </span>—</td>
+                  <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Net </span><%= money(unbooked.sum(&:amount_minor_units), currency) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row" colspan="2">Total</th>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Committed </span><%= money(committed.sum(&:amount_minor_units), currency) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Expected commission </span><%= money(@commissions.sum(&:amount_minor_units), currency) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Net </span><%= money(committed.sum(&:amount_minor_units) - @commissions.sum(&:amount_minor_units), currency) %></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <% if @cost_lines.any?(&:stage_estimated?) %><p class="dd-field-hint">Estimated cost isn't committed, so it isn't counted here; see By arrangement.</p><% end %>
+      <% else %>
+        <% @arrangements.each do |arrangement| %>
+          <% lines = @cost_lines.select { |line| line.supplier_arrangement_id == arrangement.id } %>
+          <% next if lines.empty? && @commissions.none? { |commission| commission.supplier_arrangement_id == arrangement.id } %>
+          <section class="dd-stack" aria-labelledby="money-<%= arrangement.id %>">
+            <div class="dd-section-header">
+              <h3 class="dd-section-title" id="money-<%= arrangement.id %>"><%= link_to arrangement.supplier.display_name_for_directory, departure_arrangement_path(@departure, arrangement, anchor: "supplier-cost") %> <span class="dd-cell-subtext dd-type-mono"><%= arrangement.arrangement_reference %></span></h3>
+            </div>
+            <dl class="dd-definition-list">
+              <div><dt>Committed</dt><dd class="dd-type-mono"><%= money(lines.select(&:stage_committed?).sum(&:amount_minor_units), currency) %></dd></div>
+              <div><dt>Estimated</dt><dd class="dd-type-mono"><%= money(lines.select(&:stage_estimated?).sum(&:amount_minor_units), currency) %></dd></div>
+              <div><dt>Expected commission</dt><dd class="dd-type-mono"><%= money(@commissions.select { |commission| commission.supplier_arrangement_id == arrangement.id }.sum(&:amount_minor_units), currency) %></dd></div>
+              <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(@amounts_due.select { |amount| amount.supplier_arrangement_id == arrangement.id }.sum(&:amount_minor_units), currency) %></dd></div>
+            </dl>
+            <% if lines.any? %>
+              <div class="dd-table-wrap">
+                <table class="dd-table dd-stacked-table">
+                  <caption class="dd-visually-hidden"><%= arrangement.supplier.display_name_for_directory %> cost lines</caption>
+                  <thead><tr><th scope="col">Cost</th><th scope="col">For</th><th scope="col">Stage</th><th scope="col" class="num">Amount</th></tr></thead>
+                  <tbody>
+                    <% lines.sort_by { |line| [ line.client_booking&.booking_reference.to_s, line.created_at ] }.each do |line| %>
+                      <tr>
+                        <th scope="row"><%= line.description %></th>
+                        <td><span class="dd-cabin-field-label dd-visually-hidden">For </span><%= line.client_booking ? "#{line.client_booking.booking_reference} · #{line.client_booking.client_trip.client.source.display_name}" : cost_line_covers(line) %></td>
+                        <td><span class="dd-cabin-field-label dd-visually-hidden">Stage </span><%= stage_badge(line) %></td>
+                        <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Amount </span><%= money(line.amount_minor_units, currency) %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+          </section>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
 
 <article class="dd-panel" id="amounts-due">
   <header class="dd-panel-header"><h2 class="dd-panel-title">Amounts due</h2></header>

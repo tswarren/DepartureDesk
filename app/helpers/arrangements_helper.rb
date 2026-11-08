@@ -45,6 +45,37 @@ module ArrangementsHelper
     group.represented_as_unit_shells? ? "#{pluralize(group.quantity, "unit")}#{", #{pluralize(group.positions_per_unit, "position")} each" if group.positions_per_unit}" : pluralize(group.quantity, "place")
   end
 
+  # A hotel's one-night groups, shown as a grid of nights by room type when
+  # there are at least two.
+  def night_grid_groups(groups)
+    nights = groups.select(&:night_kind)
+    nights.size >= 2 ? nights : []
+  end
+
+  # A night grid cell: what is left, or the promise when there is no balance.
+  def night_cell_summary(group, arrangement)
+    return "On request" if group.availability_promise == "on_request"
+    return availability_promise_label(group.availability_promise) unless group.numeric?
+    return "#{group.quantity || "?"} planned" if arrangement.draft?
+
+    if group.represented_as_unit_shells?
+      statuses = group.unit_shells.map(&:status).tally
+      "#{statuses.fetch("available", 0)} of #{group.unit_shells.count { |shell| shell.status != "returned" }} left"
+    else
+      supply = group.capacity_projection&.current_supplier_capacity || 0
+      allocated = group.inventory_allocations.select(&:consuming?).sum(&:quantity)
+      "#{[ supply - allocated, 0 ].max} of #{supply} left"
+    end
+  end
+
+  def night_cell_detail(group, arrangement)
+    return "No count" if !group.numeric? || arrangement.draft?
+    return "Each room tracked" if group.represented_as_unit_shells?
+
+    allocated = group.inventory_allocations.select(&:consuming?).sum(&:quantity)
+    allocated.positive? ? "#{allocated} held or reserved" : "None held"
+  end
+
   # S-17: what the supplier provides now. On request, Rate only and no shared
   # inventory show no balance (INV-04); a Draft group shows what is planned.
   def group_supply_label(group, arrangement)

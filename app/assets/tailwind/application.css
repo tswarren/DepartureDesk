@@ -2410,6 +2410,8 @@
   .dd-segmented-option + .dd-segmented-option { margin-left: -1px; }
   .dd-segmented-option:first-child { border-radius: var(--dd-radius-md) 0 0 var(--dd-radius-md); }
   .dd-segmented-option:last-child { border-radius: 0 var(--dd-radius-md) var(--dd-radius-md) 0; }
+  .dd-segmented-link { text-decoration: none; color: var(--dd-text); }
+  .dd-segmented-link[aria-current="page"] { border-color: var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 600; position: relative; }
   .dd-segmented-option:has(input:checked) { border-color: var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 600; position: relative; }
   .dd-rate-methods { border: 0; margin: 0; padding: 0; }
   .dd-rate-inline, .dd-rate-shared { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; }

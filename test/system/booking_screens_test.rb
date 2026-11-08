@@ -119,16 +119,27 @@ class BookingScreensTest < ApplicationSystemTestCase
     sign_in_from_browser(@scenario.baseline_staff, password: M1DirectoryScenario::PASSWORD)
     visit client_booking_path(booking, step: "rooms")
     within("#nights-#{nights.id}") do
-      select "Harbor Double", from: "Room"
-      select "Nov 1", from: "From the night of"
+      assert_checked_field "The same room as Nov 5 hotel room"
+      assert_no_select "Room"
+      select "Nov 2", from: "From the night of"
       select "Nov 3", from: "Through the night of"
-      assert_text "The same travelers as"
       click_button "Add nights"
     end
     assert_text "Nights added."
     within("#choice-#{nights.id}") do
-      %w[Nov\ 1 Nov\ 2 Nov\ 3].each { |night| assert_text "#{night} Harbor Double" }
+      %w[Nov\ 2 Nov\ 3].each { |night| assert_text "#{night} Garden Queen" }
     end
+
+    within("#nights-#{nights.id}") do
+      choose "One room with the travelers I choose"
+      select "Harbor Double", from: "Room"
+      select "Nov 1", from: "From the night of"
+      select "Nov 1", from: "Through the night of"
+      assert_text "The same travelers as"
+      click_button "Add nights"
+    end
+    assert_text "Nights added."
+    within("#choice-#{nights.id}") { assert_text "Nov 1 Harbor Double" }
   end
 
   test "staff add a new traveler and a traveler found in the agency without leaving the booking" do

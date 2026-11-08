@@ -39,6 +39,7 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       new_departure_arrangement_trigger_event_path(departure, hotel),
       new_departure_arrangement_amount_due_path(departure, hotel),
       departure_supplier_money_path(departure),
+      departure_supplier_money_path(departure, view: "booking"),
       task_path(@alpha.arrangements.fetch(:excursion).deadlines.find_by!(deadline_type: "final_count").task)
     ]
 
@@ -167,9 +168,9 @@ class ArrangementScreensTest < ApplicationSystemTestCase
     resize_window(1400)
     click_button "Add rooms"
     assert_text "2 groups added."
-    within("#inventory") do
-      assert_text "Nov 8 Ocean King"
-      assert_text "Nov 9 Ocean King"
+    within("#inventory table.dd-night-grid") do
+      assert_selector "a[aria-label='Nov 8 Ocean King: 3 planned']"
+      assert_selector "a[aria-label='Nov 9 Ocean King: On request']"
     end
   end
 

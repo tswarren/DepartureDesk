@@ -1,0 +1,32 @@
+<%# One-night groups, such as a hotel's rooms by night, as a grid of nights by room type (INV-01, INV-13). Each cell links its group. %>
+<%# locals: (departure:, arrangement:, groups:) -%>
+<% kinds = groups.map(&:night_kind).uniq %>
+<% by_cell = groups.index_by { |group| [ group.starts_on, group.night_kind ] } %>
+<% nights = groups.map(&:starts_on).uniq.sort %>
+<div class="dd-table-wrap">
+  <table class="dd-table dd-stacked-table dd-night-grid">
+    <caption class="dd-visually-hidden"><%= arrangement.supplier.display_name_for_directory %> rooms by night</caption>
+    <thead>
+      <tr><th scope="col">Night</th><% kinds.each do |kind| %><th scope="col"><%= kind %></th><% end %></tr>
+    </thead>
+    <tbody>
+      <% nights.each do |night| %>
+        <tr>
+          <th scope="row"><%= night.strftime("%a %b %-d") %></th>
+          <% kinds.each do |kind| %>
+            <% group = by_cell[[ night, kind ]] %>
+            <td>
+              <span class="dd-cabin-field-label dd-visually-hidden"><%= kind %> </span>
+              <% if group.nil? %>
+                <span class="dd-cell-subtext">Not held</span>
+              <% else %>
+                <%= link_to night_cell_summary(group, arrangement), departure_arrangement_group_path(departure, arrangement, group), aria: { label: "#{group.label}: #{night_cell_summary(group, arrangement)}" } %>
+                <span class="dd-cell-subtext"><%= night_cell_detail(group, arrangement) %></span>
+              <% end %>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

@@ -11,10 +11,13 @@
     <h1 class="dd-page-title"><span class="dd-type-mono"><%= @booking.booking_reference %></span></h1>
     <p class="dd-page-description"><%= client_name %> · <%= @booking.offering.name %> on <%= departure.name %></p>
   </div>
-  <% if manage %>
+  <% if Current.agency_user.permitted?(:manage_bookings) %>
     <div class="dd-page-actions">
-      <%= button_to "Discard booking", client_booking_discard_path(@booking), class: "dd-button dd-button--quiet",
-            form: { data: { turbo_confirm: "Discard #{@booking.booking_reference}? Its held space is released, and the reference is not reused." } } %>
+      <%= button_to "New booking on this trip", client_trip_bookings_path(@trip), class: "dd-button dd-button--secondary" %>
+      <% if manage %>
+        <%= button_to "Discard booking", client_booking_discard_path(@booking), class: "dd-button dd-button--quiet",
+              form: { data: { turbo_confirm: "Discard #{@booking.booking_reference}? Its held space is released, and the reference is not reused." } } %>
+      <% end %>
     </div>
   <% end %>
 </header>
@@ -44,6 +47,17 @@
 </article>
 
 <%= render "client_bookings/steps", booking: @booking, progress: @progress, step: @step %>
+
+<% unless @booking.status_draft? || @step == "confirm" %>
+  <p class="dd-alert dd-alert--info" role="status">
+    <% if @booking.status_confirmed? %>
+      This booking is confirmed, so its travelers and services can't change here: a change to a confirmed booking is an amendment, which isn't built yet.
+      To book more for <%= @trip.client.source.display_name %>, start a new booking on this trip.
+    <% else %>
+      This booking is <%= @booking.status %>; nothing on it can change.
+    <% end %>
+  </p>
+<% end %>
 
 <% if @step == "travelers" %>
   <%= render "client_bookings/step_travelers", booking: @booking, trip: @trip, manage:, linked_travelers: @linked_travelers, traveler_types: @traveler_types,
