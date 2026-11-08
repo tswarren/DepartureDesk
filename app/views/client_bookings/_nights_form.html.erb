@@ -5,12 +5,40 @@
 <% nights = options.map { |option| option.inventory_group.starts_on }.uniq.sort %>
 <% defaults = default_occupants(booking, choice, choices) %>
 <% form_id = "nights-#{choice.id}" %>
-<%= form_with url: client_booking_selection_range_path(booking), scope: :selection_range, class: "dd-form", id: form_id do |form| %>
+<%# The booking's rooms of an included hotel room choice, each with a type these nights offer. %>
+<% rooms = booking.choice_selections.select { |selection| selection.per_unit? && selection.choice.included? && selection.choice.id != choice.id && kinds.include?(selection.inventory_group.night_kind) } %>
+<% room_choice = rooms.first&.choice %>
+<% rooms = rooms.select { |selection| selection.choice.id == room_choice&.id }.sort_by(&:unit_number) %>
+<% travelers = booking.booking_travelers.index_by(&:id) %>
+<%= form_with url: client_booking_selection_range_path(booking), scope: :selection_range, class: "dd-form", id: form_id, data: { controller: "conditional-fields" } do |form| %>
   <%= form.hidden_field :choice_id, value: choice.id, id: nil %>
   <%= hidden_field_tag :choice_id, choice.id, id: nil %>
   <h4 class="dd-section-title">Add nights</h4>
+  <% if rooms.any? %>
+    <div class="dd-choice-group" role="radiogroup" aria-label="Which rooms">
+      <label class="dd-choice">
+        <%= form.radio_button :mode, "rooms", checked: true, id: "#{form_id}-mode-rooms", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+        <span>The same <%= rooms.one? ? "room" : "#{rooms.size} rooms" %> as <%= room_choice.name %></span>
+      </label>
+      <label class="dd-choice">
+        <%= form.radio_button :mode, "one", id: "#{form_id}-mode-one", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+        <span>One room with the travelers I choose</span>
+      </label>
+    </div>
+    <ul class="dd-plain-list" data-conditional-fields-target="option" data-show-for="rooms">
+      <% rooms.each_with_index do |room, index| %>
+        <li>
+          <%= room.label %>: <%= room.occupants.map { |occupant| travelers[occupant.booking_traveler_id]&.display_name }.compact.to_sentence.presence || "no travelers yet" %>
+          <%= hidden_field_tag "selection_range[rooms][#{index}][kind]", room.inventory_group.night_kind, id: nil %>
+          <% room.occupants.each do |occupant| %><%= hidden_field_tag "selection_range[rooms][#{index}][occupant_ids][]", occupant.booking_traveler_id, id: nil %><% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <%= form.hidden_field :mode, value: "one", id: nil %>
+  <% end %>
   <div class="dd-rate-inline">
-    <div class="dd-field-group">
+    <div class="dd-field-group" <%= 'data-conditional-fields-target="option" data-show-for="one"'.html_safe if rooms.any? %>>
       <%= form.label :kind, "Room", class: "dd-label", for: "#{form_id}-kind" %>
       <%= form.select :kind, kinds, {}, id: "#{form_id}-kind", class: "dd-field" %>
     </div>
@@ -24,7 +52,7 @@
     </div>
   </div>
   <% unless booking.booking_travelers.empty? %>
-    <fieldset class="dd-form-section">
+    <fieldset class="dd-form-section" <%= 'data-conditional-fields-target="option" data-show-for="one"'.html_safe if rooms.any? %>>
       <legend class="dd-section-title">Who is in the room, in guest order</legend>
       <% if defaults.note %><p class="dd-field-hint"><%= defaults.note %> Change it if they split up.</p><% end %>
       <div class="dd-choice-group">
