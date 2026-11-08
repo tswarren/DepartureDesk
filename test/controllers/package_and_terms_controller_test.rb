@@ -60,11 +60,13 @@ class PackageAndTermsControllerTest < ActionDispatch::IntegrationTest
     get departure_client_terms_path(@departure)
     assert_select "nav[aria-label='Departure sections'] a[aria-current=page]", text: "Client terms"
     assert_select "#wording h2", text: "Version 1"
-    assert_select "#cancellation li", text: "120 days or more before departure: 10% of the service's charge"
-    assert_select "#cancellation li", text: "Up to departure: 100% of the service's charge"
-    assert_select "#payment-schedule th", text: "Deposit"
-    assert_select "#payment-schedule td", text: /\$500\.00 per cruise unit/
-    assert_select "#payment-schedule td", text: /120 days before departure/
+    starts = @departure.starts_on
+    date = ->(days) { (starts - days).strftime("%b %-d, %Y") }
+    assert_select "#cancellation li", text: "120 days or more before departure (by #{date.call(120)}): 10% of the service's charge"
+    assert_select "#cancellation li", text: "61 to 119 days before departure (#{date.call(119)} to #{date.call(61)}): 50% of the service's charge"
+    assert_select "#cancellation li", text: "60 days or fewer before departure (from #{date.call(60)}): 100% of the service's charge"
+    assert_select "#payment-schedule li", text: /Deposit\s+\$500\.00 for each cruise unit, due when the booking is confirmed\. It doesn't count as acceptance\./
+    assert_select "#payment-schedule li", text: /Whatever remains, due 120 days before departure: #{Regexp.escape(date.call(120))}\./
     assert_select "#payment-schedule a", text: "Edit", count: 0
   end
 

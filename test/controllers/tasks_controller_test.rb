@@ -33,6 +33,22 @@ class TasksControllerTest < ActionDispatch::IntegrationTest
     assert_equal Date.new(2027, 10, 20), deadline.task.reload.due_on
   end
 
+  test "the deadline form asks what is due and by when, and a blank name takes what is due (SUP-22)" do
+    sign_in_as @admin
+    get new_departure_arrangement_deadline_path(@departure, @arrangement)
+    assert_select "label", text: "What is due"
+    assert_select "label", text: "By"
+    assert_select "input[type=checkbox][name='supplier_deadline[actionable]'][checked]"
+    assert_select "[role=status]", text: "Choose what is due and when."
+
+    post departure_arrangement_deadlines_path(@departure, @arrangement), params: { supplier_deadline: {
+      deadline_type: "cancellation_tier_cutoff", actionable: "false", description: "", due_on: "2027-07-09"
+    } }
+    deadline = @arrangement.deadlines.sole
+    assert_equal [ "Cancellation-tier cutoff", false ], [ deadline.description, deadline.actionable ]
+    assert_nil deadline.task
+  end
+
   test "an invalid deadline re-renders the form" do
     sign_in_as @admin
     post departure_arrangement_deadlines_path(@departure, @arrangement), params: { supplier_deadline: { deadline_type: "other", description: "No date", due_on: "" } }

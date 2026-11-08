@@ -36,6 +36,27 @@ class ArrangementConfirmationTest < ActionDispatch::IntegrationTest
     assert_equal 9, @group.reload.unit_shells.count, "the resubmitted form recorded once"
   end
 
+  test "a pool's supply change form says what happened, and a mistake is corrected against its entry (INV-26)" do
+    UpdateSupplierArrangement.new(agency: @agency, actor: @admin, departure: @departure, arrangement: @arrangement,
+      attributes: { group_reference: "GRP-9", payee_account_id: @payee.id }, lock_version: @arrangement.lock_version).call
+    seats = SaveInventoryGroup.new(agency: @agency, actor: @admin, departure: @departure, arrangement: @arrangement,
+      attributes: { label: "Coach seats", service_category: "transportation", representation: "capacity_pool", quantity: "40", starts_on: "2027-11-06", ends_on: "2027-11-06" }).call.record
+    ConfirmSupplierArrangement.new(agency: @agency, actor: @admin, departure: @departure, arrangement: @arrangement.reload,
+      confirmed_on: "2026-11-01", lock_version: @arrangement.lock_version).call
+    sign_in_as @admin
+    get departure_arrangement_group_path(@departure, @arrangement, seats)
+    assert_select "#supply-change legend", text: "What happened?"
+    assert_select "#supply-change p", text: /40 places from the supplier now · 0 held or reserved by bookings · 40 left/
+    assert_select "#supply-change label", text: /Fix a mistake/
+    opening = seats.capacity_events.sole
+
+    post departure_arrangement_group_capacity_events_path(@departure, @arrangement, seats), params: {
+      kind: "correction", direction: "down", quantity: "2", corrects_event_id: opening.id, evidence_note: "We entered 40; the coach seats 38.", idempotency_key: "c-1"
+    }
+    assert_redirected_to departure_arrangement_group_path(@departure, @arrangement, seats, anchor: "capacity")
+    assert_equal 38, seats.reload.capacity_events.sum(&:signed_quantity)
+  end
+
   test "Confirm without a date re-renders with the error" do
     UpdateSupplierArrangement.new(agency: @agency, actor: @admin, departure: @departure, arrangement: @arrangement,
       attributes: { group_reference: "GRP-9", payee_account_id: @payee.id }, lock_version: @arrangement.lock_version).call

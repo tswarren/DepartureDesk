@@ -43,8 +43,11 @@ class SupplierDeadlinesController < ApplicationController
     @deadline = @arrangement.deadlines.find(params[:id])
   end
 
+  # A blank name takes what is due, such as "Final count or manifest".
   def deadline_params
-    params.require(:supplier_deadline).permit(*FIELDS).to_h.symbolize_keys
+    values = params.require(:supplier_deadline).permit(*FIELDS).to_h.symbolize_keys
+    values[:description] = helpers.deadline_type_label(values[:deadline_type]) if values[:description].blank? && values[:deadline_type].in?(SupplierDeadline::TYPES)
+    values
   end
 
   def render_error(error, template)
