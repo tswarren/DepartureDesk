@@ -1,0 +1,46 @@
+<% content_for :title, "Record the supplier's acceptance · DepartureDesk" %>
+<% booking = @reservation.client_booking %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "Record acceptance", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier reservation · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title">Record the supplier's acceptance</h1>
+    <p class="dd-page-description"><%= booking.booking_reference %>: <%= @reservation.units.map { |unit| unit.choice_selection.label }.to_sentence %>. The client's accepted price doesn't change.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The acceptance wasn't recorded</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangement_supplier_reservation_acceptance_path(@departure, @arrangement, @reservation), scope: :supplier_reservation, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= hidden_field_tag :lock_version, @reservation.lock_version, id: nil %>
+      <div class="dd-rate-inline">
+        <div class="dd-field-group">
+          <%= form.label :supplier_reference, "Supplier reference", class: "dd-label" %>
+          <%= form.text_field :supplier_reference, value: @values["supplier_reference"], maxlength: SupplierReservation::REFERENCE_LIMIT, autocomplete: "off", class: "dd-field", aria: { describedby: "reference_hint" } %>
+          <p class="dd-field-hint" id="reference_hint">The supplier's own confirmation or reservation number. It's kept beside the booking's reference, never in its place.</p>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :responded_on, "Response date", class: "dd-label" %>
+          <%= form.date_field :responded_on, value: @values["responded_on"], class: "dd-field" %>
+        </div>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :response_note, "Note (optional)", class: "dd-label" %>
+        <%= form.text_area :response_note, value: @values["response_note"], rows: 2, maxlength: SupplierReservation::NOTE_LIMIT, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Record acceptance", class: "dd-button", name: nil %>
+        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-reservations"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

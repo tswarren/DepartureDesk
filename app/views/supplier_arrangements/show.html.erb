@@ -53,6 +53,10 @@
 
 <%= render "supplier_deadlines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
 
+<% if Current.agency_user.permitted?(:view_supplier_reservations) && !@arrangement.draft? %>
+  <%= render "supplier_reservations/panel", departure: @departure, arrangement: @arrangement %>
+<% end %>
+
 <% if can_view_supplier_costs? %>
   <%= render "supplier_rate_lines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
   <%= render "supplier_money/panel", departure: @departure, arrangement: @arrangement, manage: manage %>

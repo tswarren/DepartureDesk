@@ -37,6 +37,7 @@
               <th scope="col" class="num">Travelers</th>
               <th scope="col" class="num">Subtotal</th>
               <th scope="col">Space</th>
+              <th scope="col">Supplier</th>
             </tr>
           </thead>
           <tbody>
@@ -50,6 +51,7 @@
                 <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Travelers </span><%= booking.booking_travelers.size %></td>
                 <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Subtotal </span><%= booking_money(booking.total_minor_units, booking.currency) %></td>
                 <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= booking_hold_badge(booking) %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Supplier </span><%= booking_supplier_summary(booking) %></td>
               </tr>
             <% end %>
           </tbody>
@@ -58,6 +60,7 @@
               <th scope="row" colspan="5">Total, not counting discarded bookings</th>
               <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Travelers </span><%= counted.sum { |booking| booking.booking_travelers.size } %></td>
               <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Subtotal </span><%= booking_money(counted.sum(&:total_minor_units), @departure.operating_currency) %></td>
+              <td></td>
               <td></td>
             </tr>
           </tfoot>

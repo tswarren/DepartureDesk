@@ -49,6 +49,18 @@ module BookingsHelper
     end
   end
 
+  # The roster's supplier column: services awaiting the supplier, then
+  # those still to request, else a dash (INV-37).
+  def booking_supplier_summary(booking)
+    statuses = booking.choice_selections.filter_map { |selection| supplier_status(selection, booking) }
+    awaiting = statuses.count { |status| status.label.in?([ "Awaiting supplier", "Requested" ]) }
+    to_request = statuses.count(&:needs_request)
+    parts = []
+    parts << status_badge("#{awaiting} #{booking.status_confirmed? ? "awaiting supplier" : "requested"}", modifier: "warning") if awaiting.positive?
+    parts << "#{to_request} to request" if to_request.positive?
+    parts.any? ? safe_join(parts, " ") : "—"
+  end
+
   def booking_status_badge(booking)
     status_badge(booking.status_label, modifier: STATUS_MODIFIERS.fetch(booking.status))
   end

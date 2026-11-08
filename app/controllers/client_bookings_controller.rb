@@ -9,7 +9,8 @@ class ClientBookingsController < ApplicationController
     @booking = Current.agency.client_bookings
       .includes(:offering, :created_by, :client_terms_version, client_trip: [ :departure, { client: %i[client_person client_organization] } ],
         booking_travelers: %i[traveler traveler_type],
-        choice_selections: [ :occupants, { option: [ :choice, :inventory_group ] } ],
+        choice_selections: [ :occupants, :inventory_allocations, { supplier_reservation_units: :supplier_reservation },
+                             { option: [ :choice, { inventory_group: { supplier_arrangement: :supplier } } ] } ],
         inventory_allocations: %i[inventory_group unit_shell choice_selection],
         price_lines: [ :booking_traveler, { choice_selection: { option: :choice } } ],
         acceptances: [ :recorded_by, :client_terms_version, { evidence_attachment: :blob } ], cost_lines: :schedule_lines,
