@@ -16,6 +16,15 @@
       <p class="dd-empty-copy">No inventory groups yet. Add one for each room type, cabin category, session or date the supplier treats separately.</p>
     </div>
   <% else %>
+    <% night_groups = night_grid_groups(groups.to_a) %>
+    <% if night_groups.any? %>
+      <div class="dd-panel-body dd-stack">
+        <h3 class="dd-section-title">Rooms by night</h3>
+        <%= render "inventory_groups/night_grid", departure:, arrangement:, groups: night_groups %>
+      </div>
+    <% end %>
+    <% groups = groups.to_a - night_groups %>
+    <% if groups.any? %>
     <div class="dd-table-wrap">
       <table class="dd-table">
         <thead>
@@ -42,5 +51,6 @@
         </tbody>
       </table>
     </div>
+    <% end %>
   <% end %>
 </article>

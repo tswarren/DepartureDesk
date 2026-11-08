@@ -183,6 +183,20 @@ Log each finding as you go. Disposition is one of:
 | 6 | C to E, setup | Nothing said what confirming an arrangement or marking Ready to sell still needed; inventory and package choices asked for every rule each time | Ready to confirm? and Ready to sell? checklists; presets for inventory and choices; hotel rooms by night; extra nights in one go | Both | Fix now: [#265](https://github.com/tswarren/DepartureDesk/pull/265), merged |
 | 7 | C to E, changes and terms | Capacity changes were technical terms; the deadline form asked for everything at once; client terms read as table cells | Supply changes as what happened; a simpler deadline form with a sentence; client terms as sentences with dates | Both | Fix now: [#266](https://github.com/tswarren/DepartureDesk/pull/266), merged |
 
+### Second run, 2026-11-08
+
+Rerun after build step 7, with the fixes from the first run in place.
+
+| # | Part and step | What happened | What was expected | Width | Disposition |
+| --- | --- | --- | --- | --- | --- |
+| 1 | After sign-in | A second sign-in page appears inside the application shell | Land on My tasks or the dashboard | All | Backlog: the sign-in page doesn't send a signed-in user on (S-01) |
+| 2 | B3, Departure team | No way to add more team members | An obvious path to add them | All | Backlog: the add form hides when no one else is left to add; the development seed has one user (ACC-09, OPS-12) |
+| 3 | C6, Supplier money tab | No breakdown of committed money | — | All | Decided: by arrangement and by booking, as two views of the tab. Fix now |
+| 4 | D2, the hotel | Rooms and nights are hard to read | The layout discussed earlier | All | Decided: a grid of nights by room type on the Inventory tab and the hotel arrangement. Fix now |
+| 5 | G11, Inventory tab | Nov 4 didn't change after the nights were added | Nov 4 shows one used | All | The Rowans' Nov 4 Garden Queen nights were never added; same cause as 6 |
+| 6 | G14, the Rowans | Total $8,885 | $9,265 | All | Fix now: the nights form ticked all three Rowans for one Garden Queen, which holds two, so Nov 4 was refused. Extra nights now follow the booking's hotel rooms |
+| 7 | I1, a new booking | A confirmed booking couldn't add or change travelers, with no way on to a new booking | A confirmed booking doesn't change; a new booking is easy to start | All | Fix now: a confirmed booking says why, and every booking offers a new booking on its trip |
+
 ## Exit
 
 The walkthrough is done when every part has been run at both widths, the four questions are answered, and every finding has a disposition, with each "fix now" merged. Build step 7, supplier reservations, starts after that.

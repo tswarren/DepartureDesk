@@ -41,7 +41,15 @@
       <% if groups.empty? %>
         <p class="dd-empty-copy">No inventory groups yet.</p>
       <% end %>
-      <% shell_groups, other_groups = groups.partition { |group| !arrangement.draft? && group.represented_as_unit_shells? && group.numeric? } %>
+      <% night_groups = night_grid_groups(groups) %>
+      <% if night_groups.any? %>
+        <section class="dd-stack" aria-labelledby="nights-<%= arrangement.id %>">
+          <h3 class="dd-section-title" id="nights-<%= arrangement.id %>">Rooms by night</h3>
+          <p class="dd-page-description">Rooms left each night by room type. Open a night for its rooms, holds and supply changes.</p>
+          <%= render "inventory_groups/night_grid", departure: @departure, arrangement:, groups: night_groups %>
+        </section>
+      <% end %>
+      <% shell_groups, other_groups = (groups - night_groups).partition { |group| !arrangement.draft? && group.represented_as_unit_shells? && group.numeric? } %>
       <% shell_groups.each do |group| %>
         <section class="dd-stack" aria-labelledby="group-<%= group.id %>">
           <h3 class="dd-section-title" id="group-<%= group.id %>"><%= link_to group.label, departure_arrangement_group_path(@departure, arrangement, group) %></h3>
