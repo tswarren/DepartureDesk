@@ -2422,6 +2422,7 @@
   .dd-booking-step--done .dd-booking-step-note { color: var(--dd-success-text); }
   .dd-booking-step[aria-current="step"] .dd-booking-step-note { color: var(--dd-text-on-dark-muted); }
   .dd-step-next { justify-content: flex-end; }
+  .dd-booking-steps-preview { list-style: decimal; margin: 0; padding-left: 1.25rem; display: grid; gap: 0.25rem; }
   @media (max-width: 40rem) {
     .dd-booking-steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }

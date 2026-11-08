@@ -177,7 +177,7 @@ Rails.application.routes.draw do
     resources :decisions, only: :create, controller: "departure_decisions"
     resource :inventory, only: :show, controller: "departure_inventories"
     # S-25: the Departure roster (BKG-06).
-    resources :bookings, only: :index, controller: "departure_bookings"
+    resources :bookings, only: %i[index new create], controller: "departure_bookings"
     resources :tasks, only: :index, controller: "departure_tasks"
     resource :supplier_money, only: :show, controller: "departure_supplier_money"
     # S-20 and S-21: the package and its client terms (BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31, CMN-09).

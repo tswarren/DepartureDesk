@@ -1,0 +1,105 @@
+<% content_for :title, "New booking · #{@departure.name} · DepartureDesk" %>
+<% offering = @departure.offerings.first %>
+<% can_create_client = Current.agency_user.permitted?(:manage_client_directory) %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Bookings", departure_bookings_path(@departure) ], [ "New booking", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @departure.name %> · Bookings</p>
+    <h1 class="dd-page-title">New booking</h1>
+    <p class="dd-page-description">Books <%= offering ? "the #{offering.name}" : "this Departure's package" %>. Choose the client responsible for it; the booking goes on their trip for this Departure, or a new one.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The booking wasn't started</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel" aria-labelledby="find-client-heading">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="find-client-heading">Who is it for?</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <%= form_with url: new_departure_booking_path(@departure), method: :get, class: "dd-form dd-rate-inline", role: "search" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :q, "Find a client", class: "dd-label" %>
+        <%= form.search_field :q, value: @query, class: "dd-field", autocomplete: "off", aria: { describedby: "client_search_hint" } %>
+        <p class="dd-field-hint" id="client_search_hint">A name, reference, email or phone; at least 2 characters.</p>
+      </div>
+      <%= form.submit "Search", class: "dd-button dd-button--secondary", name: nil %>
+    <% end %>
+    <% if @query.length >= 2 %>
+      <% if @clients.empty? %>
+        <p class="dd-empty-copy">No active client matches “<%= @query %>”.<%= " Add them below." if can_create_client %></p>
+      <% else %>
+        <ul class="dd-plain-list dd-payment-list" aria-label="Matching clients">
+          <% @clients.each do |client| %>
+            <% trip = client.client_trips.select { |candidate| candidate.departure_id == @departure.id }.max_by(&:created_at) %>
+            <% name = client.source.display_name %>
+            <li class="dd-payment-item">
+              <div>
+                <strong><%= name %></strong>
+                <p class="dd-cell-subtext">
+                  <%= client.client_reference %> · <%= client.client_organization ? "organization" : "person" %><% if client.travelers.any? %> · travels with <%= client.travelers.map(&:display_name).to_sentence %><% end %>
+                </p>
+                <p class="dd-cell-subtext"><%= trip ? "Has trip #{trip.trip_reference} on this Departure; the booking goes on it." : "A new trip is made for this Departure." %></p>
+              </div>
+              <%= button_to "Book for #{name}", departure_bookings_path(@departure), params: { client_id: client.id }, class: "dd-button dd-button--secondary" %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    <% end %>
+  </div>
+</article>
+
+<% if can_create_client %>
+  <article class="dd-panel" aria-labelledby="new-client-heading">
+    <header class="dd-panel-header"><h2 class="dd-panel-title" id="new-client-heading">Or a new client</h2></header>
+    <div class="dd-panel-body">
+      <%= form_with url: departure_bookings_path(@departure), scope: :client_person, class: "dd-form", data: { controller: "conditional-fields" } do |form| %>
+        <%= hidden_field_tag :q, @query, id: nil if @query.present? %>
+        <%= render "shared/duplicate_review" %>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :first_name, "First name", class: "dd-label" %>
+            <%= form.text_field :first_name, value: @person["first_name"], autocomplete: "off", class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :last_name, "Last name", class: "dd-label" %>
+            <%= form.text_field :last_name, value: @person["last_name"], autocomplete: "off", class: "dd-field" %>
+          </div>
+        </div>
+        <div class="dd-choice-group" role="group" aria-label="Also traveling">
+          <label class="dd-choice">
+            <%= form.radio_button :traveling, "1", checked: @person["traveling"] != "0", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+            <span>They are also traveling</span>
+          </label>
+          <label class="dd-choice">
+            <%= form.radio_button :traveling, "0", checked: @person["traveling"] == "0", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+            <span>They are not traveling</span>
+          </label>
+        </div>
+        <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="1">
+          <%= form.label :date_of_birth, "Date of birth (optional)", class: "dd-label" %>
+          <%= form.date_field :date_of_birth, value: @person["date_of_birth"], class: "dd-field", aria: { describedby: "client_person_date_of_birth_hint" } %>
+          <p class="dd-field-hint" id="client_person_date_of_birth_hint">Needed to confirm the booking; it can be added later.</p>
+        </div>
+        <div class="dd-form-actions">
+          <%= form.submit "Create client and start booking", class: "dd-button", name: nil %>
+        </div>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<article class="dd-panel" aria-labelledby="then-heading">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="then-heading">Then the booking, in four steps</h2></header>
+  <div class="dd-panel-body">
+    <ol class="dd-booking-steps-preview">
+      <% BookingProgress::LABELS.each_value do |label| %><li><%= label %></li><% end %>
+    </ol>
+  </div>
+</article>

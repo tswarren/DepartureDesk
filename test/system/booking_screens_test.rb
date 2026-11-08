@@ -78,4 +78,30 @@ class BookingScreensTest < ApplicationSystemTestCase
     assert_text "Space held."
     within("#status") { assert_text "Held until Jan 13, 2027, 11:59 p.m." }
   end
+
+  test "staff start a booking from the Bookings tab for a new client who is traveling" do
+    sign_in_from_browser(@scenario.baseline_staff, password: M1DirectoryScenario::PASSWORD)
+    visit departure_bookings_path(@alpha.departure)
+    click_link "New booking"
+    fill_in "Find a client", with: "Rivera"
+    click_button "Search"
+    assert_button "Book for Mateo Rivera"
+    [ 1400, 375 ].each do |width|
+      resize_window(width)
+      assert_no_page_overflow
+    end
+    resize_window(1400)
+
+    fill_in "First name", with: "Jun"
+    fill_in "Last name", with: "Okafor"
+    assert_field "Date of birth (optional)"
+    choose "They are not traveling"
+    assert_no_field "Date of birth (optional)"
+    choose "They are also traveling"
+    fill_in_html_date "Date of birth (optional)", "1988-04-12"
+    click_button "Create client and start booking"
+    assert_text "started on trip"
+    assert_selector "nav[aria-label='Booking steps'] a[aria-current=step]", text: /Travelers/
+    within("#travelers table") { assert_selector "th", text: "Jun Okafor" }
+  end
 end

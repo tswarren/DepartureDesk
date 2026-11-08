@@ -6,8 +6,11 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departure</p>
     <h1 class="dd-page-title"><%= @departure.name %></h1>
-    <p class="dd-page-description">Every booking on this Departure. Booking status, held space and supplier confirmation are separate facts. New bookings start from a client's trip.</p>
+    <p class="dd-page-description">Every booking on this Departure. Booking status, held space and supplier confirmation are separate facts.</p>
   </div>
+  <% if Current.agency_user.permitted?(:manage_bookings) %>
+    <div class="dd-page-actions"><%= link_to "New booking", new_departure_booking_path(@departure), class: "dd-button" %></div>
+  <% end %>
 </header>
 
 <%= render "departures/tabs", departure: @departure, current: :bookings %>
@@ -17,7 +20,7 @@
     <% if @bookings.empty? %>
       <div class="dd-empty-state">
         <h2 class="dd-empty-title">No bookings yet</h2>
-        <p class="dd-empty-copy">Create a trip on a client's profile for this Departure, then book its package from the trip.</p>
+        <p class="dd-empty-copy">Start one with New booking: choose the client, and the trip is made for you.</p>
       </div>
     <% else %>
       <% counted = @bookings.reject(&:status_discarded?) %>
