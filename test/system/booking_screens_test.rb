@@ -57,14 +57,22 @@ class BookingScreensTest < ApplicationSystemTestCase
     visit client_trip_path(trip)
     click_button "New booking"
     assert_text "created as a draft."
-    %w[Mateo Elena].each do |name|
-      within("#travelers") do
-        select "#{name} Rivera", from: "Traveler"
-        select "Adult", from: "Traveler type"
-        click_button "Add traveler"
-      end
-      within("#travelers table") { assert_selector "th", text: "#{name} Rivera" }
+    within("#add-travelers") do
+      assert_text "Mateo Rivera"
+      uncheck "Luca Rivera"
+      select "Adult", from: "Type for Mateo Rivera"
+      select "Adult", from: "Type for Elena Rivera"
+      click_button "Add ticked travelers"
     end
+    assert_text "Travelers added."
+    within("#travelers table") do
+      assert_selector "th", text: "Mateo Rivera"
+      assert_selector "th", text: "Elena Rivera"
+      assert_no_selector "th", text: "Luca Rivera"
+    end
+    find("button[aria-label='Move Elena Rivera up']").click
+    assert_text "Order updated."
+    within("#travelers tbody tr:first-child") { assert_text "Elena Rivera" }
     click_link "Next: rooms and options"
     cabin = @alpha.offering.choices.find_by!(name: "Cabin")
     within("#choice-#{cabin.id}") do

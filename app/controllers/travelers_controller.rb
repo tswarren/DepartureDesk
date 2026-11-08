@@ -25,7 +25,7 @@ class TravelersController < ApplicationController
     @relationship = params[:relationship].presence_in(TravelerLink::RELATIONSHIPS) || "other"
     result = SaveTraveler.new(agency: Current.agency, actor: Current.agency_user, attributes: traveler_params,
       link_client: @client, relationship: @relationship).call
-    redirect_to(@client ? client_profile_path_for(@client) : traveler_path(result.record), notice: "Traveler saved.")
+    redirect_to(return_path || (@client ? client_profile_path_for(@client) : traveler_path(result.record)), notice: "Traveler saved.")
   rescue AgencyCommand::Error => error
     @traveler = Current.agency.travelers.new(traveler_params.except("date_of_birth"))
     render_form_error(error, @traveler, :new, FIELD_LABELS)
@@ -51,7 +51,11 @@ class TravelersController < ApplicationController
 
   def set_link_client
     @client = Current.agency.clients.find(params[:client_id]) if params[:client_id].present?
+    @return_booking = @client.client_trips.flat_map(&:client_bookings).find { |booking| booking.id == params[:booking_id] } if @client && params[:booking_id].present?
   end
+
+  # Added from a booking's travelers step: back to that step.
+  def return_path = @return_booking && client_booking_path(@return_booking, step: "travelers", anchor: "travelers")
 
   def traveler_params = form_params(:traveler, TravelerCommandSupport::TRAVELER_FIELDS)
 end

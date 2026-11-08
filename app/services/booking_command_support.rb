@@ -78,6 +78,15 @@ module BookingCommandSupport
     end
   end
 
+  # Occupants' positions follow the booking's order and the travelers' types.
+  def reposition_occupants!(booking)
+    travelers = booking.booking_travelers.reload.to_a.sort_by(&:position)
+    booking.choice_selections.reload.each do |selection|
+      members = travelers.select { |traveler| selection.occupants.any? { |occupant| occupant.booking_traveler_id == traveler.id } }
+      position_occupants!(selection, members)
+    end
+  end
+
   # Question 14: price lines are proposed for contents that need one and
   # kept while those contents don't change. A change to an offering price
   # touches no line (BKG-23).

@@ -44,7 +44,10 @@ Rails.application.routes.draw do
   end
   # S-26: the booking workspace (BKG-05 to BKG-11, BKG-14 to BKG-16, BKG-45, CLT-13, CLT-15, INV-17 to INV-23).
   resources :client_bookings, path: "bookings", only: :show do
-    resources :travelers, only: %i[create update destroy], controller: "booking_travelers"
+    resources :travelers, only: %i[create update destroy], controller: "booking_travelers" do
+      resource :move, only: :create, controller: "booking_traveler_moves"
+    end
+    resource :traveler_batch, only: :create, controller: "booking_traveler_batches"
     resources :selections, only: %i[create update destroy], controller: "choice_selections"
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
     resource :discard, only: :create, controller: "booking_discards"

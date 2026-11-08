@@ -34,9 +34,9 @@ class DemonstrationD16Test < ApplicationSystemTestCase
     visit client_trip_path(trip)
     click_button "New booking"
     assert_text "created as a draft."
-    within("#travelers") do
-      fill_in "Or a placeholder", with: "Guest 2"
-      click_button "Add traveler"
+    within("#add-placeholder") do
+      fill_in "Placeholder", with: "Guest 2"
+      click_button "Add placeholder"
     end
     assert_text "Traveler added."
     within("nav[aria-label='Booking steps']") { click_link "Accept and confirm" }

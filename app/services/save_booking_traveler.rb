@@ -58,13 +58,4 @@ class SaveBookingTraveler < AgencyCommand
     result["position"] ||= booking.booking_travelers.maximum(:position).to_i + 1 if record.new_record?
     result
   end
-
-  # Occupants' positions follow the booking's order and the travelers' types.
-  def reposition_occupants!(booking)
-    travelers = booking.booking_travelers.reload.to_a
-    booking.choice_selections.reload.each do |selection|
-      members = travelers.select { |traveler| selection.occupants.any? { |occupant| occupant.booking_traveler_id == traveler.id } }
-      position_occupants!(selection, members)
-    end
-  end
 end

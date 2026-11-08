@@ -17,6 +17,7 @@
     <%= form_with model: @traveler, url: travelers_path, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
       <%= render "shared/form_errors", object: form.object %>
       <%= hidden_field_tag :client_id, @client.id if @client %>
+      <%= hidden_field_tag :booking_id, @return_booking.id if @return_booking %>
       <%= render "form", form: %>
       <% if @client %>
         <div class="dd-field-group">
