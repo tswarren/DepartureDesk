@@ -47,29 +47,71 @@ module SupplierMoneyHelper
     status_badge(STAGE_LABELS.fetch(line.stage), modifier: line.stage_committed? ? "info" : "neutral")
   end
 
-  def schedule_line_amount(line)
-    case line.amount_kind
-    when "fixed" then money(line.amount_minor_units, line.currency)
-    when "percentage_of_cost_line" then "#{trim_decimal(line.percentage)}% of #{line.cost_line.description}"
-    when "per_unit_count" then "#{money(line.rate_minor_units, line.currency)} per unit, times the count"
-    else "#{money(line.rate_minor_units, line.currency)} for each shell"
+  # What a payment is for and when it falls due, in one sentence: "$450 for
+  # each cabin, due when a client booking for that cabin is confirmed, or on
+  # Mar 1, 2027 for any cabin still unbooked."
+  def schedule_line_sentence(line)
+    unit = payment_unit_noun(line.supplier_arrangement, line.inventory_group)
+    "#{payment_how_much(line, unit)}, #{payment_when(line, unit)}."
+  end
+
+  # "cabin", "room" or "unit", from the group's service category, or the
+  # arrangement's when the payment covers every group.
+  def payment_unit_noun(arrangement, group = nil)
+    categories = group ? [ group.service_category ] : arrangement.inventory_groups.select(&:represented_as_unit_shells?).map(&:service_category).uniq
+    case categories
+    when [ "cruise" ] then "cabin"
+    when [ "hotel" ], [ "all_inclusive_resort" ] then "room"
+    else "unit"
     end
   end
 
-  def schedule_line_when(line)
-    trigger = TRIGGER_LABELS[line.trigger_type]
-    date = line.due_on&.to_fs(:long)
+  # The form's "when" choice for a saved line.
+  def payment_due_choice(line)
     case line.due_rule
-    when "fixed_date" then "On #{date}"
-    when "event" then "When: #{trigger}"
-    when "event_plus_days" then "#{pluralize(line.days_after, "day")} after: #{trigger}"
-    else "Earlier of #{trigger} and #{date}"
+    when "fixed_date" then "date"
+    when "event" then line.trigger_type == "client_booking_confirmed" ? "booked" : "after_event"
+    when "earlier_of" then "booked_or_date"
+    else "after_event"
     end
   end
+
+  # Events staff choose for "some days after an event"; booking confirmation has its own choices.
+  PAYMENT_EVENTS = %w[final_count_submitted rooming_list_submitted tickets_issued supplier_invoice_received arrangement_confirmed service_date other].freeze
+  PAYMENT_EVENT_PHRASES = {
+    "arrangement_confirmed" => "the supplier confirms the arrangement", "client_booking_confirmed" => "a client booking is confirmed",
+    "rooming_list_submitted" => "the rooming list is sent", "final_count_submitted" => "the final count is sent",
+    "tickets_issued" => "tickets are issued", "supplier_invoice_received" => "the supplier's invoice arrives",
+    "service_date" => "the service date", "other" => "the event is recorded"
+  }.freeze
 
   def amount_due_source(amount)
     amount.direct? ? "Recorded directly" : "Schedule line: #{amount.schedule_line.description}"
   end
 
   def trim_decimal(value) = value.to_s("F").sub(/\.0\z/, "")
+
+  private
+
+  def payment_how_much(line, unit)
+    case line.amount_kind
+    when "fixed" then money(line.amount_minor_units, line.currency)
+    when "per_shell" then "#{money(line.rate_minor_units, line.currency)} for each #{line.inventory_group ? "#{line.inventory_group.label} " : ""}#{unit}"
+    when "per_unit_count" then "#{money(line.rate_minor_units, line.currency)} for each one in the count"
+    else "#{trim_decimal(line.percentage)}% of #{line.cost_line.description}"
+    end
+  end
+
+  def payment_when(line, unit)
+    date = line.due_on&.strftime("%b %-d, %Y")
+    per_unit = line.amount_kind == "per_shell"
+    booking = line.trigger_type == "client_booking_confirmed"
+    event = booking && per_unit ? "a client booking for that #{unit} is confirmed" : PAYMENT_EVENT_PHRASES.fetch(line.trigger_type.to_s, "the event is recorded")
+    case line.due_rule
+    when "fixed_date" then "due #{date}"
+    when "event" then line.trigger_type == "service_date" ? "due on the service date" : "due when #{event}"
+    when "event_plus_days" then "due #{pluralize(line.days_after, "day")} after #{event}"
+    else booking && per_unit ? "due when #{event}, or on #{date} for any #{unit} still unbooked" : "due when #{event}, or on #{date} at the latest"
+    end
+  end
 end

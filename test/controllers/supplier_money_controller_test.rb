@@ -27,8 +27,9 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
 
     post departure_arrangement_schedule_lines_path(@departure, @hotel), params: { schedule_line: {
       description: "Late checkout on invoice", cost_line_id: cost.id, amount_kind: "percentage_of_cost_line", percentage: "100",
-      due_rule: "event", trigger_type: "supplier_invoice_received"
+      when: "after_event", trigger_type: "supplier_invoice_received", days_after: "0"
     } }
+    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-payments")
     line = @hotel.schedule_lines.find_by!(description: "Late checkout on invoice")
 
     post departure_arrangement_trigger_events_path(@departure, @hotel), params: { trigger_event: { event_type: "supplier_invoice_received", occurred_on: "2026-10-14", reference: "INV-77" } }
@@ -37,17 +38,46 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     get departure_arrangement_path(@departure, @hotel)
     assert_select "#supplier-cost th[scope=row]", text: "Late checkout"
     assert_select "#supplier-cost td", text: /\$40\.00 × 2 per unit\z/
-    assert_select "#supplier-cost li", text: /Supplier invoice received, October 14, 2026, ref INV-77/
-    assert_select "#supplier-cost td", text: /Schedule line: Late checkout on invoice\z/
+    assert_select "#supplier-payments li", text: /Late checkout on invoice\s+100% of Late checkout, due when the supplier's invoice arrives\./
+    assert_select "#supplier-payments li", text: /Supplier invoice received, October 14, 2026, ref INV-77/
+    assert_select "#supplier-payments td", text: /Schedule line: Late checkout on invoice\z/
   end
 
   test "an invalid amount re-renders with the error on its field" do
     sign_in_as @admin
     post departure_arrangement_schedule_lines_path(@departure, @hotel), params: { schedule_line: {
-      description: "Bad", amount_kind: "per_shell", rate: "1.234", due_rule: "fixed_date", due_on: "2027-01-01"
+      description: "Bad", amount_kind: "per_shell", rate: "1.234", when: "date", due_on: "2027-01-01"
     } }
     assert_response :unprocessable_entity
     assert_select "#form-error-summary a[href='#schedule_line_rate']", text: /Amount per unit must be an amount in USD/
+    assert_select "input[type=radio][name='schedule_line[when]'][value=date][checked]"
+    assert_select "input[type=radio][name='schedule_line[amount_kind]'][value=per_shell][checked]"
+  end
+
+  test "the payment form maps each due choice to a rule, and the panel says it in a sentence (SMN-04)" do
+    sign_in_as @admin
+    group = @hotel.inventory_groups.find_by!(label: "Nov 5 Garden Queen")
+    {
+      "booked" => [ "event", "client_booking_confirmed", nil, nil ],
+      "booked_or_date" => [ "earlier_of", "client_booking_confirmed", Date.new(2027, 3, 1), nil ],
+      "after_event" => [ "event_plus_days", "rooming_list_submitted", nil, 3 ]
+    }.each do |choice, (rule, trigger, due_on, days)|
+      post departure_arrangement_schedule_lines_path(@departure, @hotel), params: { schedule_line: {
+        description: "Room deposit #{choice}", amount_kind: "per_shell", rate: "50", inventory_group_id: group.id,
+        when: choice, due_on: "2027-03-01", trigger_type: "rooming_list_submitted", days_after: "3"
+      } }
+      line = @hotel.schedule_lines.find_by!(description: "Room deposit #{choice}")
+      assert_equal [ rule, trigger, due_on, days ], [ line.due_rule, line.trigger_type, line.due_on, line.days_after ], choice
+    end
+
+    get departure_arrangement_path(@departure, @hotel)
+    assert_select "#supplier-payments li", text: /\$50\.00 for each Nov 5 Garden Queen room, due when a client booking for that room is confirmed, or on Mar 1, 2027 for any room still unbooked\./
+    assert_select "#supplier-payments li", text: /\$50\.00 for each Nov 5 Garden Queen room, due 3 days after the rooming list is sent\./
+
+    line = @hotel.schedule_lines.find_by!(description: "Room deposit booked")
+    get edit_departure_arrangement_schedule_line_path(@departure, @hotel, line)
+    assert_select "input[type=radio][name='schedule_line[when]'][value=booked][checked]"
+    assert_select "[role=status]", text: /due when a client booking for that room is confirmed\./
   end
 
   test "completing the excursion's final-count task over HTTP records the count and posts the resource payment (SMN-12)" do
@@ -83,7 +113,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     UserPermission.create!(agency: @agency, agency_user: staff, permission: "financial_records")
     sign_in_as staff
     post departure_arrangement_amounts_due_path(@departure, @hotel), params: { amount_due: { description: "Resort fee", amount: "35", due_on: "2027-11-06" } }
-    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-cost")
+    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-payments")
     assert_equal [ 3_500 ], @hotel.amounts_due.pluck(:amount_minor_units)
   end
 

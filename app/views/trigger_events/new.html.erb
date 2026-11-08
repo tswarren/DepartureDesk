@@ -4,7 +4,7 @@
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cost and schedule · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <p class="dd-eyebrow">When you pay · <%= @arrangement.supplier.display_name_for_directory %></p>
     <h1 class="dd-page-title">Record event</h1>
     <p class="dd-page-description">Schedule lines that fall due on this event post their amounts at once. An event can't be undone.</p>
   </div>
@@ -38,7 +38,7 @@
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Record event", class: "dd-button" %>
-        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-cost"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

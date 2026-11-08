@@ -2413,6 +2413,25 @@
   .dd-segmented-option:has(input:checked) { border-color: var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 600; position: relative; }
   .dd-rate-methods { border: 0; margin: 0; padding: 0; }
   .dd-rate-inline, .dd-rate-shared { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; }
+  /* Supplier payment form: choices, then a sentence that sums it up. */
+  .dd-payment-layout { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-start; }
+  .dd-payment-layout > .dd-stack { flex: 999 1 32rem; min-width: 0; }
+  .dd-payment-choices { margin-bottom: 0.75rem; }
+  .dd-payment-summary { flex: 1 1 16rem; min-width: 0; background: var(--dd-navy); color: var(--dd-text-on-dark); border-radius: var(--dd-radius-lg); padding: 1rem 1.15rem; font-size: 15px; line-height: 1.45; }
+  .dd-payment-summary p { margin: 0; }
+  .dd-payment-summary-title { margin: 0 0 0.5rem; font-size: 13px; font-weight: 600; color: var(--dd-text-on-dark-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .dd-payment-summary-note { margin-top: 0.75rem !important; font-size: 13px; color: var(--dd-text-on-dark-muted); }
+  .dd-payment-list { display: flex; flex-direction: column; }
+  .dd-payment-item { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--dd-border); }
+  .dd-payment-item:last-child { border-bottom: 0; }
+  .dd-payment-sentence { margin: 0.15rem 0; }
+  @media (max-width: 40rem) {
+    .dd-payment-choices { display: flex; flex-direction: column; }
+    .dd-payment-choices .dd-segmented-option { border-radius: 0 !important; margin-left: 0 !important; }
+    .dd-payment-choices .dd-segmented-option + .dd-segmented-option { margin-top: -1px; }
+    .dd-payment-choices .dd-segmented-option:first-child { border-radius: var(--dd-radius-md) var(--dd-radius-md) 0 0 !important; }
+    .dd-payment-choices .dd-segmented-option:last-child { border-radius: 0 0 var(--dd-radius-md) var(--dd-radius-md) !important; }
+  }
   .dd-rate-patterns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
   .dd-rate-pattern { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem 0.9rem; border: 1px solid var(--dd-border-strong); border-radius: var(--dd-radius-md); background: var(--dd-surface); cursor: pointer; }
   .dd-rate-pattern:has(input:checked) { border: 2px solid var(--dd-teal); background: var(--dd-selection); }

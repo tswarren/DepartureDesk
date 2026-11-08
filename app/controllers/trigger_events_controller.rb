@@ -15,7 +15,7 @@ class TriggerEventsController < ApplicationController
     event = params.fetch(:trigger_event, {})
     RecordTriggerEvent.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement,
       event_type: event[:event_type], occurred_on: event[:occurred_on], count: event[:count], reference: event[:reference]).call
-    redirect_to_money "Event recorded."
+    redirect_to_money "Event recorded.", anchor: "supplier-payments"
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 

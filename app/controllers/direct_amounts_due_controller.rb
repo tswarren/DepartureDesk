@@ -16,7 +16,7 @@ class DirectAmountsDueController < ApplicationController
   def create
     RecordDirectAmountDue.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement,
       attributes: money_params(:amount_due, %i[description amount due_on])).call
-    redirect_to_money "Amount due recorded."
+    redirect_to_money "Amount due recorded.", anchor: "supplier-payments"
   rescue AgencyCommand::Error => error
     @amount_due = @arrangement.amounts_due.new
     @values = money_params(:amount_due, %i[description amount due_on])

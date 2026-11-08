@@ -94,4 +94,41 @@ class ArrangementScreensTest < ApplicationSystemTestCase
     assert_equal %w[guest_1 guest_2], cruise.rate_lines.select { |line| line.commission_minor_units == 40_000 }.map(&:occupancy_position).sort,
       "one fare's own dollar commission, stored for both guests it covers"
   end
+
+  test "the payment form shows only the fields each choice needs and sums the payment up as it is filled in" do
+    departure = @alpha.departure
+    cruise = @alpha.arrangements.fetch(:cruise)
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_arrangement_schedule_line_path(departure, cruise)
+    wait_for_turbo
+
+    assert_field "Amount (USD)"
+    assert_no_field "Amount each (USD)"
+    assert_text "The cabins are created when the arrangement is confirmed", count: 0
+
+    fill_in "Name", with: "Cabin deposit"
+    choose "Per cabin"
+    assert_no_field "Amount (USD)"
+    assert_text "The cabins are created when the arrangement is confirmed"
+    fill_in "Amount each (USD)", with: "500"
+    choose "When booked, or by a date"
+    fill_in_html_date "Date", "2027-03-01"
+    within("[role=status]") do
+      assert_text "$500.00 for each cabin, due when a client booking for that cabin is confirmed, or on Mar 1, 2027 for any cabin still unbooked."
+    end
+
+    choose "Some days after an event"
+    assert_no_field "Date"
+    select "the final count is sent", from: "After"
+    fill_in "Days later", with: "2"
+    within("[role=status]") { assert_text "$500.00 for each cabin, due 2 days after the final count is sent." }
+
+    choose "When booked, or by a date"
+    click_on "Save"
+    assert_text "Payment added."
+    within("#supplier-payments") do
+      assert_text "Cabin deposit"
+      assert_text "$500.00 for each cabin, due when a client booking for that cabin is confirmed, or on Mar 1, 2027 for any cabin still unbooked."
+    end
+  end
 end
