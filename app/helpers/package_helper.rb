@@ -13,16 +13,6 @@ module PackageHelper
     "#{ROLE_LABELS.fetch(choice.role)} · #{SCOPE_LABELS.fetch(choice.scope)} · #{PATTERN_LABELS.fetch(choice.pattern)}"
   end
 
-  # "1st guest $3,385.00; Any position, Child 0–4 $0.00"
-  def price_summary(option)
-    return "No prices yet" if option.prices.empty?
-
-    option.prices.sort_by(&:sort_key).map do |price|
-      label = [ OfferingPrice::POSITION_LABELS.fetch(price.occupancy_position), price.traveler_type&.name ].compact.join(", ")
-      "#{label} #{Money.new(price.amount_minor_units, price.currency).format}"
-    end.join("; ")
-  end
-
   # "120 or more days before departure: 10%"
   def tier_summary(tier)
     days = tier.min_days_before_departure.zero? ? "Up to departure" : "#{pluralize(tier.min_days_before_departure, "day")} or more before departure"

@@ -97,7 +97,11 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     value = with.presence || iso_date
     raise ArgumentError, "ISO date required" if value.blank?
 
-    find_field(locator).execute_script("this.value = arguments[0]", value.to_s)
+    find_field(locator).execute_script(<<~JS, value.to_s)
+      this.value = arguments[0]
+      this.dispatchEvent(new Event("input", { bubbles: true }))
+      this.dispatchEvent(new Event("change", { bubbles: true }))
+    JS
   end
 
   def sign_in_from_browser(agency_user, password: ActiveSupport::TestCase::TEST_PASSWORD)

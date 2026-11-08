@@ -16,7 +16,10 @@
 </header>
 
 <article class="dd-panel" id="prices">
-  <header class="dd-panel-header"><h2 class="dd-panel-title">Client prices in <%= currency %></h2></header>
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Client prices in <%= currency %>, one at a time</h2>
+    <%= link_to "Edit #{@choice.name} prices in a grid", edit_departure_offering_choice_prices_path(@departure, @offering, @choice), class: "dd-button dd-button--quiet" %>
+  </header>
   <div class="dd-panel-body dd-stack">
     <p class="dd-page-description">
       <% if @choice.made_per_unit? %>

@@ -17,8 +17,10 @@ class PackageAndTermsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav[aria-label='Departure sections'] a[aria-current=page]", text: "Package"
     assert_select "h3", text: "Cabin"
     assert_select "p", text: "Included · Per unit · Required, choose one"
-    assert_select "td", text: /1st guest \$3,385\.00/
-    assert_select "td", text: /Any position, Child 0–4 \$0\.00/
+    assert_select "table th[scope=col]", text: "1st and 2nd guest"
+    assert_select "table th[scope=col]", text: "Child 0–4"
+    assert_select "tr", text: /V01.*\$3,385.*\$1,285/m
+    assert_select "td", text: /Child 0–4\s*\$0\z/
     assert_select "a", text: "Edit prices", count: 0
     get new_departure_offering_choice_path(@departure, @offering)
     assert_redirected_to root_path

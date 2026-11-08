@@ -3,12 +3,12 @@ class ScheduleLinesController < ApplicationController
 
   FIELDS = %i[
     description cost_line_id supplier_deadline_id inventory_group_id amount_kind amount rate percentage
-    due_rule due_on trigger_type days_after
+    when due_on trigger_type days_after
   ].freeze
   # Field and message prefix, checked in order: "Amount per unit" before "Amount".
   LABELS = [
     [ :description, "Description" ], [ :rate, "Amount per unit" ], [ :amount, "Amount" ], [ :percentage, "Percentage" ],
-    [ :days_after, "Days after the event" ], [ :due_on, "Due date" ]
+    [ :days_after, "Days after the event" ], [ :due_on, "Due date" ], [ :trigger_type, "Choose the event" ]
   ].freeze
 
   before_action :require_arrangement_view!
@@ -25,10 +25,10 @@ class ScheduleLinesController < ApplicationController
 
   def create
     SaveScheduleLine.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement, attributes: line_params).call
-    redirect_to_money "Schedule line added."
+    redirect_to_money "Payment added.", anchor: "supplier-payments"
   rescue AgencyCommand::Error => error
     @schedule_line = @arrangement.schedule_lines.new(line_params.slice("description", "amount_kind", "due_rule", "due_on", "trigger_type").select { |_k, v| v.present? })
-    @values = line_params
+    @values = line_params.merge("when" => params.dig(:schedule_line, :when))
     render_money_error(error, @schedule_line, :new, LABELS)
   end
 
@@ -45,9 +45,9 @@ class ScheduleLinesController < ApplicationController
   def update
     SaveScheduleLine.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement, schedule_line: @schedule_line,
       attributes: line_params, lock_version: params.dig(:schedule_line, :lock_version)).call
-    redirect_to_money "Schedule line updated."
+    redirect_to_money "Payment updated.", anchor: "supplier-payments"
   rescue AgencyCommand::Error => error
-    @values = line_params
+    @values = line_params.merge("when" => params.dig(:schedule_line, :when))
     render_money_error(error, @schedule_line, :edit, LABELS)
   end
 
@@ -57,5 +57,24 @@ class ScheduleLinesController < ApplicationController
     @schedule_line = @arrangement.schedule_lines.find(params[:id])
   end
 
-  def line_params = money_params(:schedule_line, FIELDS)
+  # The form's "when" choice becomes a due rule and, for booking, its event (SMN-04).
+  def line_params
+    @line_params ||= begin
+      values = money_params(:schedule_line, FIELDS)
+      choice = values.delete("when")
+      values.merge(due_rule_for(choice, values))
+    end
+  end
+
+  def due_rule_for(choice, values)
+    case choice
+    when "date" then { "due_rule" => "fixed_date", "trigger_type" => nil, "days_after" => nil }
+    when "booked" then { "due_rule" => "event", "trigger_type" => "client_booking_confirmed", "due_on" => nil, "days_after" => nil }
+    when "booked_or_date" then { "due_rule" => "earlier_of", "trigger_type" => "client_booking_confirmed", "days_after" => nil }
+    when "after_event"
+      days = values["days_after"].to_i
+      { "due_rule" => days.positive? ? "event_plus_days" : "event", "due_on" => nil, "days_after" => (days if days.positive?) }
+    else {}
+    end
+  end
 end

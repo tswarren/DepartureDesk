@@ -1,4 +1,4 @@
-<%# S-16 Cost and schedule (SMN-01 to SMN-06, SMN-11, SUP-13, D-75). Shown only with view_supplier_costs (ACC-31). %>
+<%# S-16 What it costs and When you pay (SMN-01 to SMN-06, SMN-11, SUP-13, D-75). Shown only with view_supplier_costs (ACC-31). %>
 <%# locals: (departure:, arrangement:, manage:) -%>
 <% open_arrangement = arrangement.draft? || arrangement.confirmed? %>
 <% editable = manage && open_arrangement %>
@@ -8,15 +8,14 @@
 <% amounts = arrangement.amounts_due.includes(:schedule_line, :unit_shell) %>
 <article class="dd-panel" id="supplier-cost">
   <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Cost and schedule</h2>
+    <h2 class="dd-panel-title">What it costs</h2>
   </header>
   <div class="dd-panel-body dd-stack">
     <dl class="dd-definition-list">
       <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(cost_lines.select(&:stage_committed?).sum(&:amount_minor_units), currency) %></dd></div>
       <div><dt>Estimated, not committed</dt><dd class="dd-type-mono"><%= money(cost_lines.select(&:stage_estimated?).sum(&:amount_minor_units), currency) %></dd></div>
-      <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(amounts.sum(&:amount_minor_units), currency) %></dd></div>
     </dl>
-    <p class="dd-page-description">Confirming the arrangement records no cost. A commitment for unsold space is a committed cost line that names its shells; booking confirmation proposes the rest from the rate table.</p>
+    <p class="dd-page-description">What the supplier is owed. Deposits and balances are not costs; they go under When you pay. Confirming the arrangement records no cost. A commitment for unsold space is a committed cost line that names its shells; booking confirmation proposes the rest from the rate table.</p>
 
     <section class="dd-stack" aria-labelledby="cost-lines-heading">
       <div class="dd-section-header">
@@ -59,38 +58,43 @@
       <% end %>
     </section>
 
+  </div>
+</article>
+
+<article class="dd-panel" id="supplier-payments">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">When you pay</h2>
+    <% if editable %><%= link_to "Add a payment", new_departure_arrangement_schedule_line_path(departure, arrangement), class: "dd-button dd-button--quiet" %><% end %>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <dl class="dd-definition-list">
+      <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(amounts.sum(&:amount_minor_units), currency) %></dd></div>
+    </dl>
     <section class="dd-stack" aria-labelledby="schedule-lines-heading">
-      <div class="dd-section-header">
-        <h3 class="dd-section-title" id="schedule-lines-heading">Schedule lines</h3>
-        <% if editable %><%= link_to "Add schedule line", new_departure_arrangement_schedule_line_path(departure, arrangement), class: "dd-button dd-button--quiet" %><% end %>
-      </div>
+      <h3 class="dd-section-title" id="schedule-lines-heading">Payments</h3>
       <% if schedule_lines.empty? %>
-        <p class="dd-empty-copy">No schedule lines yet. Add one for each deposit or payment the supplier asks for. A deposit pays toward the cost; it never adds to it.</p>
+        <p class="dd-empty-copy">No payments yet. Add one for each deposit or balance the supplier asks for.</p>
       <% else %>
-        <div class="dd-table-wrap">
-          <table class="dd-table dd-stacked-table">
-            <caption class="dd-visually-hidden">Schedule lines</caption>
-            <thead><tr><th scope="col">Payment</th><th scope="col">Amount</th><th scope="col">Falls due</th><th scope="col">Pays deadline</th><th scope="col">Posted</th><% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
-            <tbody>
-              <% schedule_lines.each do |line| %>
-                <tr>
-                  <th scope="row"><%= line.description %></th>
-                  <td><%= stacked_label("Amount") %><%= schedule_line_amount(line) %></td>
-                  <td><%= stacked_label("Falls due") %><%= schedule_line_when(line) %></td>
-                  <td><%= stacked_label("Pays deadline") %><%= line.supplier_deadline&.description || "—" %></td>
-                  <td><%= stacked_label("Posted") %><%= line.amounts_due.any? ? "#{pluralize(line.amounts_due.size, "amount")}, #{money(line.amounts_due.sum(&:amount_minor_units), currency)}" : "Not yet" %></td>
-                  <% if editable %>
-                    <td class="dd-col-actions">
-                      <% unless line.amounts_due.any? %>
-                        <%= link_to "Edit", edit_departure_arrangement_schedule_line_path(departure, arrangement, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
-                      <% end %>
-                    </td>
-                  <% end %>
-                </tr>
+        <ul class="dd-plain-list dd-payment-list">
+          <% schedule_lines.each do |line| %>
+            <li class="dd-payment-item">
+              <div>
+                <strong><%= line.description %></strong>
+                <p class="dd-payment-sentence"><%= schedule_line_sentence(line) %></p>
+                <p class="dd-cell-subtext">
+                  <%= line.amounts_due.any? ? "Posted: #{pluralize(line.amounts_due.size, "amount")}, #{money(line.amounts_due.sum(&:amount_minor_units), currency)}" : "Nothing posted yet" %><%= " · Pays the deadline #{line.supplier_deadline.description}" if line.supplier_deadline %>
+                </p>
+              </div>
+              <% if editable %>
+                <% if line.amounts_due.any? %>
+                  <span class="dd-cell-subtext">Fixed: an amount has posted</span>
+                <% else %>
+                  <%= link_to "Edit", edit_departure_arrangement_schedule_line_path(departure, arrangement, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
+                <% end %>
               <% end %>
-            </tbody>
-          </table>
-        </div>
+            </li>
+          <% end %>
+        </ul>
       <% end %>
     </section>
 
@@ -119,7 +123,7 @@
         <% end %>
       </div>
       <% if amounts.empty? %>
-        <p class="dd-empty-copy">Nothing has fallen due yet. Amounts post when a schedule line's date arrives or its event is recorded.</p>
+        <p class="dd-empty-copy">Nothing has fallen due yet. Amounts post when a payment's date arrives or its event is recorded.</p>
       <% else %>
         <%= render "supplier_money/amounts_table", amounts:, show_supplier: false %>
       <% end %>

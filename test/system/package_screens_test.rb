@@ -26,6 +26,8 @@ class PackageScreensTest < ApplicationSystemTestCase
       edit_departure_offering_choice_path(departure, offering, cabin),
       new_departure_offering_choice_option_path(departure, offering, cabin),
       edit_departure_offering_choice_option_path(departure, offering, cabin, cabin.options.first),
+      edit_departure_offering_choice_prices_path(departure, offering, cabin),
+      edit_departure_offering_choice_prices_path(departure, offering, offering.choices.find_by!(name: "Private Miami tour")),
       departure_client_terms_path(departure),
       new_departure_client_cancellation_tier_path(departure),
       edit_departure_client_cancellation_tier_path(departure, terms.own_cancellation_tiers.first),
@@ -59,6 +61,38 @@ class PackageScreensTest < ApplicationSystemTestCase
     fill_in "Price", with: "75"
     click_button_and_expect "Save price", text: "Price saved."
     visit departure_offerings_path(@alpha.departure)
-    assert_text "Any position, Child $75.00"
+    assert_selector "th[scope=col]", text: /\Achild\z/i
+    assert_selector "tr", text: /Private Miami tour, Nov 5.*Child\s*\$75/m
+  end
+
+  test "staff set a choice's client prices in a grid and see them on the package page" do
+    departure = @alpha.departure
+    offering = @alpha.offering
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit departure_offerings_path(departure)
+    find("a[aria-label='Edit Cabin prices']").click
+    assert_selector "h1", text: "Cabin"
+    assert_field "V01, 1st and 2nd guest: price", with: "3385"
+    assert_text "Net supplier cost"
+
+    select "Child 0–4", from: "Traveler type"
+    click_on "Add a column"
+    assert_selector "th", text: /3rd and 4th guest, Child 0–4/i
+    fill_in "V01, 1st and 2nd guest: price", with: "3,450"
+    fill_in "V01, 3rd and 4th guest, Child 0–4: price", with: "0"
+    click_on "Save prices"
+    assert_text "Cabin prices saved."
+    within("table", text: "V01") do
+      assert_selector "tr", text: /V01.*\$3,450.*\$1,285.*\$0/m
+    end
+    option = offering.choices.find_by!(name: "Cabin").options.find_by!(label: "V01")
+    assert_equal 345_000, option.prices.find_by!(occupancy_position: "guest_2", traveler_type: nil).amount_minor_units
+
+    find("a[aria-label='Edit Cabin prices']").click
+    find("a[aria-label='Price 3rd and 4th guest one guest at a time']").click
+    fill_in "S01, 4th guest: price", with: "400"
+    click_on "Save prices"
+    assert_text "Cabin prices saved."
+    assert_selector "tr", text: /S01.*\$535.*\$400/m
   end
 end

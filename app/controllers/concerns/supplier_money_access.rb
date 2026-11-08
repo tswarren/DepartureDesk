@@ -22,7 +22,7 @@ module SupplierMoneyAccess
     render template, status: :unprocessable_entity
   end
 
-  def redirect_to_money(notice)
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "supplier-cost"), notice:
+  def redirect_to_money(notice, anchor: "supplier-cost")
+    redirect_to departure_arrangement_path(@departure, @arrangement, anchor:), notice:
   end
 end

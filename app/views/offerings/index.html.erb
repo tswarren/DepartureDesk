@@ -55,6 +55,7 @@
             <h3 class="dd-section-title" id="choice-<%= choice.id %>"><%= choice.name %></h3>
             <% if manage_package? %>
               <span class="dd-section-header">
+                <% if choice.options.any? %><%= link_to "Edit prices", edit_departure_offering_choice_prices_path(@departure, offering, choice), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{choice.name} prices" } %><% end %>
                 <%= link_to "Add option", new_departure_offering_choice_option_path(@departure, offering, choice), class: "dd-row-action dd-row-action--text", aria: { label: "Add an option to #{choice.name}" } %>
                 <%= link_to "Edit", edit_departure_offering_choice_path(@departure, offering, choice), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{choice.name}" } %>
               </span>
@@ -62,18 +63,26 @@
           </div>
           <p class="dd-page-description"><%= choice_summary(choice) %></p>
           <% if choice.options.any? %>
+            <% grid = ClientPriceGrid.new(choice) %>
             <div class="dd-table-wrap">
-              <table class="dd-table dd-stacked-table">
-                <caption class="dd-visually-hidden"><%= choice.name %> options</caption>
-                <thead><tr><th scope="col">Option</th><th scope="col">Draws on</th><th scope="col">Client prices</th><% if manage_package? %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
+              <table class="dd-table dd-stacked-table dd-price-grid">
+                <caption class="dd-visually-hidden"><%= choice.name %> options and client prices</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Option</th>
+                    <% grid.columns.each do |column| %><th scope="col" class="num"><%= column.label %></th><% end %>
+                    <% if manage_package? %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+                  </tr>
+                </thead>
                 <tbody>
-                  <% choice.options.each do |option| %>
+                  <% grid.options.each do |option| %>
                     <tr>
-                      <th scope="row"><%= option.label %></th>
-                      <td><span class="dd-cabin-field-label dd-visually-hidden">Draws on</span><%= option.inventory_group.label %> · <%= option.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></td>
-                      <td><span class="dd-cabin-field-label dd-visually-hidden">Client prices</span><%= price_summary(option) %></td>
+                      <th scope="row"><%= option.label %><span class="dd-cell-subtext"><%= option.inventory_group.label %> · <%= option.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></span></th>
+                      <% grid.cells_for(option).each do |cell| %>
+                        <td class="num"><span class="dd-cabin-field-label dd-visually-hidden"><%= cell.column.label %></span><%= grid.shown(cell) || "—" %></td>
+                      <% end %>
                       <% if manage_package? %>
-                        <td class="dd-col-actions"><%= link_to "Edit prices", edit_departure_offering_choice_option_path(@departure, offering, choice, option), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{option.label} and its prices" } %></td>
+                        <td class="dd-col-actions"><%= link_to "Edit option", edit_departure_offering_choice_option_path(@departure, offering, choice, option), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{option.label}" } %></td>
                       <% end %>
                     </tr>
                   <% end %>

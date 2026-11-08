@@ -8,7 +8,7 @@ class OfferingsController < ApplicationController
   before_action :set_offering, only: %i[edit update]
 
   def index
-    @offerings = @departure.offerings.includes(choices: { options: [ { inventory_group: { supplier_arrangement: :supplier } }, { prices: :traveler_type } ] })
+    @offerings = @departure.offerings.includes(choices: { options: [ { inventory_group: { supplier_arrangement: [ :supplier, { rate_bands: :traveler_type } ] } }, { prices: :traveler_type } ] })
   end
 
   def new
