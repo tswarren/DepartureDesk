@@ -172,4 +172,30 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       assert_text "Nov 9 Ocean King"
     end
   end
+
+  test "the deadline form sums the deadline up, and the supply change form shows only what each change needs" do
+    departure = @alpha.departure
+    cruise = @alpha.arrangements.fetch(:cruise)
+    hotel = @alpha.arrangements.fetch(:hotel)
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_arrangement_deadline_path(departure, cruise)
+    select "Final count or manifest", from: "What is due"
+    fill_in_html_date "By", "2027-10-22"
+    within("[role=status]") do
+      assert_text(/Final count or manifest due to Alpha Cruises by 11:59 p\.m\. on Oct 22, 2027, New York time\. A task for .+; completing it records that the final count is sent\./)
+    end
+    select "Cancellation-tier cutoff", from: "What is due"
+    within("[role=status]") { assert_text "Informational; no task." }
+
+    visit departure_arrangement_group_path(departure, hotel, hotel.inventory_groups.find_by!(label: "Nov 4 Garden Queen"))
+    within("#supply-change") do
+      assert_field "How many places"
+      choose "The supplier took some back"
+      assert_selector "#supplier_release_quantity"
+      assert_no_selector "#increase_quantity"
+      choose "Fix a mistake"
+      assert_field "The entry that was wrong"
+      assert_no_selector "#supplier_release_quantity"
+    end
+  end
 end

@@ -31,39 +31,75 @@
         </table>
       </div>
       <% if manage %>
-        <details class="dd-disclosure">
-          <summary class="dd-disclosure-summary">Record a supply change</summary>
-          <div class="dd-disclosure-body dd-stack">
-            <% [ [ "increase", "Increase" ], [ "supplier_release", "Supplier release" ] ].each do |kind, label| %>
-              <%= form_with url: departure_arrangement_group_capacity_events_path(departure, arrangement, group), method: :post, class: "dd-form" do |form| %>
-                <%= hidden_field_tag :kind, kind, id: nil %>
-                <%= hidden_field_tag :idempotency_key, SecureRandom.uuid, id: nil %>
-                <h3 class="dd-section-title"><%= label %></h3>
-                <% if kind == "supplier_release" && group.represented_as_unit_shells? %>
-                  <div class="dd-field-group">
-                    <%= label_tag "#{kind}_unit_shell_id", "Shell returned to the supplier", class: "dd-label" %>
-                    <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject(&:returned_to_supplier?).map { |shell| [ shell.label, shell.id ] }), id: "#{kind}_unit_shell_id", class: "dd-field" %>
-                  </div>
-                <% else %>
-                  <div class="dd-field-group">
-                    <%= label_tag "#{kind}_quantity", group.represented_as_unit_shells? ? "Units to add" : "Places", class: "dd-label" %>
-                    <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "#{kind}_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
-                  </div>
-                <% end %>
-                <div class="dd-field-group">
-                  <%= label_tag "#{kind}_effective_on", "Effective date", class: "dd-label" %>
-                  <%= date_field_tag :effective_on, nil, id: "#{kind}_effective_on", aria: { describedby: "#{kind}_effective_hint" }, class: "dd-field" %>
-                  <p class="dd-field-hint" id="<%= kind %>_effective_hint">Leave blank for today. A later date takes effect at 11:59 p.m. agency time on that date.</p>
-                </div>
-                <div class="dd-field-group">
-                  <%= label_tag "#{kind}_evidence_note", "Evidence", class: "dd-label" %>
-                  <%= text_field_tag :evidence_note, nil, required: true, maxlength: 500, id: "#{kind}_evidence_note", class: "dd-field" %>
-                </div>
-                <%= submit_tag "Record #{label.downcase}", class: "dd-button dd-button--secondary" %>
+        <% unit = group.represented_as_unit_shells? ? "units" : "places" %>
+        <% capacity = GroupCapacity.new(group:) %>
+        <% supply = capacity.points.first.supply %>
+        <% used = capacity.consumed %>
+        <% pool = group.represented_as_capacity_pool? %>
+        <% correctable = group.capacity_events.reject { |event| event.event_type.start_with?("correctable") } %>
+        <%= form_with url: departure_arrangement_group_capacity_events_path(departure, arrangement, group), method: :post, class: "dd-form dd-subpanel", id: "supply-change",
+              data: { controller: "conditional-fields" } do |form| %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid, id: nil %>
+          <h3 class="dd-section-title">Record a change</h3>
+          <p class="dd-field-hint"><%= supply %> <%= unit %> from the supplier now · <%= used %> held or reserved by bookings · <%= [ supply - used, 0 ].max %> left</p>
+          <fieldset class="dd-form-section">
+            <legend class="dd-label">What happened?</legend>
+            <div class="dd-rate-patterns">
+              <% options = [ [ "increase", "The supplier gave us more", "Extra #{unit}, from a date" ],
+                             [ "supplier_release", "The supplier took some back", "Recorded even if bookings hold them; the bookings affected are flagged" ] ]
+                 options << [ "correction", "Fix a mistake", "We entered the wrong number; only #{unit} no booking holds can go" ] if pool && correctable.any? %>
+              <% options.each do |value, label, hint| %>
+                <label class="dd-rate-pattern">
+                  <%= radio_button_tag :kind, value, value == "increase", id: "kind_#{value}", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+                  <span><strong><%= label %></strong><span class="dd-cell-subtext"><%= hint %></span></span>
+                </label>
               <% end %>
+            </div>
+          </fieldset>
+          <div class="dd-rate-inline">
+            <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="increase">
+              <%= label_tag "increase_quantity", "How many #{unit}", class: "dd-label" %>
+              <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "increase_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+            </div>
+            <% if group.represented_as_unit_shells? %>
+              <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="supplier_release">
+                <%= label_tag "supplier_release_unit_shell_id", "Which unit they took back", class: "dd-label" %>
+                <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject(&:returned_to_supplier?).map { |shell| [ shell.label, shell.id ] }), id: "supplier_release_unit_shell_id", class: "dd-field" %>
+              </div>
+            <% else %>
+              <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="supplier_release">
+                <%= label_tag "supplier_release_quantity", "How many #{unit}", class: "dd-label" %>
+                <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "supplier_release_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+              </div>
             <% end %>
+            <% if pool && correctable.any? %>
+              <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="correction">
+                <%= label_tag "correction_direction", "The right number is", class: "dd-label" %>
+                <%= select_tag :direction, options_for_select([ [ "More than entered", "up" ], [ "Fewer than entered", "down" ] ], "down"), id: "correction_direction", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="correction">
+                <%= label_tag "correction_quantity", "By how many #{unit}", class: "dd-label" %>
+                <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "correction_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+              </div>
+              <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="correction">
+                <%= label_tag "correction_event", "The entry that was wrong", class: "dd-label" %>
+                <%= select_tag :corrects_event_id, options_for_select(correctable.reverse.map { |event| [ "#{CapacityEvent::LABELS.fetch(event.event_type)}, #{event.quantity}, #{event.effective_on.to_fs(:long)}", event.id ] }),
+                      id: "correction_event", class: "dd-field" %>
+              </div>
+            <% end %>
+            <div class="dd-field-group">
+              <%= label_tag "effective_on", "From", class: "dd-label" %>
+              <%= date_field_tag :effective_on, nil, aria: { describedby: "effective_hint" }, class: "dd-field" %>
+              <p class="dd-field-hint" id="effective_hint">Blank means today. A later date takes effect at 11:59 p.m. agency time.</p>
+            </div>
           </div>
-        </details>
+          <div class="dd-field-group">
+            <%= label_tag "evidence_note", "What the supplier said, or what was wrong", class: "dd-label" %>
+            <%= text_area_tag :evidence_note, nil, rows: 2, required: true, maxlength: 500, class: "dd-field", aria: { describedby: "evidence_hint" } %>
+            <p class="dd-field-hint" id="evidence_hint">For example: Email from the hotel, Jan 20: one Garden Queen released for Nov 4.</p>
+          </div>
+          <%= submit_tag "Record it", class: "dd-button dd-button--secondary", name: nil %>
+        <% end %>
       <% end %>
     <% end %>
   </div>
