@@ -45,6 +45,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-93 | Settle the Alpha client terms values: balance due 120 days before departure, 10/50/100% cancellation tiers, deposit not acceptance | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-94 | Amend the charter for step 6: staff confirm BK-105 (reseller in step 9), the client charge at confirmation, D5 with a temporary BKG-41 exception, three PRs, trip references at creation, roster values | [Charter](../planning/first-slice/first-slice-charter.md), [ADR 0004](../adr/0004-human-readable-references.md) |
 | D-95 | Settle the Alpha hotel rooming: two Garden Queen rooms for BK-101; Child 0–4 uses no hotel place | [Charter](../planning/first-slice/first-slice-charter.md) |
+| D-96 | Amend the charter for step 8: client payment reversal (CMN-27), an arrangement balance basis for schedule lines, D9 and D10's payments, commission confirmation only, two PRs | [Charter](../planning/first-slice/first-slice-charter.md) |
 
 ## Blocking decisions
 
