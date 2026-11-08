@@ -17,6 +17,10 @@ class RemoveChoiceSelection < AgencyCommand
       booking = lock_booking!
       ensure_draft!(booking)
       selection = booking.choice_selections.find(@selection.id)
+      # INV-33: a supplier request is its own record; the service stays while one is open.
+      if (reservation = selection.open_supplier_reservation)
+        raise Error.new("#{selection.label} has a #{reservation.status_label.downcase} supplier reservation; it can't be removed.", code: :invalid_state)
+      end
       lock_groups!([ selection.inventory_group ])
       now = Clock.current.now
       selection.inventory_allocations.reject(&:state_released?).each { |allocation| allocation.update!(state: "released", released_at: now) }

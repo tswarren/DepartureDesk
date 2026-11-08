@@ -28,6 +28,39 @@ module BookingsHelper
     DefaultOccupants.new(ids: booking.booking_travelers.map(&:id) - taken, note: nil)
   end
 
+  SupplierStatus = Data.define(:label, :detail, :modifier, :needs_request)
+
+  # A service's supplier status, apart from its allocation state (INV-34,
+  # INV-37): a reservation's status, Awaiting supplier while Requested on a
+  # confirmed booking, guidance when a request is still needed, or the
+  # group block. Guidance has no modifier and is shown as text, not a
+  # status badge. Nil when the arrangement tracks no reservations.
+  def supplier_status(selection, booking)
+    reservation = selection.open_supplier_reservation
+    if reservation&.status_confirmed?
+      SupplierStatus.new(label: "Confirmed by the supplier", detail: "Ref #{reservation.supplier_reference}", modifier: "success", needs_request: false)
+    elsif reservation
+      label = booking.status_confirmed? ? "Awaiting supplier" : "Requested"
+      SupplierStatus.new(label:, detail: "Requested #{reservation.requested_at.in_time_zone(Current.agency.default_timezone).to_fs(:long)}", modifier: "warning", needs_request: false)
+    elsif selection.needs_supplier_request?
+      SupplierStatus.new(label: "Request from the supplier", detail: nil, modifier: nil, needs_request: true)
+    elsif !selection.inventory_group.supplier_arrangement.reservations_none?
+      SupplierStatus.new(label: "In the group block", detail: nil, modifier: nil, needs_request: false)
+    end
+  end
+
+  # The roster's supplier column: services awaiting the supplier, then
+  # those still to request, else a dash (INV-37).
+  def booking_supplier_summary(booking)
+    statuses = booking.choice_selections.filter_map { |selection| supplier_status(selection, booking) }
+    awaiting = statuses.count { |status| status.label.in?([ "Awaiting supplier", "Requested" ]) }
+    to_request = statuses.count(&:needs_request)
+    parts = []
+    parts << status_badge("#{awaiting} #{booking.status_confirmed? ? "awaiting supplier" : "requested"}", modifier: "warning") if awaiting.positive?
+    parts << "#{to_request} to request" if to_request.positive?
+    parts.any? ? safe_join(parts, " ") : "—"
+  end
+
   def booking_status_badge(booking)
     status_badge(booking.status_label, modifier: STATUS_MODIFIERS.fetch(booking.status))
   end

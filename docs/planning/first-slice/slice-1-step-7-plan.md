@@ -1,6 +1,6 @@
 # Slice 1 step 7: Supplier reservations that can stand alone
 
-**Status:** Accepted 2026-11-08, after the [staff walkthrough after step 6](slice-1-step-6-staff-walkthrough.md) passed. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 7 and the decision log entries it cites.
+**Status:** Accepted 2026-11-08 and built 2026-11-08, after the [staff walkthrough after step 6](slice-1-step-6-staff-walkthrough.md) passed. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 7 and the decision log entries it cites.
 
 Charter build step 7 builds supplier reservations, and closes the Slice 1 half of **D8**:
 
@@ -70,3 +70,14 @@ One PR, citing INV-33 to INV-37, SUP-10, REF-09 and D8:
 1. Tables, models and the two commands.
 2. S-19 on the arrangement page, and the booking workspace and roster statuses.
 3. D8, the docs (AGENTS.md, CLAUDE.md, current state, the data model row and the planning index) and the walkthrough additions for step 7.
+
+## Trying it in the development app
+
+With the default seed (`ALPHA_FIXTURE_BOOKINGS=confirmed`), signed in as the seed's Agency Admin:
+
+1. Open BK-104, step 2. Nov 2 and Nov 3 show "Request from the supplier" with no held space, and Nov 4 and Nov 5 show "In the group block".
+2. Start the request from Sablewater Harbor Hotel with both nights ticked. Both show Awaiting supplier, and the Bookings tab counts 2.
+3. On the hotel arrangement, under Supplier reservations, record the acceptance with any reference. Both nights show Confirmed by the supplier with that reference, and BK-104's prices and charge are unchanged.
+4. Sign in as a baseline staff user: the statuses show, but the request form doesn't.
+5. Check each screen at 375px.
+

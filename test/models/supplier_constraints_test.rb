@@ -19,7 +19,7 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
   end
 
   # The directory tables; the Slice 1 arrangement layer (supplier_arrangement*,
-  # supplier_rate_lines, supplier_rate_bands, supplier_deadlines) is checked by its own tests.
+  # supplier_rate_lines, supplier_rate_bands, supplier_deadlines, supplier_reservations and their units and events) is checked by its own tests.
   test "supplier tables exist in the structure" do
     assert_equal %w[
       supplier_category_assignments
@@ -32,7 +32,7 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_postal_addresses
       supplier_websites
       suppliers
-    ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline)/).sort
+    ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline|reservation)/).sort
   end
 
   test "name shapes are enforced by Active Record and direct SQL" do

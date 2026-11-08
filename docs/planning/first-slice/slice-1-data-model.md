@@ -42,7 +42,7 @@ One arrangement record per supplier per Departure replaces the versioned arrange
 | Capacity rule | New | Group, traveler type, uses capacity yes or no; for children 0–4 who use no position (INV-39) | M1 |
 | Supplier rate line | New, porting the existing cost-component design | Group, occupancy position, traveler type, base fare, non-commissionable fees, taxes, discount, commission | SUP-35, D-75 |
 | Supplier deadline | Adapt existing types and rule shapes | Arrangement or group, type, actionable or informational, local date, time and zone, resolved instant | SUP-22 to SUP-24 |
-| Supplier reservation | New | Arrangement optional, booking optional, scope, status (Requested, Confirmed, Declined, Cancelled), supplier reference, linked shells or allocations | INV-33 to INV-37 |
+| Supplier reservation | New | Arrangement and booking (both required in Slice 1, [step 7 plan](slice-1-step-7-plan.md) question 1), the booking units it covers, status (Requested, Confirmed, Declined, Cancelled), supplier reference, response date, append-only events | INV-33 to INV-37 |
 
 ## Offerings and client terms
 

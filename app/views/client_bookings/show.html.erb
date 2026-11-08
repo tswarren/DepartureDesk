@@ -50,9 +50,11 @@
         traveler_query: @traveler_query, found_travelers: @found_travelers %>
 <% elsif @step == "rooms" %>
   <%= render "client_bookings/step_rooms", booking: @booking, manage:, choices: @choices %>
+  <%= render "client_bookings/supplier_requests", booking: @booking, step: "rooms" if Current.agency_user.permitted?(:view_supplier_reservations) %>
 <% elsif @step == "price" %>
   <%= render "client_bookings/step_price", booking: @booking, trip: @trip, manage: %>
 <% else %>
+  <%= render "client_bookings/supplier_requests", booking: @booking, step: "confirm" if Current.agency_user.permitted?(:view_supplier_reservations) %>
   <%= render "client_bookings/step_confirm", booking: @booking, manage:, blockers: @blockers %>
 <% end %>
 

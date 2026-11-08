@@ -12,7 +12,7 @@ class BookingProgress
   def self.step_for(anchor)
     case anchor.to_s
     when "travelers", /\Abooking-traveler-/ then "travelers"
-    when "choices", /\Achoice-/ then "rooms"
+    when "choices", /\Achoice-/, "supplier-requests" then "rooms"
     when "prices", "hold" then "price"
     else "confirm"
     end

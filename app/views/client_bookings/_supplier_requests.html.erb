@@ -1,0 +1,57 @@
+<%# Each service's supplier status beside its held space, as separate labels (INV-34, INV-37), and starting a request (INV-33). %>
+<%# locals: (booking:, step:) -%>
+<% rows = booking.choice_selections.filter_map { |selection| (status = supplier_status(selection, booking)) && [ selection, status ] } %>
+<% if rows.any? %>
+  <% manage = Current.agency_user.permitted?(:manage_supplier_reservations) && (booking.status_draft? || booking.status_confirmed?) %>
+  <article class="dd-panel" id="supplier-requests">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Supplier status</h2></header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-page-description">Held space is the agency's; it never means the supplier is holding it. On-request and directly booked services need their own supplier request.</p>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Supplier status of each service</caption>
+          <thead><tr><th scope="col">Service</th><th scope="col">Supplier</th><th scope="col">Held space</th><th scope="col">Supplier status</th></tr></thead>
+          <tbody>
+            <% rows.each do |selection, status| %>
+              <% allocation = selection.inventory_allocations.reject(&:state_released?).max_by(&:held_at) %>
+              <tr>
+                <th scope="row"><%= selection.label %></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Supplier </span><%= selection.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Held space </span><%= allocation ? allocation_state_label(allocation) : "None; on request" %></td>
+                <td>
+                  <span class="dd-cabin-field-label dd-visually-hidden">Supplier status </span>
+                  <% if status.modifier %><%= status_badge(status.label, modifier: status.modifier) %><% else %><%= status.label %><% end %>
+                  <% if status.detail %><span class="dd-cell-subtext"><%= status.detail %></span><% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% needed = rows.select { |_selection, status| status.needs_request }.map(&:first).group_by { |selection| selection.inventory_group.supplier_arrangement } %>
+      <% needed.each do |arrangement, selections| %>
+        <% if manage %>
+          <%= form_with url: client_booking_supplier_reservations_path(booking), class: "dd-form dd-subpanel", id: "request-#{arrangement.id}" do |form| %>
+            <%= hidden_field_tag :arrangement_id, arrangement.id, id: nil %>
+            <%= hidden_field_tag :step, step, id: nil %>
+            <fieldset class="dd-form-section">
+              <legend class="dd-section-title">Request from <%= arrangement.supplier.display_name_for_directory %></legend>
+              <p class="dd-field-hint"><%= arrangement.reservations_per_unit? ? "This arrangement tracks a reservation for each unit; tick one." : "One request covers the services ticked." %> Recording it sends nothing; ask the supplier, then record their answer on the arrangement.</p>
+              <div class="dd-choice-group">
+                <% selections.each do |selection| %>
+                  <label class="dd-choice">
+                    <%= check_box_tag "selection_ids[]", selection.id, !arrangement.reservations_per_unit? || selection == selections.first, id: "request_#{selection.id}" %>
+                    <span><%= selection.label %></span>
+                  </label>
+                <% end %>
+              </div>
+            </fieldset>
+            <%= form.submit "Start the request", class: "dd-button dd-button--secondary", name: nil %>
+          <% end %>
+        <% else %>
+          <p class="dd-field-hint"><%= selections.map(&:label).to_sentence %> <%= selections.one? ? "needs" : "need" %> a supplier request. Someone with Supplier arrangements starts it.</p>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+<% end %>

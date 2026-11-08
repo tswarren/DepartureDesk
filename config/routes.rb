@@ -50,6 +50,7 @@ Rails.application.routes.draw do
     resource :traveler_batch, only: :create, controller: "booking_traveler_batches"
     resources :traveler_additions, only: :create, controller: "booking_traveler_additions"
     resource :selection_range, only: :create, controller: "choice_selection_ranges"
+    resources :supplier_reservations, only: :create, controller: "booking_supplier_reservations"
     resources :selections, only: %i[create update destroy], controller: "choice_selections"
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
     resource :discard, only: :create, controller: "booking_discards"
@@ -213,6 +214,10 @@ Rails.application.routes.draw do
       resources :trigger_events, only: %i[new create]
       resources :amounts_due, only: %i[new create], controller: "direct_amounts_due"
       resource :room_nights, only: %i[new create], controller: "inventory_room_nights"
+      # S-19: supplier reservations and the supplier's answer (INV-33 to INV-37).
+      resources :supplier_reservations, only: [] do
+        resource :acceptance, only: %i[new create], controller: "supplier_reservation_acceptances"
+      end
       resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
         resource :capacity_rule, only: :update, controller: "capacity_rules"
         resources :capacity_events, only: :create, controller: "capacity_events"
