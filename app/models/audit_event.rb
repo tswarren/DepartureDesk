@@ -54,6 +54,8 @@ class AuditEvent < ApplicationRecord
     client_booking.acceptance_recorded
     client_booking.confirmed
     client_booking.supplier_cost_overridden
+    supplier_reservation.requested
+    supplier_reservation.confirmed
     departure.client_terms_locked
     client.inactivated
     client.reactivated
@@ -155,7 +157,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

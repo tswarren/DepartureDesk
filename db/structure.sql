@@ -680,6 +680,19 @@ END;
 $$;
 
 
+--
+-- Name: reject_supplier_reservation_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_reservation_event_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'supplier_reservation_events rows are append-only';
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -2384,6 +2397,64 @@ CREATE TABLE public.supplier_rate_lines (
 
 
 --
+-- Name: supplier_reservation_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_reservation_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_reservation_id uuid NOT NULL,
+    event_type character varying NOT NULL,
+    occurred_on date NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_reservation_events_type CHECK (((event_type)::text = ANY ((ARRAY['requested'::character varying, 'confirmed'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_reservation_units; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_reservation_units (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_reservation_id uuid NOT NULL,
+    choice_selection_id uuid NOT NULL,
+    open boolean DEFAULT true NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: supplier_reservations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_reservations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    status character varying DEFAULT 'requested'::character varying NOT NULL,
+    supplier_reference character varying,
+    responded_on date,
+    response_note text,
+    requested_by_id uuid NOT NULL,
+    requested_at timestamp(6) with time zone NOT NULL,
+    responded_by_id uuid,
+    responded_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_reservations_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_reservations_note CHECK (((response_note IS NULL) OR ((btrim(response_note) <> ''::text) AND (char_length(response_note) <= 2000)))),
+    CONSTRAINT supplier_reservations_reference CHECK (((supplier_reference IS NULL) OR ((btrim((supplier_reference)::text) <> ''::text) AND (char_length((supplier_reference)::text) <= 120)))),
+    CONSTRAINT supplier_reservations_response CHECK (COALESCE(((((status)::text = 'requested'::text) AND (responded_on IS NULL) AND (responded_by_id IS NULL) AND (responded_at IS NULL)) OR (((status)::text = 'confirmed'::text) AND (supplier_reference IS NOT NULL) AND (responded_on IS NOT NULL) AND (responded_by_id IS NOT NULL) AND (responded_at IS NOT NULL)) OR ((status)::text = ANY ((ARRAY['declined'::character varying, 'cancelled'::character varying])::text[]))), false)),
+    CONSTRAINT supplier_reservations_status CHECK (((status)::text = ANY ((ARRAY['requested'::character varying, 'confirmed'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
 -- Name: supplier_websites; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3178,6 +3249,30 @@ ALTER TABLE ONLY public.supplier_rate_bands
 
 ALTER TABLE ONLY public.supplier_rate_lines
     ADD CONSTRAINT supplier_rate_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_reservation_events supplier_reservation_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_events
+    ADD CONSTRAINT supplier_reservation_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_reservation_units supplier_reservation_units_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_units
+    ADD CONSTRAINT supplier_reservation_units_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_reservations supplier_reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_pkey PRIMARY KEY (id);
 
 
 --
@@ -4878,6 +4973,55 @@ CREATE UNIQUE INDEX index_supplier_rate_lines_one_per_group_position_type ON pub
 
 
 --
+-- Name: index_supplier_reservation_events_on_reservation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_reservation_events_on_reservation ON public.supplier_reservation_events USING btree (supplier_reservation_id, recorded_at);
+
+
+--
+-- Name: index_supplier_reservation_units_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_reservation_units_on_id_and_agency_id ON public.supplier_reservation_units USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_reservation_units_once_per_reservation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_reservation_units_once_per_reservation ON public.supplier_reservation_units USING btree (supplier_reservation_id, choice_selection_id);
+
+
+--
+-- Name: index_supplier_reservation_units_one_open_per_selection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_reservation_units_one_open_per_selection ON public.supplier_reservation_units USING btree (choice_selection_id) WHERE open;
+
+
+--
+-- Name: index_supplier_reservations_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_reservations_on_arrangement ON public.supplier_reservations USING btree (supplier_arrangement_id, requested_at);
+
+
+--
+-- Name: index_supplier_reservations_on_booking; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_reservations_on_booking ON public.supplier_reservations USING btree (client_booking_id, requested_at);
+
+
+--
+-- Name: index_supplier_reservations_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_reservations_on_id_and_agency_id ON public.supplier_reservations USING btree (id, agency_id);
+
+
+--
 -- Name: index_supplier_websites_on_agency_and_host; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5463,6 +5607,13 @@ CREATE TRIGGER supplier_rate_bands_reject_frozen_change BEFORE INSERT OR DELETE 
 --
 
 CREATE TRIGGER supplier_rate_lines_reject_frozen_change BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_rate_lines FOR EACH ROW EXECUTE FUNCTION public.reject_frozen_supplier_rate_line_change();
+
+
+--
+-- Name: supplier_reservation_events supplier_reservation_events_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_reservation_events_reject_mutation BEFORE DELETE OR UPDATE ON public.supplier_reservation_events FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_reservation_event_mutation();
 
 
 --
@@ -6955,6 +7106,94 @@ ALTER TABLE ONLY public.supplier_rate_lines
 
 
 --
+-- Name: supplier_reservation_events fk_supplier_reservation_events_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_events
+    ADD CONSTRAINT fk_supplier_reservation_events_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_reservation_events fk_supplier_reservation_events_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_events
+    ADD CONSTRAINT fk_supplier_reservation_events_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_reservation_events fk_supplier_reservation_events_reservation_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_events
+    ADD CONSTRAINT fk_supplier_reservation_events_reservation_same_agency FOREIGN KEY (supplier_reservation_id, agency_id) REFERENCES public.supplier_reservations(id, agency_id);
+
+
+--
+-- Name: supplier_reservation_units fk_supplier_reservation_units_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_units
+    ADD CONSTRAINT fk_supplier_reservation_units_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_reservation_units fk_supplier_reservation_units_reservation_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_units
+    ADD CONSTRAINT fk_supplier_reservation_units_reservation_same_agency FOREIGN KEY (supplier_reservation_id, agency_id) REFERENCES public.supplier_reservations(id, agency_id);
+
+
+--
+-- Name: supplier_reservation_units fk_supplier_reservation_units_selection_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_units
+    ADD CONSTRAINT fk_supplier_reservation_units_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
+
+
+--
+-- Name: supplier_reservations fk_supplier_reservations_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT fk_supplier_reservations_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_reservations fk_supplier_reservations_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT fk_supplier_reservations_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: supplier_reservations fk_supplier_reservations_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT fk_supplier_reservations_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: supplier_reservations fk_supplier_reservations_requester_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT fk_supplier_reservations_requester_same_agency FOREIGN KEY (requested_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_reservations fk_supplier_reservations_responder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT fk_supplier_reservations_responder_same_agency FOREIGN KEY (responded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
 -- Name: tasks fk_tasks_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7209,6 +7448,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261108100000'),
 ('20261107160000'),
 ('20261107150000'),
 ('20261107140000'),

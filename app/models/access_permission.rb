@@ -41,7 +41,11 @@ module AccessPermission
     # SMN-05: a supplier obligation recorded directly as an amount due.
     record_amounts_due: %w[supplier_arrangements financial_records],
     # SUP-35, SMN-32: overriding a confirmed booking's proposed cost or commission.
-    override_booking_supplier_cost: %w[supplier_arrangements financial_records]
+    override_booking_supplier_cost: %w[supplier_arrangements financial_records],
+    # INV-33 to INV-37: every staff user sees a service's supplier status;
+    # starting a request and recording the answer is arrangement work.
+    view_supplier_reservations: :baseline,
+    manage_supplier_reservations: "supplier_arrangements"
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)
