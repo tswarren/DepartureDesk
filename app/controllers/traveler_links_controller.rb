@@ -36,10 +36,6 @@ class TravelerLinksController < ApplicationController
   def matching_travelers
     return Traveler.none if @query.blank?
 
-    pattern = "%#{Traveler.sanitize_sql_like(@query)}%"
-    Current.agency.travelers
-      .where("concat_ws(' ', given_names, middle_name, surname, preferred_name) ILIKE ?", pattern)
-      .where.not(id: @client.traveler_links.select(:traveler_id))
-      .ordered.limit(SEARCH_LIMIT)
+    Current.agency.travelers.matching(@query, unlinked_from: @client, limit: SEARCH_LIMIT)
   end
 end

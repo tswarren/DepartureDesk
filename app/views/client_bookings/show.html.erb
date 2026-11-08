@@ -46,7 +46,8 @@
 <%= render "client_bookings/steps", booking: @booking, progress: @progress, step: @step %>
 
 <% if @step == "travelers" %>
-  <%= render "client_bookings/step_travelers", booking: @booking, trip: @trip, manage:, linked_travelers: @linked_travelers, traveler_types: @traveler_types %>
+  <%= render "client_bookings/step_travelers", booking: @booking, trip: @trip, manage:, linked_travelers: @linked_travelers, traveler_types: @traveler_types,
+        traveler_query: @traveler_query, found_travelers: @found_travelers %>
 <% elsif @step == "rooms" %>
   <%= render "client_bookings/step_rooms", booking: @booking, manage:, choices: @choices %>
 <% elsif @step == "price" %>

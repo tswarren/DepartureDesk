@@ -130,4 +130,31 @@ class BookingScreensTest < ApplicationSystemTestCase
       %w[Nov\ 1 Nov\ 2 Nov\ 3].each { |night| assert_text "#{night} Harbor Double" }
     end
   end
+
+  test "staff add a new traveler and a traveler found in the agency without leaving the booking" do
+    booking = @alpha.bookings.fetch("BK-105")
+    sign_in_from_browser(@scenario.baseline_staff, password: M1DirectoryScenario::PASSWORD)
+    visit client_booking_path(booking, step: "travelers")
+    within("#new-traveler") do
+      fill_in "Given names", with: "Rosa"
+      fill_in "Surname", with: "Rivera"
+      select "Adult", from: "Traveler type"
+      click_button "Add new traveler"
+    end
+    assert_text "Traveler added and linked to Mateo Rivera."
+    within("#travelers table") { assert_selector "th", text: "Rosa Rivera" }
+
+    fill_in "Or find a traveler in the agency", with: "Nadia"
+    click_button "Find"
+    within("ul[aria-label='Matching travelers']") do
+      select "Adult", from: "Type for Nadia Rowan"
+      find("input[aria-label='Link and add Nadia Rowan']").click
+    end
+    assert_text "Traveler added and linked"
+    within("#travelers table") { assert_selector "th", text: "Nadia Rowan" }
+    [ 1400, 375 ].each do |width|
+      resize_window(width)
+      assert_no_page_overflow
+    end
+  end
 end

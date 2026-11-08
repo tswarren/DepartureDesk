@@ -22,7 +22,7 @@ class BookingTravelersStepTest < ActionDispatch::IntegrationTest
     assert_includes item.text, "Family member"
     ava = @trip.client.travelers.find_by!(given_names: "Ava")
     assert_select "select#traveler_type_#{ava.id} option[selected]", count: 0
-    assert_select "a[href='#{new_traveler_path(client_id: @trip.client.id, booking_id: booking.id)}']"
+    assert_select "#someone-else h4", text: "A new traveler"
   end
 
   test "ticked travelers are added in order with their types; unticked ones are not" do
@@ -60,11 +60,42 @@ class BookingTravelersStepTest < ActionDispatch::IntegrationTest
     assert_equal "Milo Bennett", occupants[2]
   end
 
-  test "a traveler added from the step returns to it" do
+  test "a new traveler is created, linked to the client and added in one step" do
     booking = CreateClientBooking.new(agency: @agency, actor: @staff, trip: @trip).call.record
     sign_in_as @staff
-    post travelers_path, params: { client_id: @trip.client.id, booking_id: booking.id, relationship: "family_member", traveler: { given_names: "June", surname: "Bennett" } }
+    get client_booking_path(booking, step: "travelers")
+    assert_select "#new-traveler input[name='traveler[surname]'][value='Bennett']"
+
+    post client_booking_traveler_additions_path(booking), params: {
+      traveler: { given_names: "June", surname: "Bennett", date_of_birth: "2012-06-01" }, relationship: "family_member", traveler_type_id: @child.id
+    }
     assert_redirected_to client_booking_path(booking, step: "travelers", anchor: "travelers")
-    assert_includes @trip.client.travelers.reload.map(&:given_names), "June"
+    row = booking.booking_travelers.reload.sole
+    assert_equal [ "June Bennett", "Child", Date.new(2012, 6, 1) ], [ row.display_name, row.traveler_type.name, row.traveler.date_of_birth ]
+    assert_equal "family_member", @trip.client.traveler_links.find_by!(traveler: row.traveler).relationship
+  end
+
+  test "a traveler found in the agency is linked to the client and added" do
+    booking = CreateClientBooking.new(agency: @agency, actor: @staff, trip: @trip).call.record
+    nadia = @alpha.trips.fetch("BK-101").client.travelers.find_by!(given_names: "Nadia")
+    sign_in_as @staff
+    get client_booking_path(booking, step: "travelers", traveler_q: "Nadia")
+    assert_select "ul[aria-label='Matching travelers'] li", text: /Nadia Rowan/
+    get client_booking_path(booking, step: "travelers", traveler_q: "Ava")
+    assert_select "ul[aria-label='Matching travelers']", count: 0
+
+    post client_booking_traveler_additions_path(booking), params: { traveler_id: nadia.id, relationship: "other", traveler_type_id: @adult.id }
+    assert_equal [ nadia.id ], booking.booking_travelers.reload.map(&:traveler_id)
+    assert @trip.client.traveler_links.exists?(traveler: nadia, relationship: "other")
+  end
+
+  test "a new traveler with no name adds nothing" do
+    booking = CreateClientBooking.new(agency: @agency, actor: @staff, trip: @trip).call.record
+    sign_in_as @staff
+    assert_no_difference [ -> { Traveler.count }, -> { TravelerLink.count }, -> { BookingTraveler.count } ] do
+      post client_booking_traveler_additions_path(booking), params: { traveler: { given_names: "", surname: "" }, relationship: "family_member" }
+    end
+    follow_redirect!
+    assert_select ".dd-alert--danger"
   end
 end

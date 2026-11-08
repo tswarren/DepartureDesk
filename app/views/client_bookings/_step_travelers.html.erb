@@ -1,5 +1,5 @@
 <%# Step 1: who is going, in guest order (CLT-13, CLT-15, BKG-21). %>
-<%# locals: (booking:, trip:, manage:, linked_travelers:, traveler_types:) -%>
+<%# locals: (booking:, trip:, manage:, linked_travelers:, traveler_types:, traveler_query: "", found_travelers: []) -%>
 <% client_name = trip.client.source.display_name %>
 <article class="dd-panel" id="travelers">
   <header class="dd-panel-header">
@@ -98,7 +98,70 @@
           <div class="dd-form-actions"><%= form.submit "Add ticked travelers", class: "dd-button", name: nil %></div>
         <% end %>
       <% end %>
-      <p class="dd-field-hint">Someone else? <%= link_to "Add a new traveler for #{client_name}", new_traveler_path(client_id: trip.client.id, booking_id: booking.id) %>; they are linked to <%= client_name %> and listed here.</p>
+      <% if Current.agency_user.permitted?(:manage_client_directory) %>
+        <section class="dd-stack dd-subpanel" id="someone-else" aria-labelledby="someone-else-heading">
+          <h3 class="dd-section-title" id="someone-else-heading">Someone else</h3>
+          <p class="dd-field-hint">They are linked to <%= client_name %> as they are added, so they are listed next time.</p>
+          <%= form_with url: client_booking_traveler_additions_path(booking), class: "dd-form", id: "new-traveler" do |form| %>
+            <h4 class="dd-section-title">A new traveler</h4>
+            <div class="dd-form-grid dd-form-grid--two-column">
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_given_names", "Given names", class: "dd-label" %>
+                <%= text_field_tag "traveler[given_names]", nil, id: "new_traveler_given_names", maxlength: Traveler::NAME_LIMIT, autocomplete: "off", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_surname", "Surname", class: "dd-label" %>
+                <%= text_field_tag "traveler[surname]", trip.client.client_person&.last_name, id: "new_traveler_surname", maxlength: Traveler::NAME_LIMIT, autocomplete: "off", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_date_of_birth", "Date of birth (optional)", class: "dd-label" %>
+                <%= date_field_tag "traveler[date_of_birth]", nil, id: "new_traveler_date_of_birth", class: "dd-field", aria: { describedby: "new_traveler_dob_hint" } %>
+                <p class="dd-field-hint" id="new_traveler_dob_hint">Needed to confirm; it can be added later.</p>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_relationship", "Relationship to #{client_name}", class: "dd-label" %>
+                <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.invert, "family_member"), id: "new_traveler_relationship", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_type", "Traveler type", class: "dd-label" %>
+                <%= select_tag :traveler_type_id, options_from_collection_for_select(traveler_types, :id, :name), include_blank: "Choose later", id: "new_traveler_type", class: "dd-field" %>
+              </div>
+            </div>
+            <div class="dd-form-actions"><%= form.submit "Add new traveler", class: "dd-button dd-button--secondary", name: nil %></div>
+          <% end %>
+
+          <%= form_with url: client_booking_path(booking, anchor: "someone-else"), method: :get, class: "dd-form dd-rate-inline", role: "search" do |form| %>
+            <%= hidden_field_tag :step, "travelers", id: nil %>
+            <div class="dd-field-group">
+              <%= label_tag "traveler_q", "Or find a traveler in the agency", class: "dd-label" %>
+              <%= search_field_tag :traveler_q, traveler_query, class: "dd-field", autocomplete: "off" %>
+            </div>
+            <%= form.submit "Find", class: "dd-button dd-button--quiet", name: nil %>
+          <% end %>
+          <% if traveler_query.length >= 2 %>
+            <% if found_travelers.empty? %>
+              <p class="dd-empty-copy">No traveler matches “<%= traveler_query %>” who isn't already <%= client_name %>'s. Add them as a new traveler above.</p>
+            <% else %>
+              <ul class="dd-plain-list dd-payment-list" aria-label="Matching travelers">
+                <% found_travelers.each do |traveler| %>
+                  <li class="dd-payment-item">
+                    <span><strong><%= traveler.display_name %></strong>
+                      <span class="dd-cell-subtext"><%= traveler.date_of_birth ? "Born #{traveler_date_of_birth(traveler)}" : "No date of birth" %></span></span>
+                    <%= form_with url: client_booking_traveler_additions_path(booking), class: "dd-inline-form dd-rate-inline" do |form| %>
+                      <%= hidden_field_tag :traveler_id, traveler.id, id: nil %>
+                      <%= label_tag "found_relationship_#{traveler.id}", "Relationship for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                      <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.invert, "other"), id: "found_relationship_#{traveler.id}", class: "dd-field" %>
+                      <%= label_tag "found_type_#{traveler.id}", "Type for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                      <%= select_tag :traveler_type_id, options_from_collection_for_select(traveler_types, :id, :name), include_blank: "Choose a type", id: "found_type_#{traveler.id}", class: "dd-field" %>
+                      <%= form.submit "Link and add", class: "dd-button dd-button--secondary", name: nil, aria: { label: "Link and add #{traveler.display_name}" } %>
+                    <% end %>
+                  </li>
+                <% end %>
+              </ul>
+            <% end %>
+          <% end %>
+        </section>
+      <% end %>
       <%= form_with url: client_booking_travelers_path(booking), scope: :booking_traveler, class: "dd-form dd-rate-inline", id: "add-placeholder" do |form| %>
         <div class="dd-field-group">
           <%= form.label :placeholder_label, "Placeholder", class: "dd-label" %>

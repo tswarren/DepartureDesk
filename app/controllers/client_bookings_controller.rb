@@ -22,6 +22,8 @@ class ClientBookingsController < ApplicationController
     @linked_travelers = @trip.client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, link.created_at ] }
       .reject { |link| on_booking.include?(link.traveler_id) }
     @traveler_types = Current.agency.traveler_types.active.ordered
+    @traveler_query = params[:traveler_q].to_s.squish
+    @found_travelers = @traveler_query.length >= 2 ? Current.agency.travelers.matching(@traveler_query, unlinked_from: @trip.client, limit: 10).to_a : []
     @blocked = flash[:blockers]
     @progress = BookingProgress.new(@booking, @blockers)
     @step = params[:step].presence_in(BookingProgress::STEPS) || @progress.current

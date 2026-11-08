@@ -48,6 +48,7 @@ Rails.application.routes.draw do
       resource :move, only: :create, controller: "booking_traveler_moves"
     end
     resource :traveler_batch, only: :create, controller: "booking_traveler_batches"
+    resources :traveler_additions, only: :create, controller: "booking_traveler_additions"
     resource :selection_range, only: :create, controller: "choice_selection_ranges"
     resources :selections, only: %i[create update destroy], controller: "choice_selections"
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
