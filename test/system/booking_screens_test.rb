@@ -157,4 +157,20 @@ class BookingScreensTest < ApplicationSystemTestCase
       assert_no_page_overflow
     end
   end
+
+  test "staff replace a placeholder with one of the client's travelers, who keeps its cabin" do
+    booking = @alpha.bookings.fetch("BK-105")
+    luca = booking.booking_travelers.find { |row| row.display_name == "Luca Rivera" }
+    luca.update_columns(traveler_id: nil, placeholder_label: "Guest 3")
+    sign_in_from_browser(@scenario.baseline_staff, password: M1DirectoryScenario::PASSWORD)
+    visit client_booking_path(booking, step: "travelers")
+    within("#booking-traveler-#{luca.id}") do
+      select "Luca Rivera", from: "Replace Guest 3 with"
+      find("input[aria-label='Replace Guest 3']").click
+    end
+    assert_text "Guest 3 replaced."
+    within("#booking-traveler-#{luca.id}") { assert_text "Luca Rivera" }
+    visit client_booking_path(booking, step: "rooms")
+    within("#choices") { assert_text "Luca Rivera" }
+  end
 end

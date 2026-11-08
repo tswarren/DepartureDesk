@@ -98,4 +98,47 @@ class BookingTravelersStepTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select ".dd-alert--danger"
   end
+
+  test "a placeholder is replaced by one of the client's travelers, keeping its place and type" do
+    booking = @alpha.bookings.fetch("BK-104")
+    guest = booking.booking_travelers.find { |row| row.display_name == "Milo Bennett" }
+    milo = guest.traveler
+    sign_in_as @staff
+    delete client_booking_traveler_path(booking, guest)
+    post client_booking_travelers_path(booking), params: { booking_traveler: { placeholder_label: "Guest 4", traveler_type_id: @child.id } }
+    placeholder = booking.booking_travelers.reload.find_by!(placeholder_label: "Guest 4")
+    get client_booking_path(booking, step: "travelers")
+    assert_select "#booking-traveler-#{placeholder.id} select[name='booking_traveler[traveler_id]'] option", text: "Milo Bennett"
+
+    patch client_booking_traveler_path(booking, placeholder), params: { booking_traveler: { traveler_id: milo.id, lock_version: placeholder.lock_version } }
+    follow_redirect!
+    assert_select ".dd-alert", text: /Guest 4 replaced/
+    placeholder.reload
+    assert_equal [ milo.id, nil, "Child" ], [ placeholder.traveler_id, placeholder.placeholder_label, placeholder.traveler_type.name ]
+  end
+
+  test "a new traveler, or one found in the agency, can take a placeholder's place" do
+    booking = CreateClientBooking.new(agency: @agency, actor: @staff, trip: @trip).call.record
+    first = SaveBookingTraveler.new(agency: @agency, actor: @staff, booking:, attributes: { placeholder_label: "Guest 1", traveler_type_id: @adult.id }).call.record
+    second = SaveBookingTraveler.new(agency: @agency, actor: @staff, booking:, attributes: { placeholder_label: "Guest 2", traveler_type_id: @adult.id }).call.record
+    sign_in_as @staff
+    get client_booking_path(booking, step: "travelers")
+    assert_select "#new_traveler_replacing option", text: "In place of Guest 2"
+
+    post client_booking_traveler_additions_path(booking), params: { traveler: { given_names: "June", surname: "Bennett" }, relationship: "family_member", replacing_id: second.id }
+    nadia = @alpha.trips.fetch("BK-101").client.travelers.find_by!(given_names: "Nadia")
+    post client_booking_traveler_additions_path(booking), params: { traveler_id: nadia.id, relationship: "other", replacing_id: first.id, traveler_type_id: @child.id }
+    rows = booking.booking_travelers.reload
+    assert_equal [ [ "Nadia Rowan", "Child", 1 ], [ "June Bennett", "Adult", 2 ] ], rows.map { |row| [ row.display_name, row.traveler_type.name, row.position ] }
+    assert_equal [ first.id, second.id ], rows.map(&:id)
+  end
+
+  test "only a placeholder can be replaced from the step" do
+    booking = @alpha.bookings.fetch("BK-104")
+    sofia = booking.booking_travelers.first
+    sign_in_as @staff
+    post client_booking_traveler_additions_path(booking), params: { traveler: { given_names: "June", surname: "Bennett" }, relationship: "family_member", replacing_id: sofia.id }
+    follow_redirect!
+    assert_select ".dd-alert--danger", text: /Only a placeholder can be replaced/
+  end
 end
