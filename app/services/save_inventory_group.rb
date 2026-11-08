@@ -43,6 +43,7 @@ class SaveInventoryGroup < AgencyCommand
         attrs = attrs.slice(*DESCRIPTIVE_FIELDS)
       end
       group.assign_attributes(attrs)
+      clear_unused!(group, attrs) if arrangement.draft?
       changed = group.changed - %w[lock_version updated_at]
       return Result.new(status: :noop, record: group) if !creating && changed.empty?
 
@@ -61,6 +62,16 @@ class SaveInventoryGroup < AgencyCommand
   end
 
   private
+
+  # Fields the chosen representation and promise don't use, which the form
+  # hides and so doesn't send, are cleared rather than kept from before. A
+  # value sent for one is still refused by validation.
+  def clear_unused!(group, attrs)
+    unused = []
+    unused += %w[positions_per_unit required_adults_per_unit] unless group.represented_as_unit_shells?
+    unused << "quantity" unless group.numeric?
+    (unused - attrs.keys).each { |field| group.public_send("#{field}=", nil) }
+  end
 
   def locked_group(arrangement)
     arrangement.inventory_groups.lock.find(@group.id).tap do |group|

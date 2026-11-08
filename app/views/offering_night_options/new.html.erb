@@ -1,0 +1,66 @@
+<% content_for :title, "Add extra nights · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Package", departure_offerings_path(@departure) ], [ "Add extra nights", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Package · <%= @offering.name %></p>
+    <h1 class="dd-page-title">Add extra nights</h1>
+    <p class="dd-page-description">An add-on made per room, choose any: one option for each night and room type, each drawing on that night's rooms.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The nights weren't added</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @groups.empty? %>
+      <p class="dd-empty-copy">No hotel nights are left to offer. Add the hotel's rooms by night on its arrangement first.</p>
+    <% else %>
+      <%= form_with url: departure_offering_night_options_path(@departure, @offering), class: "dd-form" do |form| %>
+        <div class="dd-rate-inline">
+          <div class="dd-field-group">
+            <%= label_tag :name, "Name", class: "dd-label" %>
+            <%= text_field_tag :name, @name, maxlength: Offering::NAME_LIMIT, class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag :from, "Nights from", class: "dd-label" %>
+            <%= select_tag :from, options_for_select(@nights.map { |night| [ night.strftime("%b %-d"), night.iso8601 ] }, @from&.iso8601), class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag :through, "through", class: "dd-label" %>
+            <%= select_tag :through, options_for_select(@nights.map { |night| [ night.strftime("%b %-d"), night.iso8601 ] }, @through&.iso8601), class: "dd-field" %>
+          </div>
+        </div>
+        <fieldset class="dd-form-section">
+          <legend class="dd-section-title">Room types</legend>
+          <div class="dd-choice-group">
+            <% @kinds.each do |kind| %>
+              <label class="dd-choice">
+                <%= check_box_tag "kinds[]", kind, @chosen_kinds.include?(kind), id: "kind_#{kind.parameterize(separator: "_")}" %>
+                <span><%= kind %></span>
+              </label>
+            <% end %>
+          </div>
+        </fieldset>
+        <% if @room_choices.any? %>
+          <div class="dd-field-group">
+            <%= label_tag :price_from_choice_id, "Start each night's prices from", class: "dd-label" %>
+            <%= select_tag :price_from_choice_id, options_for_select(@room_choices.map { |choice| [ "#{choice.name}, the same room type", choice.id ] }, @room_choices.first.id),
+                  include_blank: "No prices yet", class: "dd-field", aria: { describedby: "price_from_hint" } %>
+            <p class="dd-field-hint" id="price_from_hint">Copied once; each night's prices are then its own, and changing them never changes a booking.</p>
+          </div>
+        <% end %>
+        <div class="dd-form-actions">
+          <%= form.submit "Add extra nights", class: "dd-button", name: nil %>
+          <%= link_to "Cancel", departure_offerings_path(@departure), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>

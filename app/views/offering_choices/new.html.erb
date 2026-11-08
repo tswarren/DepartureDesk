@@ -14,7 +14,7 @@
   <div class="dd-panel-body">
     <%= form_with model: @choice, url: departure_offering_choices_path(@departure, @offering), scope: :offering_choice, class: "dd-form" do |form| %>
       <%= render "shared/form_errors", object: form.object %>
-      <%= render "form", form: %>
+      <%= render "form", form:, presets: true %>
       <div class="dd-form-actions">
         <%= form.submit "Save", class: "dd-button" %>
         <%= link_to "Cancel", departure_offerings_path(@departure), class: "dd-button dd-button--quiet" %>

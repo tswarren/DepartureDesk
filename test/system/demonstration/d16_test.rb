@@ -22,7 +22,7 @@ class DemonstrationD16Test < ApplicationSystemTestCase
     fill_in "Operating currency", with: ""
     click_button "Save departure"
     assert_text "Departure saved."
-    within("#statuses") { assert_text "Enter a start date and an end date." }
+    within("#ready-to-sell") { assert_text "Enter a start date and an end date." }
 
     visit new_departure_arrangement_path(@scenario.agency.departures.find_by!(name: "Spring sampler"))
     wait_for_turbo

@@ -1,0 +1,6 @@
+<%# locals: (item:) -%>
+<li class="dd-checklist-item">
+  <%= status_badge(item.done ? "Done" : (item.required ? "To do" : "Not yet"), modifier: item.done ? "success" : (item.required ? "warning" : "neutral")) %>
+  <span><strong><%= item.label %></strong><% if item.detail.present? %> · <%= item.detail %><% end %>
+    <% unless item.done %> · <%= link_to item.required ? "Fix it" : "Set it up", item.href %><% end %></span>
+</li>

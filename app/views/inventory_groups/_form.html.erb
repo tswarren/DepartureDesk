@@ -1,4 +1,4 @@
-<%# locals: (form:, group:, structural:) -%>
+<%# locals: (form:, group:, structural:, presets: false) -%>
 <div class="dd-field-group">
   <%= form.label :label, class: "dd-label" %>
   <%= form.text_field :label, maxlength: InventoryGroup::LABEL_LIMIT, **dd_field_options(form, :label, aria_describedby_extra: "inventory_group_label_hint") %>
@@ -6,33 +6,53 @@
   <%= dd_field_error(form, :label) %>
 </div>
 <% if structural %>
+  <% preset_values = { "cabins" => { service_category: "cruise", representation: "unit_shells" }, "activity" => { service_category: "activity", representation: "unit_shells" },
+                       "seats" => { service_category: "air", representation: "capacity_pool" } } %>
+  <div class="dd-stack" data-controller="inventory-preset" data-inventory-preset-presets-value="<%= preset_values.to_json %>">
+  <% if presets %>
+    <fieldset class="dd-form-section">
+      <legend class="dd-section-title">What kind</legend>
+      <div class="dd-rate-patterns">
+        <% [ [ "cabins", "Cabins", "Each cabin tracked, up to so many guests" ], [ "activity", "Tour or activity", "Vehicles or guides, each with its places" ],
+             [ "seats", "Seats or places", "A count, such as flights or a coach" ], [ "other", "Something else", "Set each field yourself" ] ].each do |value, label, hint| %>
+          <label class="dd-rate-pattern">
+            <%= radio_button_tag :kind, value, false, id: "kind_#{value}", data: { action: "inventory-preset#choose" } %>
+            <span><strong><%= label %></strong><span class="dd-cell-subtext"><%= hint %></span></span>
+          </label>
+        <% end %>
+      </div>
+      <p class="dd-field-hint">Hotel rooms over several nights? <%= link_to "Add hotel rooms by night", new_departure_arrangement_room_nights_path(group.supplier_arrangement.departure, group.supplier_arrangement) %> instead.</p>
+    </fieldset>
+  <% end %>
   <div class="dd-form-grid dd-form-grid--two-column">
     <div class="dd-field-group">
       <%= form.label :service_category, "Service category", class: "dd-label" %>
-      <%= form.select :service_category, ArrangementsHelper::SERVICE_CATEGORY_LABELS.invert, {}, class: "dd-field" %>
+      <%= form.select :service_category, ArrangementsHelper::SERVICE_CATEGORY_LABELS.invert, {}, class: "dd-field", data: { inventory_preset_target: "category" } %>
     </div>
     <div class="dd-field-group">
       <%= form.label :representation, class: "dd-label" %>
-      <%= form.select :representation, ArrangementsHelper::REPRESENTATION_LABELS.invert, {}, aria: { describedby: "inventory_group_representation_hint" }, class: "dd-field" %>
+      <%= form.select :representation, ArrangementsHelper::REPRESENTATION_LABELS.invert, {}, aria: { describedby: "inventory_group_representation_hint" }, class: "dd-field",
+            data: { inventory_preset_target: "representation", action: "inventory-preset#refresh" } %>
       <p class="dd-field-hint" id="inventory_group_representation_hint">Unit shells track each cabin, room or resource; a pool counts interchangeable places.</p>
     </div>
     <div class="dd-field-group">
       <%= form.label :availability_promise, "Availability promise", class: "dd-label" %>
-      <%= form.select :availability_promise, ArrangementsHelper::AVAILABILITY_PROMISE_LABELS.invert, {}, aria: { describedby: "inventory_group_promise_hint" }, class: "dd-field" %>
+      <%= form.select :availability_promise, ArrangementsHelper::AVAILABILITY_PROMISE_LABELS.invert, {}, aria: { describedby: "inventory_group_promise_hint" }, class: "dd-field",
+            data: { inventory_preset_target: "promise", action: "inventory-preset#refresh" } %>
       <p class="dd-field-hint" id="inventory_group_promise_hint">On request and Rate only hold no number.</p>
     </div>
-    <div class="dd-field-group">
+    <div class="dd-field-group" data-inventory-preset-target="quantity">
       <%= form.label :quantity, "Units or places", class: "dd-label" %>
       <%= form.number_field :quantity, min: 1, step: 1, **dd_field_options(form, :quantity, class: "dd-field--numeric dd-field--narrow") %>
       <%= dd_field_error(form, :quantity) %>
     </div>
-    <div class="dd-field-group">
+    <div class="dd-field-group" data-inventory-preset-target="shellOnly">
       <%= form.label :positions_per_unit, "Positions per unit", class: "dd-label" %>
       <%= form.number_field :positions_per_unit, min: 1, step: 1, **dd_field_options(form, :positions_per_unit, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "inventory_group_positions_hint") %>
       <p class="dd-field-hint" id="inventory_group_positions_hint">Unit shells only: the maximum occupancy of each unit.</p>
       <%= dd_field_error(form, :positions_per_unit) %>
     </div>
-    <div class="dd-field-group">
+    <div class="dd-field-group" data-inventory-preset-target="shellOnly">
       <%= form.label :required_adults_per_unit, "Adults required per unit (optional)", class: "dd-label" %>
       <%= form.number_field :required_adults_per_unit, min: 1, step: 1, **dd_field_options(form, :required_adults_per_unit, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "inventory_group_required_adults_hint") %>
       <p class="dd-field-hint" id="inventory_group_required_adults_hint">The supplier's rule, such as one adult per cabin. Checked when space is held and when a booking is confirmed.</p>
@@ -66,6 +86,7 @@
       </div>
     </div>
   </fieldset>
+  </div>
 <% else %>
   <p class="dd-field-hint">This arrangement is confirmed, so only the label can change. Anything else needs replacement inventory.</p>
 <% end %>
