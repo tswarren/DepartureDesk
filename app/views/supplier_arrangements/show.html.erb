@@ -21,6 +21,13 @@
 
 <%= render "departures/tabs", departure: @departure, current: :suppliers %>
 
+<% if @arrangement.draft? %>
+  <%= render "shared/setup_checklist", id: "ready-to-confirm", title: "Ready to confirm?",
+        items: arrangement_checklist(@departure, @arrangement, view_costs: can_view_supplier_costs?),
+        required_note: "Confirming needs each required item. Unit shells are created at confirmation, and the rate table is then frozen.",
+        optional_title: "Usually set up first, not required to confirm" %>
+<% end %>
+
 <article class="dd-panel" id="arrangement-details">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Details</h2>

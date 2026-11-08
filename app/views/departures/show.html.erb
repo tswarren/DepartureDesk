@@ -46,11 +46,15 @@
         <dd><%= @departure.completion_status.humanize %><%= " on #{@departure.departed_at.in_time_zone(Current.agency.default_timezone).to_fs(:long)}" if @departure.departed_at %></dd>
       </div>
     </dl>
-    <% if manage && @departure.draft? && !@departure.departed? && @departure.ready_to_sell_blockers.any? %>
-      <p class="dd-page-description">Before it can be marked Ready to sell: <%= @departure.ready_to_sell_blockers.to_sentence %> <%= link_to "Edit departure", edit_departure_path(@departure) %></p>
-    <% end %>
   </div>
 </article>
+
+<% if manage && @departure.draft? && !@departure.departed? %>
+  <%= render "shared/setup_checklist", id: "ready-to-sell", title: "Ready to sell?",
+        items: departure_checklist(@departure),
+        required_note: "Marking it Ready to sell needs each required item.",
+        optional_title: "Not required to be Ready to sell, but a booking needs them before it is confirmed" %>
+<% end %>
 
 <article class="dd-panel" id="details">
   <header class="dd-panel-header">

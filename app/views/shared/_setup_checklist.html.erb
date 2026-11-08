@@ -1,0 +1,26 @@
+<%# A step's checklist: what it requires, then what is usually set up first (SetupChecklistHelper). %>
+<%# locals: (id:, title:, items:, required_note:, optional_title:) -%>
+<% required = items.select(&:required) %>
+<% optional = items.reject(&:required) %>
+<article class="dd-panel" id="<%= id %>" aria-labelledby="<%= id %>-heading">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title" id="<%= id %>-heading"><%= title %></h2>
+    <span class="dd-cell-subtext"><%= required.count(&:done) %> of <%= required.size %> required done</span>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <ul class="dd-plain-list dd-checklist">
+      <% required.each do |item| %>
+        <%= render "shared/setup_checklist_item", item: %>
+      <% end %>
+    </ul>
+    <p class="dd-field-hint"><%= required_note %></p>
+    <% if optional.any? %>
+      <h3 class="dd-section-title"><%= optional_title %></h3>
+      <ul class="dd-plain-list dd-checklist">
+        <% optional.each do |item| %>
+          <%= render "shared/setup_checklist_item", item: %>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>

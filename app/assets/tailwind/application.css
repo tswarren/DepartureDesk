@@ -2427,6 +2427,12 @@
     .dd-booking-steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
+  /* Setup checklists: Ready to confirm? and Ready to sell? */
+  .dd-checklist { display: flex; flex-direction: column; }
+  .dd-checklist-item { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.55rem 0; border-bottom: 1px solid var(--dd-border); }
+  .dd-checklist-item:last-child { border-bottom: 0; }
+  .dd-checklist-item .dd-badge { flex: none; min-width: 4.5rem; justify-content: center; }
+
   /* Supplier payment form: choices, then a sentence that sums it up. */
   .dd-payment-layout { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-start; }
   .dd-payment-layout > .dd-stack { flex: 999 1 32rem; min-width: 0; }

@@ -26,8 +26,8 @@ class DepartureScreensTest < ApplicationSystemTestCase
     within("#statuses") do
       assert_text "Draft"
       assert_text "Undecided"
-      assert_text "Enter a start date and an end date."
     end
+    within("#ready-to-sell") { assert_text "Enter a start date and an end date." }
 
     click_link_and_expect "Edit departure", heading: "Edit departure", css: ".dd-page-actions a"
     fill_in_html_date "Start date", "2027-05-01"
