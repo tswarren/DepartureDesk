@@ -1,6 +1,6 @@
 # Slice 1 staff walkthrough after step 6
 
-**Status:** Draft 2026-11-07, ready to run. Part of the [first-slice charter](first-slice-charter.md): its build plan calls for a staff-only walkthrough of setup through confirmed bookings after build step 6, before money, reseller access and documents are built. Slice 1 can't exit until this walkthrough is done and its findings are resolved or logged.
+**Status:** Done 2026-11-08. Every part passed; the findings below were each fixed and merged before build step 7. Part of the [first-slice charter](first-slice-charter.md): its build plan calls for a staff-only walkthrough of setup through confirmed bookings after build step 6, before money, reseller access and documents are built. Slice 1 can't exit until this walkthrough is done and its findings are resolved or logged.
 
 **Covers:** charter workflow steps 1 to 8 and 10, for staff. The reseller's path (step 9), supplier reservations (step 11), money (steps 12 and 13) and documents (step 15) are not built yet and are out of this walkthrough.
 
@@ -175,7 +175,13 @@ Log each finding as you go. Disposition is one of:
 
 | # | Part and step | What happened | What was expected | Width | Disposition |
 | --- | --- | --- | --- | --- | --- |
-| 1 | | | | | |
+| 1 | C, supplier rates | Cruise rates were entered one line at a time, with a separate line for each traveler type; it was unclear where occupancy ends and traveler types begin | Rates entered as a grid of bands, set once for every fare and overridden where a fare differs | Both | Fix now: [#262](https://github.com/tswarren/DepartureDesk/pull/262), merged |
+| 2 | C, supplier money | A $500 per-cabin deposit couldn't be expressed on a draft cruise, which has no units yet; costs, deadlines and schedule lines read as one confusing list | A payment form that asks how much and when, in a sentence, and separates what it costs from when you pay | Both | Fix now: [#263](https://github.com/tswarren/DepartureDesk/pull/263), merged |
+| 3 | E, client prices | Client prices were set one position and type at a time on each option; a 4th guest couldn't be priced apart from the 3rd on a confirmed cruise | A price grid per choice, laid out like the supplier bands, with supplier cost under each price and a band that splits by guest | Both | Fix now: [#263](https://github.com/tswarren/DepartureDesk/pull/263), merged |
+| 4 | G, new booking | A booking could start only from a trip already made on the client's profile; travelers were added one at a time; rooms didn't follow the cabin; each extra night was its own entry | New booking from the Bookings tab, travelers added together, rooms that follow the cabin, nights as a range, in four steps | Both | Fix now: [#264](https://github.com/tswarren/DepartureDesk/pull/264), merged |
+| 5 | G, travelers | Someone not yet linked to the client meant leaving the booking; a placeholder couldn't be replaced, only removed and the traveler re-added | Add a new or found traveler from the step, and replace a placeholder in place | Both | Fix now: [#264](https://github.com/tswarren/DepartureDesk/pull/264), merged |
+| 6 | C to E, setup | Nothing said what confirming an arrangement or marking Ready to sell still needed; inventory and package choices asked for every rule each time | Ready to confirm? and Ready to sell? checklists; presets for inventory and choices; hotel rooms by night; extra nights in one go | Both | Fix now: [#265](https://github.com/tswarren/DepartureDesk/pull/265), merged |
+| 7 | C to E, changes and terms | Capacity changes were technical terms; the deadline form asked for everything at once; client terms read as table cells | Supply changes as what happened; a simpler deadline form with a sentence; client terms as sentences with dates | Both | Fix now: [#266](https://github.com/tswarren/DepartureDesk/pull/266), merged |
 
 ## Exit
 
