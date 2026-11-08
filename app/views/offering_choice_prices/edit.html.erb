@@ -34,8 +34,12 @@
 <% else %>
   <%= form_with url: departure_offering_choice_prices_path(@departure, @offering, @choice), method: :patch, class: "dd-stack", id: "client-prices", data: { controller: "unsaved-changes" } do %>
     <%= hidden_field_tag :traveler_type_id, params[:traveler_type_id] if params[:traveler_type_id].present? %>
+    <% @grid.split_keys.each do |key| %><%= hidden_field_tag "split[]", key, id: nil %><% end %>
     <article class="dd-panel">
       <div class="dd-panel-body dd-stack">
+        <% if @grid.columns.any? { |column| @grid.splittable?(column) } %>
+          <p class="dd-field-hint">A column covering several guests sets one price for each of them. Split it to charge, say, the 4th guest differently from the 3rd; the supplier's bands are not changed.</p>
+        <% end %>
         <p class="dd-field-hint">Leave a price blank where the option isn't sold<%= " to that traveler type; it then pays the price for any traveler" if @grid.columns.any?(&:traveler_type) %>. Enter 0 for no charge.<% if @grid.show_cost? %> The net supplier cost per guest is under each price.<% end %></p>
         <div class="dd-table-wrap">
           <table class="dd-table dd-stacked-table dd-rate-grid dd-price-grid">
@@ -44,7 +48,12 @@
               <tr>
                 <th scope="col">Option</th>
                 <% @grid.columns.each do |column| %>
-                  <th scope="col"><%= column.label %></th>
+                  <th scope="col"><%= column.label %>
+                    <% if @grid.splittable?(column) %>
+                      <%= link_to "Split by guest", edit_departure_offering_choice_prices_path(@departure, @offering, @choice, split: @grid.split_keys + [ column.key ], traveler_type_id: params[:traveler_type_id].presence),
+                            class: "dd-row-action dd-row-action--text dd-price-split", aria: { label: "Price #{column.label} one guest at a time" } %>
+                    <% end %>
+                  </th>
                 <% end %>
               </tr>
             </thead>
@@ -102,6 +111,7 @@
           <div class="dd-field-group">
             <%= form.label :traveler_type_id, "Traveler type", class: "dd-label" %>
             <%= form.select :traveler_type_id, types.map { |type| [ type.name, type.id ] }, {}, class: "dd-field", aria: { describedby: "price_type_hint" } %>
+            <% @grid.split_keys.each do |key| %><%= hidden_field_tag "split[]", key, id: nil %><% end %>
             <p class="dd-field-hint" id="price_type_hint">Adds a column, such as $0 for Child 0–4. Unsaved prices above are lost.</p>
           </div>
           <%= form.submit "Add a column", class: "dd-button dd-button--secondary", name: nil %>

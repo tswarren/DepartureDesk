@@ -5,9 +5,14 @@
 # price column. A traveler type gets its own column once it has a price or
 # staff add one. Each cell reads what a guest at those positions pays now,
 # through the price lookup, so a price for any position shows where it
-# applies; a typed cell shows only its own price.
+# applies; a typed cell shows only its own price. A column of several
+# positions splits into one per guest when staff ask, or by itself once
+# its positions hold different prices, so the client side can differ from
+# how the supplier bands its fares.
 class ClientPriceGrid
-  Column = Data.define(:key, :label, :positions, :traveler_type)
+  Column = Data.define(:key, :label, :positions, :traveler_type) do
+    def splittable? = traveler_type.nil? && positions.size > 1 && positions != [ "any" ]
+  end
   Cell = Data.define(:key, :option, :column, :positions, :value, :original, :varies, :inherited, :cost) do
     def available? = positions.any?
   end
@@ -16,9 +21,10 @@ class ClientPriceGrid
 
   attr_reader :choice
 
-  def initialize(choice, extra_type: nil, submitted: nil, show_cost: false)
+  def initialize(choice, extra_type: nil, split: [], submitted: nil, show_cost: false)
     @choice = choice
     @extra_type = extra_type
+    @split = Array(split)
     @submitted = submitted
     @show_cost = show_cost
   end
@@ -37,12 +43,22 @@ class ClientPriceGrid
 
   def columns
     @columns ||= begin
+      @split_keys = []
       base = per_unit? ? unit_columns : [ Column.new(key: self.class.column_key([ "any" ], nil), label: choice.made_per_traveler? ? "Any traveler" : "Price", positions: [ "any" ], traveler_type: nil) ]
-      (base + typed_columns(base)).uniq(&:key)
+      (base.flat_map { |column| split?(column) ? split(column) : [ column ] } + typed_columns(base)).uniq(&:key)
     end
   end
 
   def cells_for(option) = columns.map { |column| cell(option, column) }
+
+  # Whether splitting a column would give any option more than one price.
+  def splittable?(column) = per_unit? && column.splittable? && options.any? { |option| option.stored_positions_for(column.positions).size > 1 }
+
+  # Keys of the columns shown one per guest, for carrying across a request.
+  def split_keys
+    columns
+    @split_keys
+  end
 
   # Traveler types that could get a column of their own.
   def addable_types
@@ -65,7 +81,7 @@ class ClientPriceGrid
     positions = positions_for(option, column)
     return Cell.new(key:, option:, column:, positions:, value: nil, original: nil, varies: false, inherited: nil, cost: nil) if positions.empty?
 
-    lookup = OfferingPriceLookup.new(option:)
+    lookup = lookup_for(option)
     amounts = positions.map do |position|
       if column.traveler_type
         option.prices.find { |price| price.occupancy_position == position && price.traveler_type_id == column.traveler_type.id }&.amount_minor_units
@@ -79,6 +95,24 @@ class ClientPriceGrid
     value, original = submitted_values(option, column) || [ stored, stored ]
     Cell.new(key:, option:, column:, positions:, value:, original:, varies:, inherited:, cost: cost_for(option.inventory_group, positions, column.traveler_type))
   end
+
+  def split?(column)
+    return false unless splittable?(column)
+
+    (@split.include?(column.key) || options.any? { |option| differs?(option, column) }).tap { |split| (@split_keys ||= []) << column.key if split }
+  end
+
+  def split(column)
+    column.positions.map { |position| Column.new(key: self.class.column_key([ position ], nil), label: position_label(position).upcase_first, positions: [ position ], traveler_type: nil) }
+  end
+
+  # Whether an option's guests in a column pay different prices now.
+  def differs?(option, column)
+    lookup = lookup_for(option)
+    option.stored_positions_for(column.positions).map { |position| lookup.price_for(occupancy_position: position == "any" ? nil : position)&.amount_minor_units }.uniq.size > 1
+  end
+
+  def lookup_for(option) = (@lookups ||= {})[option.id] ||= OfferingPriceLookup.new(option:)
 
   # The positions a column covers on one option: those the option's group can hold.
   def positions_for(option, column) = option.stored_positions_for(column.positions)

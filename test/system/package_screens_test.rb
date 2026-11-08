@@ -87,5 +87,12 @@ class PackageScreensTest < ApplicationSystemTestCase
     end
     option = offering.choices.find_by!(name: "Cabin").options.find_by!(label: "V01")
     assert_equal 345_000, option.prices.find_by!(occupancy_position: "guest_2", traveler_type: nil).amount_minor_units
+
+    find("a[aria-label='Edit Cabin prices']").click
+    find("a[aria-label='Price 3rd and 4th guest one guest at a time']").click
+    fill_in "S01, 4th guest: price", with: "400"
+    click_on "Save prices"
+    assert_text "Cabin prices saved."
+    assert_selector "tr", text: /S01.*\$535.*\$400/m
   end
 end

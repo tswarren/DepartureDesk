@@ -35,7 +35,8 @@ class OfferingChoicePricesController < ApplicationController
 
   def grid(submitted: nil)
     extra = params[:traveler_type_id].presence && Current.agency.traveler_types.find_by(id: params[:traveler_type_id])
-    ClientPriceGrid.new(@choice, extra_type: extra, submitted:, show_cost: Current.agency_user.permitted?(:view_supplier_costs))
+    split = Array(params.permit(split: [])[:split]).grep(KEY_FORMAT)
+    ClientPriceGrid.new(@choice, extra_type: extra, split:, submitted:, show_cost: Current.agency_user.permitted?(:view_supplier_costs))
   end
 
   # Only the grid's own options and columns are read.

@@ -2437,6 +2437,7 @@
   .dd-rate-pattern:has(input:checked) { border: 2px solid var(--dd-teal); background: var(--dd-selection); }
   .dd-rate-grid td { vertical-align: top; }
   .dd-rate-grid tbody th { min-width: 6.5rem; vertical-align: top; }
+  .dd-price-split { display: block; margin-top: 0.25rem; text-transform: none; letter-spacing: normal; }
   .dd-rate-cell { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
   .dd-rate-pair { display: flex; align-items: center; gap: 0.4rem; }
   .dd-rate-fare { width: 6.5rem; }

@@ -18,7 +18,7 @@ class OfferingChoicePricesControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @admin
     get edit_departure_offering_choice_prices_path(@departure, @offering, @cabin)
     assert_response :success
-    assert_equal [ "Option", "1st and 2nd guest", "3rd and 4th guest", "Single" ], css_select("#client-prices thead th").map { |th| th.text.strip }
+    assert_equal [ "Option", "1st and 2nd guest", "3rd and 4th guest", "Single" ], headers
     assert_select "input[aria-describedby][id^='price_#{@v01.id}']", minimum: 1
     assert_select "label", text: "V01, 1st and 2nd guest: price"
     assert_equal "3385", css_select("input[name='prices[#{@v01.id}][guest_1+guest_2|]']").sole["value"]
@@ -31,7 +31,7 @@ class OfferingChoicePricesControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @admin
     room = @offering.choices.find_by!(name: "Nov 5 hotel room")
     get edit_departure_offering_choice_prices_path(@departure, @offering, room)
-    assert_equal [ "Option", "1st guest", "Other guests" ], css_select("#client-prices thead th").map { |th| th.text.strip }
+    assert_equal [ "Option", "1st guest", "Other guests" ], headers
   end
 
   test "saving writes only changed cells, on every position they cover, and drops an any-position price no guest can reach" do
@@ -59,7 +59,7 @@ class OfferingChoicePricesControllerTest < ActionDispatch::IntegrationTest
 
     tour = @tour.options.sole
     get edit_departure_offering_choice_prices_path(@departure, @offering, @tour)
-    assert_equal [ "Option", "Any traveler", "Child 0–4" ], css_select("#client-prices thead th").map { |th| th.text.strip }
+    assert_equal [ "Option", "Any traveler", "Child 0–4" ], headers
     patch departure_offering_choice_prices_path(@departure, @offering, @tour), params: { prices: { tour.id => { "any|#{@child.id}" => "" } }, original: { tour.id => { "any|#{@child.id}" => "0" } } }
     assert_empty tour.prices.where(traveler_type: @child)
   end
@@ -70,7 +70,7 @@ class OfferingChoicePricesControllerTest < ActionDispatch::IntegrationTest
     option = nights.options.find_by!(label: "Nov 1 Garden Queen")
     assert_nil option.inventory_group.positions_per_unit
     get edit_departure_offering_choice_prices_path(@departure, @offering, nights)
-    assert_equal [ "Option", "1st guest", "Other guests" ], css_select("#client-prices thead th").map { |th| th.text.strip }
+    assert_equal [ "Option", "1st guest", "Other guests" ], headers
     other = "guest_2|"
     assert_equal "0", css_select("input[name='prices[#{option.id}][#{other}]']").sole["value"]
 
@@ -79,6 +79,28 @@ class OfferingChoicePricesControllerTest < ActionDispatch::IntegrationTest
       prices: { option.id => { first => "200", other => "25" } }, original: { option.id => { first => "190", other => "0" } }
     }
     assert_equal({ "guest_1" => 20_000, "any" => 2_500 }, option.prices.reload.to_h { |price| [ price.occupancy_position, price.amount_minor_units ] })
+  end
+
+  test "a column splits by guest, independently of the supplier bands, and stays split while its guests' prices differ" do
+    sign_in_as @admin
+    s01 = @cabin.options.find_by!(label: "S01")
+    band = "guest_3+guest_4|"
+    get edit_departure_offering_choice_prices_path(@departure, @offering, @cabin)
+    assert_select "a[aria-label='Price 3rd and 4th guest one guest at a time'][href*='split']"
+
+    get edit_departure_offering_choice_prices_path(@departure, @offering, @cabin, split: [ band ])
+    assert_equal [ "Option", "1st and 2nd guest", "3rd guest", "4th guest", "Single" ], headers
+    assert_select "input[type=hidden][name='split[]'][value='#{band}']"
+    assert_select "input[name='prices[#{@v01.id}][guest_4|]']", count: 0
+    patch departure_offering_choice_prices_path(@departure, @offering, @cabin), params: {
+      split: [ band ], prices: { s01.id => { "guest_4|" => "400" } }, original: { s01.id => { "guest_4|" => "535" } }
+    }
+    assert_equal [ 53_500, 40_000 ], %w[guest_3 guest_4].map { |position| OfferingPriceLookup.new(option: s01.reload).price_for(occupancy_position: position).amount_minor_units }
+    assert_equal @alpha.arrangements.fetch(:cruise).rate_bands.map(&:label), [ "1st and 2nd guest", "3rd and 4th guest", "Single" ]
+
+    get edit_departure_offering_choice_prices_path(@departure, @offering, @cabin)
+    assert_select "#client-prices thead th", text: /\A4th guest/
+    assert_select "#client-prices thead th", text: /\A3rd and 4th guest/, count: 0
   end
 
   test "an invalid amount saves nothing and keeps what staff typed" do
@@ -104,4 +126,8 @@ class OfferingChoicePricesControllerTest < ActionDispatch::IntegrationTest
     get edit_departure_offering_choice_prices_path(@departure, @offering, @cabin)
     assert_response :not_found
   end
+
+  private
+
+  def headers = css_select("#client-prices thead th").map { |th| th.children.first.text.strip }
 end
