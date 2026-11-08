@@ -1,6 +1,11 @@
 module BookingsHelper
   STATUS_MODIFIERS = { "draft" => "neutral", "confirmed" => "success", "discarded" => "neutral", "cancelled" => "danger" }.freeze
 
+  # A link to a workspace section: on this step, its anchor; else its step.
+  def booking_section_path(booking, anchor)
+    BookingProgress.step_for(anchor) == @step ? "##{anchor}" : booking_step_path(booking, anchor)
+  end
+
   def booking_status_badge(booking)
     status_badge(booking.status_label, modifier: STATUS_MODIFIERS.fetch(booking.status))
   end

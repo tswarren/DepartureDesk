@@ -28,17 +28,25 @@ class BookingsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @staff
     get client_booking_path(@booking)
     assert_select "h1", text: @booking.booking_reference
+    assert_select "nav[aria-label='Booking steps'] a[aria-current=step]", text: /4 · Accept and confirm/
+    assert_select "nav[aria-label='Booking steps'] a", text: /1 · Travelers\s+Done · 4 added/
+    get client_booking_path(@booking, step: "travelers")
     assert_select "#travelers th[scope=row] a", text: "Milo Bennett"
+    assert_select "#choices", count: 0
+    get client_booking_path(@booking, step: "rooms")
     assert_select "#choices li", text: /Milo Bennett\s+· 4th guest/
     assert_select "#choices li", text: /Milo Bennett\s+· takes part without a position/
+    get client_booking_path(@booking, step: "price")
     assert_select "#prices tfoot td", text: /\$12,570\.00/
     assert_select "#hold p", text: /Held until/
+    assert_select "a", text: "Next: accept and confirm"
+    get client_booking_path(@booking, step: "confirm")
     assert_select "#confirm a[href='#acceptance']", text: "Record the client's acceptance of the current price and terms."
   end
 
   test "the price summary says No charge for a free place and marks a traveler not on a service" do
     sign_in_as @staff
-    get client_booking_path(@alpha.bookings.fetch("BK-105"))
+    get client_booking_path(@alpha.bookings.fetch("BK-105"), step: "price")
     tour = css_select("#prices tbody tr").find { |row| row.text.include?("Private Miami tour") }
     cells = tour.css("td.num").map { |cell| cell.text.squish }
     assert_equal [ "Mateo Rivera $150.00", "Elena Rivera —Not on this service", "Luca Rivera No charge" ], cells.first(3)
@@ -63,7 +71,7 @@ class BookingsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @staff
     patch client_booking_hold_path(@booking)
     patch client_booking_hold_path(@booking)
-    assert_redirected_to client_booking_path(@booking, anchor: "hold")
+    assert_redirected_to client_booking_path(@booking, step: "price", anchor: "hold")
     follow_redirect!
     assert_select ".dd-alert--danger", text: /already been extended once/
   end

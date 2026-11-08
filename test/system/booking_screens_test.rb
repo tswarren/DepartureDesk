@@ -15,7 +15,7 @@ class BookingScreensTest < ApplicationSystemTestCase
   test "S-25, S-26 and the inventory page reflow at 375px without page overflow" do
     paths = [
       departure_bookings_path(@alpha.departure),
-      client_booking_path(@alpha.bookings.fetch("BK-104")),
+      *BookingProgress::STEPS.map { |step| client_booking_path(@alpha.bookings.fetch("BK-104"), step:) },
       client_booking_path(@alpha.bookings.fetch("BK-101")),
       client_trip_path(@alpha.trips.fetch("BK-105")),
       departure_inventory_path(@alpha.departure),
@@ -65,12 +65,14 @@ class BookingScreensTest < ApplicationSystemTestCase
       end
       within("#travelers table") { assert_selector "th", text: "#{name} Rivera" }
     end
+    click_link "Next: rooms and options"
     cabin = @alpha.offering.choices.find_by!(name: "Cabin")
     within("#choice-#{cabin.id}") do
       select "I01", from: "Option to add"
       click_button "Add"
     end
     assert_text "Choice saved."
+    within("nav[aria-label='Booking steps']") { click_link "Price and hold" }
     within("#prices") { assert_text "$5,170.00" }
     within("#hold") { click_button "Hold space" }
     assert_text "Space held."

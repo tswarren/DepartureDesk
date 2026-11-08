@@ -39,6 +39,7 @@ class DemonstrationD16Test < ApplicationSystemTestCase
       click_button "Add traveler"
     end
     assert_text "Traveler added."
+    within("nav[aria-label='Booking steps']") { click_link "Accept and confirm" }
     click_button "Confirm booking"
 
     within("#form-error-summary") do
@@ -49,7 +50,7 @@ class DemonstrationD16Test < ApplicationSystemTestCase
     end
     booking = trip.client_bookings.sole
     assert_equal "draft", booking.status
-    assert_current_path client_booking_path(booking)
+    assert_current_path client_booking_path(booking, step: "travelers")
     assert_selector "#booking-traveler-#{booking.booking_travelers.sole.id}", text: "Guest 2"
   end
 end

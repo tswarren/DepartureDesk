@@ -93,7 +93,7 @@
       <% end %>
       <div class="dd-form-actions">
         <%= form.submit "Record acceptance", class: "dd-button" %>
-        <%= link_to "Cancel", client_booking_path(@booking, anchor: "acceptance"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", booking_step_path(@booking, "acceptance"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

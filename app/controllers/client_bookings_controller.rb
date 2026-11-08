@@ -21,6 +21,8 @@ class ClientBookingsController < ApplicationController
     @linked_travelers = @trip.client.travelers.ordered.reject { |traveler| @booking.booking_travelers.any? { |row| row.traveler_id == traveler.id } }
     @traveler_types = Current.agency.traveler_types.active.ordered
     @blocked = flash[:blockers]
+    @progress = BookingProgress.new(@booking, @blockers)
+    @step = params[:step].presence_in(BookingProgress::STEPS) || @progress.current
   end
 
   def create

@@ -7,13 +7,13 @@ class BookingConfirmationsController < ApplicationController
 
   def create
     ConfirmClientBooking.new(agency: Current.agency, actor: Current.agency_user, booking: @booking).call
-    redirect_to client_booking_path(@booking), notice: "Booking confirmed."
+    redirect_to booking_step_path(@booking, "confirm"), notice: "Booking confirmed."
   rescue ConfirmClientBooking::Blocked => error
-    redirect_to client_booking_path(@booking, anchor: "form-error-summary"),
+    redirect_to booking_step_path(@booking, "form-error-summary"),
       flash: { blockers: error.blockers.map { |blocker| [ blocker.message, blocker.anchor ] } }
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to client_booking_path(@booking, anchor: "confirm"), alert: error.message
+    redirect_to booking_step_path(@booking, "confirm"), alert: error.message
   end
 end

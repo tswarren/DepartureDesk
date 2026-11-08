@@ -12,7 +12,7 @@ class BookingAcceptancesController < ApplicationController
 
   def new
     unless @booking.status_draft? && @booking.price_lines.any?
-      return redirect_to client_booking_path(@booking, anchor: "acceptance"),
+      return redirect_to booking_step_path(@booking, "acceptance"),
         alert: @booking.status_draft? ? "Choose options and place travelers first; there is no price to accept yet." : "Only a draft booking takes a new acceptance."
     end
 
@@ -23,7 +23,7 @@ class BookingAcceptancesController < ApplicationController
   def create
     RecordBookingAcceptance.new(agency: Current.agency, actor: Current.agency_user, booking: @booking,
       attributes: acceptance_params, evidence: params.dig(:booking_acceptance, :evidence)).call
-    redirect_to client_booking_path(@booking, anchor: "acceptance"), notice: "Acceptance recorded."
+    redirect_to booking_step_path(@booking, "acceptance"), notice: "Acceptance recorded."
   rescue AgencyCommand::Error => error
     @acceptance = @booking.acceptances.new(acceptance_params.slice("accepted_by", "acceptance_method", "note", "evidence_reference", "payment_reference"))
     @acceptance.accepted_on = acceptance_params["accepted_on"]

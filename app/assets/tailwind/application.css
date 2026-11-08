@@ -2413,6 +2413,19 @@
   .dd-segmented-option:has(input:checked) { border-color: var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 600; position: relative; }
   .dd-rate-methods { border: 0; margin: 0; padding: 0; }
   .dd-rate-inline, .dd-rate-shared { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; }
+  /* Booking steps (S-26): four links, the current one in navy. */
+  .dd-booking-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+  .dd-booking-step { display: block; height: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border: 1px solid var(--dd-border); border-radius: var(--dd-radius-md); background: var(--dd-surface); color: var(--dd-text); text-decoration: none; font-size: 14px; }
+  .dd-booking-step:hover { border-color: var(--dd-teal); }
+  .dd-booking-step[aria-current="step"] { background: var(--dd-navy); border-color: var(--dd-navy); color: var(--dd-text-on-dark); }
+  .dd-booking-step-note { display: block; font-size: 12px; color: var(--dd-text-muted); }
+  .dd-booking-step--done .dd-booking-step-note { color: var(--dd-success-text); }
+  .dd-booking-step[aria-current="step"] .dd-booking-step-note { color: var(--dd-text-on-dark-muted); }
+  .dd-step-next { justify-content: flex-end; }
+  @media (max-width: 40rem) {
+    .dd-booking-steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
   /* Supplier payment form: choices, then a sentence that sums it up. */
   .dd-payment-layout { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-start; }
   .dd-payment-layout > .dd-stack { flex: 999 1 32rem; min-width: 0; }
