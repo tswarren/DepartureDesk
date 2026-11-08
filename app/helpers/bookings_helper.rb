@@ -6,6 +6,28 @@ module BookingsHelper
     BookingProgress.step_for(anchor) == @step ? "##{anchor}" : booking_step_path(booking, anchor)
   end
 
+  DefaultOccupants = Data.define(:ids, :note)
+
+  # Who a new unit or add-on starts with. A unit in another per-unit choice
+  # follows the matching unit of the first one, so rooms follow the cabin;
+  # each extra night follows the first cabin. Otherwise the travelers not
+  # yet in the choice, for an included choice; none for an add-on.
+  def default_occupants(booking, choice, choices)
+    return DefaultOccupants.new(ids: [], note: nil) if choice.made_per_trip?
+
+    placed = booking.choice_selections.select { |selection| selection.choice.id == choice.id }
+    leader = choices.find(&:made_per_unit?)
+    if choice.made_per_unit? && leader && leader.id != choice.id
+      units = booking.choice_selections.select { |selection| selection.choice.id == leader.id }.sort_by(&:unit_number)
+      unit = units[choice.optional_multiple? ? 0 : placed.size]
+      return DefaultOccupants.new(ids: unit.occupants.map(&:booking_traveler_id), note: "The same travelers as #{unit.label}.") if unit
+    end
+    return DefaultOccupants.new(ids: [], note: nil) unless choice.included?
+
+    taken = placed.flat_map { |selection| selection.occupants.map(&:booking_traveler_id) }
+    DefaultOccupants.new(ids: booking.booking_travelers.map(&:id) - taken, note: nil)
+  end
+
   def booking_status_badge(booking)
     status_badge(booking.status_label, modifier: STATUS_MODIFIERS.fetch(booking.status))
   end

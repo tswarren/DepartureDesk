@@ -1,0 +1,42 @@
+<%# Extra nights as a range: one room type over consecutive nights, each night its own unit (BKG-14, question 19). %>
+<%# locals: (booking:, choice:, choices:) -%>
+<% options = choice.options.select(&:night_kind) %>
+<% kinds = options.map(&:night_kind).uniq %>
+<% nights = options.map { |option| option.inventory_group.starts_on }.uniq.sort %>
+<% defaults = default_occupants(booking, choice, choices) %>
+<% form_id = "nights-#{choice.id}" %>
+<%= form_with url: client_booking_selection_range_path(booking), scope: :selection_range, class: "dd-form", id: form_id do |form| %>
+  <%= form.hidden_field :choice_id, value: choice.id, id: nil %>
+  <%= hidden_field_tag :choice_id, choice.id, id: nil %>
+  <h4 class="dd-section-title">Add nights</h4>
+  <div class="dd-rate-inline">
+    <div class="dd-field-group">
+      <%= form.label :kind, "Room", class: "dd-label", for: "#{form_id}-kind" %>
+      <%= form.select :kind, kinds, {}, id: "#{form_id}-kind", class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :from, "From the night of", class: "dd-label", for: "#{form_id}-from" %>
+      <%= form.select :from, nights.map { |night| [ night.strftime("%b %-d"), night.iso8601 ] }, {}, id: "#{form_id}-from", class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :through, "Through the night of", class: "dd-label", for: "#{form_id}-through" %>
+      <%= form.select :through, nights.map { |night| [ night.strftime("%b %-d"), night.iso8601 ] }, { selected: nights.last.iso8601 }, id: "#{form_id}-through", class: "dd-field" %>
+    </div>
+  </div>
+  <% unless booking.booking_travelers.empty? %>
+    <fieldset class="dd-form-section">
+      <legend class="dd-section-title">Who is in the room, in guest order</legend>
+      <% if defaults.note %><p class="dd-field-hint"><%= defaults.note %> Change it if they split up.</p><% end %>
+      <div class="dd-choice-group">
+        <% booking.booking_travelers.each do |row| %>
+          <label class="dd-choice">
+            <%= check_box_tag "selection_range[occupant_ids][]", row.id, defaults.ids.include?(row.id), id: "#{form_id}-traveler-#{row.id}" %>
+            <span><%= row.display_name %></span>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+  <% end %>
+  <p class="dd-field-hint">Each night is its own room, priced and held by night. A night on request is asked of the hotel after booking.</p>
+  <div class="dd-form-actions"><%= form.submit "Add nights", class: "dd-button dd-button--secondary", name: nil %></div>
+<% end %>

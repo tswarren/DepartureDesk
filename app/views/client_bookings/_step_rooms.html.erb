@@ -17,7 +17,15 @@
           <%= render "client_bookings/selection", booking: booking, selection:, choice:, manage: %>
         <% end %>
         <% if manage && choice.options.any? %>
-          <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil %>
+          <% if choice.made_per_unit? && choice.optional_multiple? && choice.options.count(&:night_kind) >= 2 %>
+            <%= render "client_bookings/nights_form", booking:, choice:, choices: %>
+            <details class="dd-disclosure">
+              <summary>Add one option instead</summary>
+              <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil, choices: %>
+            </details>
+          <% else %>
+            <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil, choices: %>
+          <% end %>
         <% end %>
       </section>
     <% end %>

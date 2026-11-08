@@ -112,4 +112,22 @@ class BookingScreensTest < ApplicationSystemTestCase
     assert_selector "nav[aria-label='Booking steps'] a[aria-current=step]", text: /Travelers/
     within("#travelers table") { assert_selector "th", text: "Jun Okafor" }
   end
+
+  test "staff add extra nights as a range of nights" do
+    booking = @alpha.bookings.fetch("BK-105")
+    nights = @alpha.offering.choices.find_by!(name: "Extension nights")
+    sign_in_from_browser(@scenario.baseline_staff, password: M1DirectoryScenario::PASSWORD)
+    visit client_booking_path(booking, step: "rooms")
+    within("#nights-#{nights.id}") do
+      select "Harbor Double", from: "Room"
+      select "Nov 1", from: "From the night of"
+      select "Nov 3", from: "Through the night of"
+      assert_text "The same travelers as"
+      click_button "Add nights"
+    end
+    assert_text "Nights added."
+    within("#choice-#{nights.id}") do
+      %w[Nov\ 1 Nov\ 2 Nov\ 3].each { |night| assert_text "#{night} Harbor Double" }
+    end
+  end
 end
