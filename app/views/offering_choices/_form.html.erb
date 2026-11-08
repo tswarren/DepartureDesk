@@ -1,24 +1,44 @@
-<%# locals: (form:) -%>
+<%# locals: (form:, presets: false) -%>
+<% preset_values = { "cabin" => { role: "included", scope: "per_unit", pattern: "required_single", name: "Cabin" },
+                     "room" => { role: "included", scope: "per_unit", pattern: "required_single", name: "Hotel room" },
+                     "per_person" => { role: "add_on", scope: "per_traveler", pattern: "optional_single", name: "" } } %>
+<div class="dd-stack" data-controller="choice-preset" data-choice-preset-presets-value="<%= preset_values.to_json %>">
+<% if presets %>
+  <fieldset class="dd-form-section">
+    <legend class="dd-section-title">What kind</legend>
+    <div class="dd-rate-patterns">
+      <% [ [ "cabin", "Cabin", "Included; one category per cabin" ], [ "room", "Hotel room", "Included; one room type per room" ],
+           [ "per_person", "Per-person add-on", "A tour, transfer or meal" ], [ "custom", "Custom", "Set each rule yourself" ] ].each do |value, label, hint| %>
+        <label class="dd-rate-pattern">
+          <%= radio_button_tag :kind, value, false, id: "choice_kind_#{value}", data: { action: "choice-preset#choose" } %>
+          <span><strong><%= label %></strong><span class="dd-cell-subtext"><%= hint %></span></span>
+        </label>
+      <% end %>
+    </div>
+    <p class="dd-field-hint">Extra hotel nights? <%= link_to "Add extra nights", new_departure_offering_night_options_path(@departure, @offering) %> makes the choice and one option per night and room type.</p>
+  </fieldset>
+<% end %>
 <div class="dd-field-group">
   <%= form.label :name, class: "dd-label" %>
-  <%= form.text_field :name, maxlength: Offering::NAME_LIMIT, **dd_field_options(form, :name, aria_describedby_extra: "offering_choice_name_hint") %>
+  <%= form.text_field :name, maxlength: Offering::NAME_LIMIT, **dd_field_options(form, :name, aria_describedby_extra: "offering_choice_name_hint"), data: { choice_preset_target: "name" } %>
   <p class="dd-field-hint" id="offering_choice_name_hint">For example: Cabin, Nov 5 hotel room, Extension nights.</p>
   <%= dd_field_error(form, :name) %>
 </div>
 <div class="dd-form-grid dd-form-grid--two-column">
   <div class="dd-field-group">
     <%= form.label :role, "Role", class: "dd-label" %>
-    <%= form.select :role, PackageHelper::ROLE_LABELS.invert, {}, class: "dd-field" %>
+    <%= form.select :role, PackageHelper::ROLE_LABELS.invert, {}, class: "dd-field", data: { choice_preset_target: "role" } %>
   </div>
   <div class="dd-field-group">
     <%= form.label :scope, "Made", class: "dd-label" %>
-    <%= form.select :scope, PackageHelper::SCOPE_LABELS.invert, {}, aria: { describedby: "offering_choice_scope_hint" }, class: "dd-field" %>
+    <%= form.select :scope, PackageHelper::SCOPE_LABELS.invert, {}, aria: { describedby: "offering_choice_scope_hint" }, class: "dd-field", data: { choice_preset_target: "scope" } %>
     <p class="dd-field-hint" id="offering_choice_scope_hint">Per unit is chosen for each cabin or room; per traveler for each traveler.</p>
   </div>
   <div class="dd-field-group">
     <%= form.label :pattern, "Pattern", class: "dd-label" %>
-    <%= form.select :pattern, PackageHelper::PATTERN_LABELS.invert, {}, **dd_field_options(form, :pattern, aria_describedby_extra: "offering_choice_pattern_hint") %>
+    <%= form.select :pattern, PackageHelper::PATTERN_LABELS.invert, {}, **dd_field_options(form, :pattern, aria_describedby_extra: "offering_choice_pattern_hint"), data: { choice_preset_target: "pattern" } %>
     <p class="dd-field-hint" id="offering_choice_pattern_hint">Choose any applies only to add-ons.</p>
     <%= dd_field_error(form, :pattern) %>
   </div>
+</div>
 </div>

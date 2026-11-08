@@ -95,4 +95,24 @@ class PackageScreensTest < ApplicationSystemTestCase
     assert_text "Cabin prices saved."
     assert_selector "tr", text: /S01.*\$535.*\$400/m
   end
+
+  test "a choice preset fills in its rules, and the extra nights page reflows" do
+    departure = @alpha.departure
+    offering = @alpha.offering
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_offering_choice_path(departure, offering)
+    choose "Per-person add-on"
+    assert_select "Role", selected: "Add-on"
+    assert_select "Made", selected: "Per traveler"
+    choose "Cabin"
+    assert_field "Name", with: "Cabin"
+    assert_select "Pattern", selected: "Required, choose one"
+
+    visit new_departure_offering_night_options_path(departure, offering)
+    assert_selector "h1", text: "Add extra nights"
+    [ 1400, 375 ].each do |width|
+      resize_window(width)
+      assert_no_page_overflow
+    end
+  end
 end

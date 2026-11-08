@@ -43,11 +43,7 @@ class OfferingOption < ApplicationRecord
   # group starting Nov 2: the room type after the night, so a range of
   # nights can be chosen together. Nil when the label doesn't start with
   # its group's night.
-  def night_kind
-    night = inventory_group.starts_on or return
-    prefix = "#{night.strftime("%b %-d")} "
-    label.start_with?(prefix) ? label.delete_prefix(prefix).presence : nil
-  end
+  def night_kind = inventory_group.night_kind(label)
 
   # Positions no price row covers for a traveler of no particular type.
   def missing_prices

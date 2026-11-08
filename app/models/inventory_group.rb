@@ -47,6 +47,15 @@ class InventoryGroup < ApplicationRecord
   scope :ordered, -> { order(:position, :created_at) }
 
   # INV-04: On request, Rate only and no shared inventory show no balance.
+  # For a group of one night labelled "Nov 2 Garden Queen": the room type
+  # after the night. Nil when the label doesn't start with its night.
+  def night_kind(label = self.label)
+    return if starts_on.nil? || ends_on != starts_on + 1
+
+    prefix = "#{starts_on.strftime("%b %-d")} "
+    label.start_with?(prefix) ? label.delete_prefix(prefix).presence : nil
+  end
+
   def numeric?
     !represented_as_none? && !availability_promise.in?(NON_NUMERIC_PROMISES)
   end

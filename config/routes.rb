@@ -192,6 +192,7 @@ Rails.application.routes.draw do
         resource :prices, only: %i[edit update], controller: "offering_choice_prices"
       end
       resources :prices, only: %i[create destroy], controller: "offering_prices"
+      resource :night_options, only: %i[new create], controller: "offering_night_options"
     end
     resource :client_terms, only: %i[show create update], controller: "departure_client_terms"
     resource :client_terms_next_version, only: :create, controller: "departure_client_terms_next_versions"
