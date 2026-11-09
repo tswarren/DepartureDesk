@@ -2430,6 +2430,14 @@
   }
 
   /* Setup checklists: Ready to confirm? and Ready to sell? */
+  /* Record list (UX audit D1): one row per record, its title and details
+     on the left, its text-link actions on the right. */
+  .dd-record-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+  .dd-record { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 0.5rem 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--dd-border); }
+  .dd-record:last-child { border-bottom: 0; }
+  .dd-record-main { flex: 1 1 18rem; min-width: 0; }
+  .dd-record-list .dd-record-detail { margin: 0.15rem 0 0; font-size: 14px; color: var(--dd-text-muted); }
+  .dd-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; }
   .dd-checklist { display: flex; flex-direction: column; }
   .dd-checklist-item { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.55rem 0; border-bottom: 1px solid var(--dd-border); }
   .dd-checklist-item:last-child { border-bottom: 0; }
@@ -2443,10 +2451,6 @@
   .dd-payment-summary p { margin: 0; }
   .dd-payment-summary-title { margin: 0 0 0.5rem; font-size: 13px; font-weight: 600; color: var(--dd-text-on-dark-muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .dd-payment-summary-note { margin-top: 0.75rem !important; font-size: 13px; color: var(--dd-text-on-dark-muted); }
-  .dd-payment-list { display: flex; flex-direction: column; }
-  .dd-payment-item { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--dd-border); }
-  .dd-payment-item:last-child { border-bottom: 0; }
-  .dd-payment-sentence { margin: 0.15rem 0; }
   @media (max-width: 40rem) {
     .dd-payment-choices { display: flex; flex-direction: column; }
     .dd-payment-choices .dd-segmented-option { border-radius: 0 !important; margin-left: 0 !important; }
@@ -2489,6 +2493,22 @@
   .dd-disclosure > summary::-webkit-details-marker {
     display: none;
   }
+
+  /* An open/closed marker, so a closed disclosure reads as something to open. */
+  .dd-disclosure > summary::before {
+    content: "+";
+    display: inline-block;
+    width: 1em;
+    margin-right: 0.35rem;
+    color: var(--dd-teal-action);
+    font-weight: 700;
+  }
+
+  .dd-disclosure[open] > summary::before {
+    content: "\2212";
+  }
+
+  .dd-disclosure > summary:hover { color: var(--dd-teal-action); }
 
   .dd-disclosure-body {
     padding: 0 16px 14px;

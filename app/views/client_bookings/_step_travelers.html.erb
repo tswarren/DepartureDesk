@@ -89,11 +89,11 @@
           <fieldset class="dd-form-section">
             <legend class="dd-section-title"><%= client_name %>'s travelers</legend>
             <p class="dd-field-hint">Tick who is going and choose each traveler's type. Age<%= " at departure" if starts_on %> is shown to help; it never sets the type.</p>
-            <ul class="dd-plain-list dd-payment-list">
+            <ul class="dd-record-list">
               <% linked_travelers.each do |link| %>
                 <% traveler = link.traveler %>
                 <% age = starts_on && traveler.age_on(starts_on) %>
-                <li class="dd-payment-item">
+                <li class="dd-record">
                   <label class="dd-choice">
                     <%= check_box_tag "travelers[#{traveler.id}][add]", "1", true, id: "add_traveler_#{traveler.id}" %>
                     <span><strong><%= traveler.display_name %></strong>
@@ -164,9 +164,9 @@
             <% if found_travelers.empty? %>
               <p class="dd-empty-copy">No traveler matches “<%= traveler_query %>” who isn't already <%= client_name %>'s. Add them as a new traveler above.</p>
             <% else %>
-              <ul class="dd-plain-list dd-payment-list" aria-label="Matching travelers">
+              <ul class="dd-record-list" aria-label="Matching travelers">
                 <% found_travelers.each do |traveler| %>
-                  <li class="dd-payment-item">
+                  <li class="dd-record">
                     <span><strong><%= traveler.display_name %></strong>
                       <span class="dd-cell-subtext"><%= traveler.date_of_birth ? "Born #{traveler_date_of_birth(traveler)}" : "No date of birth" %></span></span>
                     <%= form_with url: client_booking_traveler_additions_path(booking), class: "dd-inline-form dd-rate-inline" do |form| %>

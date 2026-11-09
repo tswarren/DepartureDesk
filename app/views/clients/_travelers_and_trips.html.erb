@@ -7,7 +7,7 @@
     <h2 class="dd-panel-title">Travelers</h2>
     <% if manage_directory && client.active? %>
       <span class="dd-inline-actions">
-        <%= link_to "Add traveler", new_traveler_path(client_id: client.id), class: "dd-button dd-button--secondary" %>
+        <%= link_to "Add traveler", new_traveler_path(client_id: client.id), class: "dd-button dd-button--quiet" %>
         <%= link_to "Link existing traveler", new_traveler_link_path(client_id: client.id), class: "dd-button dd-button--quiet" %>
       </span>
     <% end %>
@@ -56,7 +56,7 @@
     <header class="dd-panel-header dd-section-header">
       <h2 class="dd-panel-title">Trips</h2>
       <% if Current.agency_user.permitted?(:manage_bookings) && client.active? %>
-        <%= link_to "New trip", new_client_trip_path(client_id: client.id), class: "dd-button dd-button--secondary" %>
+        <%= link_to "New trip", new_client_trip_path(client_id: client.id), class: "dd-button dd-button--quiet" %>
       <% end %>
     </header>
     <div class="dd-panel-body">

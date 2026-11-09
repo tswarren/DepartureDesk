@@ -25,14 +25,14 @@
           <% if unapplied.positive? %><div><dt>Paid, not yet applied</dt><dd class="dd-type-mono"><%= money(unapplied, currency) %></dd></div><% end %>
         </dl>
         <% if paid.any? %>
-          <ul class="dd-plain-list dd-payment-list" aria-label="Payments to <%= supplier.display_name_for_directory %>">
+          <ul class="dd-record-list" aria-label="Payments to <%= supplier.display_name_for_directory %>">
             <% paid.each do |payment| %>
-              <li class="dd-payment-item">
-                <div>
+              <li class="dd-record">
+                <div class="dd-record-main">
                   <strong class="dd-type-mono"><%= payment.payment_reference %></strong> · <%= money(payment.amount_minor_units, payment.currency) %> on <%= payment.paid_on.to_fs(:long) %>
                   <% if payment.reversed? %><%= status_badge("Reversed", modifier: "danger") %><% end %>
-                  <p class="dd-cell-subtext"><%= payment.method_label %><%= " from #{payment.payee_account.name}" if payment.payee_account %><%= " · #{payment.bank_reference}" if payment.bank_reference %><%= " · invoice #{payment.invoice_reference}" if payment.invoice_reference %> · recorded by <%= payment.recorded_by.display_name %></p>
-                  <p class="dd-cell-subtext">
+                  <p class="dd-record-detail"><%= payment.method_label %><%= " from #{payment.payee_account.name}" if payment.payee_account %><%= " · #{payment.bank_reference}" if payment.bank_reference %><%= " · invoice #{payment.invoice_reference}" if payment.invoice_reference %> · recorded by <%= payment.recorded_by.display_name %></p>
+                  <p class="dd-record-detail">
                     <% applied = payment.applications.group_by(&:amount_due).transform_values { |rows| rows.sum(&:amount_minor_units) }.select { |_, amount| amount.positive? } %>
                     <%= applied.any? ? "Applied to " + applied.map { |due, amount| "#{due.description} #{money(amount, payment.currency)}" }.to_sentence : "Not applied" %><%= " · #{money(payment.unapplied_minor_units, payment.currency)} not yet applied" if payment.unapplied_minor_units.positive? %>
                     <% if payment.reversal %> · Reversed <%= payment.reversal.reversed_on.to_fs(:long) %>: <%= payment.reversal.reason %><% end %>

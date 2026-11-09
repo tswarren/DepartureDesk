@@ -150,8 +150,7 @@
                             <span class="dd-rate-override"><%= field == "taxes" ? "Taxes and fees" : "Non-commissionable" %> <%= value %> here</span>
                           <% end %>
                           <% if cell.overridden?("commission_method") %><span class="dd-rate-override">Own commission</span><% end %>
-                          <details class="dd-disclosure dd-rate-details">
-                            <summary>Details</summary>
+                          <%= disclosure "Change taxes or commission", class_name: "dd-rate-details" do %>
                             <div class="dd-stack">
                               <div class="dd-rate-shared">
                                 <div class="dd-field-group">
@@ -166,7 +165,7 @@
                               <p class="dd-field-hint">Leave a field blank to use the value every fare shares.</p>
                               <%= render "supplier_rates/commission_fields", name: "#{name}[override]", id: "#{id}_commission", values: cell.overrides, currency:, inherit: shared_summary %>
                             </div>
-                          </details>
+                          <% end %>
                         </div>
                       <% else %>
                         <span class="dd-cell-subtext">Not in a <%= group.positions_per_unit %>-guest unit</span>

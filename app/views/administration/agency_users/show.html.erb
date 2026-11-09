@@ -52,7 +52,7 @@
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Permissions</h2>
     <% if @agency_user.staff? %>
-      <%= link_to "Edit permissions", edit_administration_agency_user_permissions_path(@agency_user), class: "dd-button dd-button--secondary dd-button--small" %>
+      <%= link_to "Edit permissions", edit_administration_agency_user_permissions_path(@agency_user), class: "dd-button dd-button--quiet" %>
     <% end %>
   </header>
   <div class="dd-panel-body dd-stack">

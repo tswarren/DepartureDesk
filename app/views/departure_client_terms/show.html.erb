@@ -116,15 +116,15 @@
       <% end %>
       <% lines = @terms_version.schedule_lines %>
       <% if lines.any? %>
-        <ol class="dd-plain-list dd-payment-list" aria-label="Payment schedule">
+        <ol class="dd-record-list" aria-label="Payment schedule">
           <% lines.each do |line| %>
-            <li class="dd-payment-item">
-              <div>
+            <li class="dd-record">
+              <div class="dd-record-main">
                 <strong><%= line.description %></strong>
-                <p class="dd-payment-sentence"><%= client_schedule_sentence(line, @departure.starts_on) %></p>
+                <p class="dd-record-detail"><%= client_schedule_sentence(line, @departure.starts_on) %></p>
               </div>
               <% if editable %>
-                <span class="dd-section-header">
+                <span class="dd-record-actions">
                   <%= link_to "Edit", edit_departure_client_schedule_line_path(@departure, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
                   <%= button_to "Remove", departure_client_schedule_line_path(@departure, line), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
                         form_class: "dd-inline-form", aria: { label: "Remove #{line.description}" } %>
