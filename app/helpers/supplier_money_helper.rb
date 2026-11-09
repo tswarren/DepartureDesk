@@ -98,6 +98,7 @@ module SupplierMoneyHelper
     when "fixed" then money(line.amount_minor_units, line.currency)
     when "per_shell" then "#{money(line.rate_minor_units, line.currency)} for each #{line.inventory_group ? "#{line.inventory_group.label} " : ""}#{unit}"
     when "per_unit_count" then "#{money(line.rate_minor_units, line.currency)} for each one in the count"
+    when "balance" then "The balance of what's committed, less what earlier payments made due"
     else "#{trim_decimal(line.percentage)}% of #{line.cost_line.description}"
     end
   end

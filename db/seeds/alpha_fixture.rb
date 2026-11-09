@@ -73,6 +73,8 @@ module AlphaFixture
     cruise: [
       { deadline_type: "deposit_payment", description: "Initial deposit, $50 per stateroom", due_on: Date.new(2026, 11, 1) },
       { deadline_type: "deposit_payment", description: "Full deposit and names for cabins not yet named", due_on: Date.new(2027, 3, 1) },
+      # D-97: cabins unsold on Jul 15, 2027 go back to Alpha, which keeps their deposits.
+      { deadline_type: "option_release", description: "Release unsold cabins to Alpha", due_on: Date.new(2027, 7, 15) },
       { deadline_type: "deposit_payment", description: "Final payment", due_on: Date.new(2027, 8, 1) }
     ],
     hotel: [
@@ -91,7 +93,8 @@ module AlphaFixture
         group_reference: "ALPHA-A", default_availability_promise: "firm_block",
         covered_services: "Alpha Omega, Port Everglades round trip, Nov 6–13, 2027. 8 cabins each in V01, O01, I01 and S01.",
         terms: "Agreement A. $50 per stateroom initial deposit due Nov 1, 2026, credited toward the $500 full deposit. " \
-               "Full deposit for cabins not yet named due Mar 1, 2027. Final payment due Aug 1, 2027."
+               "Full deposit for cabins not yet named due Mar 1, 2027. Cabins with no confirmed booking on Jul 15, 2027 are released " \
+               "to Alpha that day, and Alpha keeps their deposits. Final payment due Aug 1, 2027."
       }
     },
     hotel: {
@@ -341,6 +344,9 @@ module AlphaFixture
       schedule!(agency, actor, departure, arrangement, description: "Full deposit, $450 per cabin", amount_kind: "per_shell", rate: "450",
         due_rule: "earlier_of", trigger_type: "client_booking_confirmed", due_on: Date.new(2027, 3, 1),
         supplier_deadline_id: deadline.("Full deposit and names for cabins not yet named"))
+      # D-96 (2), D-97: the booked cabins' cost less every deposit already due.
+      schedule!(agency, actor, departure, arrangement, description: "Final payment", amount_kind: "balance",
+        due_rule: "fixed_date", due_on: Date.new(2027, 8, 1), supplier_deadline_id: deadline.("Final payment"))
     when :hotel
       arrangement.inventory_groups.where(label: HOTEL_FIRM_ROOMS.keys).each do |group|
         rate = HOTEL_FIRM_ROOMS.fetch(group.label)

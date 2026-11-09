@@ -14,6 +14,9 @@
 #
 # Rounding (ADR 0001): a percentage is applied in exact decimal arithmetic
 # and rounded half up to the minor unit, once per amount.
+#
+# The balance basis (D-96 (2)) posts the arrangement's committed cost less
+# every amount its other schedule lines have made due, never below zero.
 module SupplierAmountPosting
   include TaskCommandSupport
 
@@ -94,6 +97,10 @@ module SupplierAmountPosting
     when "per_unit_count"
       count = event&.count || eligible_shells(arrangement, line).size
       [ line.rate_minor_units * count, { quantity: count, rate_minor_units: line.rate_minor_units } ]
+    when "balance"
+      committed = arrangement.cost_lines.reload.select(&:stage_committed?).sum(&:amount_minor_units)
+      earlier = arrangement.amounts_due.reload.select { |amount| amount.schedule_line_id && amount.schedule_line_id != line.id }.sum(&:amount_minor_units)
+      [ [ committed - earlier, 0 ].max, { base_minor_units: committed } ]
     end
   end
 
