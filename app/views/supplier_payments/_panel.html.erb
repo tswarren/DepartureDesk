@@ -1,0 +1,59 @@
+<%# S-30: payments to suppliers on this Departure, by supplier, with what is still open (SMN-18, SMN-19, SMN-22, SMN-23). %>
+<%# locals: (departure:, amounts:, payments:) -%>
+<% manage = Current.agency_user.permitted?(:manage_supplier_payments) %>
+<% suppliers = departure.supplier_arrangements.live.includes(:supplier).map(&:supplier).uniq %>
+<article class="dd-panel" id="supplier-payments">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Payments to suppliers</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">Each payment settles amounts due; it never changes cost or capacity. What isn't applied stays with the supplier until applied.</p>
+    <% suppliers.each do |supplier| %>
+      <% owed = amounts.select { |amount| amount.supplier_arrangement.supplier_id == supplier.id } %>
+      <% paid = payments.select { |payment| payment.supplier_id == supplier.id } %>
+      <% next if owed.empty? && paid.empty? %>
+      <% currency = owed.first&.currency || paid.first.currency %>
+      <% open = owed.select { |amount| amount.open_minor_units.positive? } %>
+      <% unapplied = paid.sum(&:unapplied_minor_units) %>
+      <section class="dd-stack" aria-labelledby="pay-<%= supplier.id %>">
+        <div class="dd-section-header">
+          <h3 class="dd-section-title" id="pay-<%= supplier.id %>"><%= supplier.display_name_for_directory %></h3>
+          <% if manage %><%= link_to "Record a payment to #{supplier.display_name_for_directory}", new_departure_supplier_payment_path(departure, supplier_id: supplier.id), class: "dd-button dd-button--secondary" %><% end %>
+        </div>
+        <dl class="dd-definition-list">
+          <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(owed.sum(&:amount_minor_units), currency) %></dd></div>
+          <div><dt>Paid</dt><dd class="dd-type-mono"><%= money(owed.sum(&:paid_minor_units), currency) %></dd></div>
+          <div><dt>Still open</dt><dd class="dd-type-mono"><%= money(open.sum(&:open_minor_units), currency) %></dd></div>
+          <% if unapplied.positive? %><div><dt>Paid, not yet applied</dt><dd class="dd-type-mono"><%= money(unapplied, currency) %></dd></div><% end %>
+        </dl>
+        <% if paid.any? %>
+          <ul class="dd-plain-list dd-payment-list" aria-label="Payments to <%= supplier.display_name_for_directory %>">
+            <% paid.each do |payment| %>
+              <li class="dd-payment-item">
+                <div>
+                  <strong class="dd-type-mono"><%= payment.payment_reference %></strong> · <%= money(payment.amount_minor_units, payment.currency) %> on <%= payment.paid_on.to_fs(:long) %>
+                  <% if payment.reversed? %><%= status_badge("Reversed", modifier: "danger") %><% end %>
+                  <p class="dd-cell-subtext"><%= payment.method_label %><%= " from #{payment.payee_account.name}" if payment.payee_account %><%= " · #{payment.bank_reference}" if payment.bank_reference %><%= " · invoice #{payment.invoice_reference}" if payment.invoice_reference %> · recorded by <%= payment.recorded_by.display_name %></p>
+                  <p class="dd-cell-subtext">
+                    <% applied = payment.applications.group_by(&:amount_due).transform_values { |rows| rows.sum(&:amount_minor_units) }.select { |_, amount| amount.positive? } %>
+                    <%= applied.any? ? "Applied to " + applied.map { |due, amount| "#{due.description} #{money(amount, payment.currency)}" }.to_sentence : "Not applied" %><%= " · #{money(payment.unapplied_minor_units, payment.currency)} not yet applied" if payment.unapplied_minor_units.positive? %>
+                    <% if payment.reversal %> · Reversed <%= payment.reversal.reversed_on.to_fs(:long) %>: <%= payment.reversal.reason %><% end %>
+                  </p>
+                </div>
+                <% if manage && !payment.reversed? %><%= link_to "Reverse", new_departure_supplier_payment_reversal_path(departure, payment), class: "dd-row-action dd-row-action--text dd-row-action--danger", aria: { label: "Reverse #{payment.payment_reference}" } %><% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+        <% if manage && unapplied.positive? && open.any? %>
+          <%= form_with url: departure_supplier_payment_application_path(departure), class: "dd-form dd-subpanel", id: "apply-#{supplier.id}", data: { controller: "payment-allocation" } do |form| %>
+            <%= hidden_field_tag :supplier_id, supplier.id, id: nil %>
+            <h4 class="dd-section-title">Apply what isn't applied</h4>
+            <p class="dd-field-hint"><%= money(unapplied, currency) %> paid to <%= supplier.display_name_for_directory %> and not yet applied, proposed oldest amount first.</p>
+            <%= hidden_field_tag :unapplied, MoneyInput.display(unapplied, currency).delete(","), id: nil, data: { payment_allocation_target: "amount" } %>
+            <%= render "supplier_payments/application_fields", amounts: open, values: {}, currency:, propose: unapplied %>
+            <%= form.submit "Apply", class: "dd-button dd-button--secondary", name: nil %>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>

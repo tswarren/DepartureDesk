@@ -22,7 +22,7 @@
     <fieldset class="dd-form-section" data-controller="conditional-fields">
       <legend class="dd-section-title">How much</legend>
       <div class="dd-segmented dd-payment-choices">
-        <% [ [ "fixed", "A total" ], [ "per_shell", "Per #{unit}" ], [ "per_unit_count", "Per person or unit, from a count" ], [ "percentage_of_cost_line", "A percentage of a cost" ] ].each do |value, label| %>
+        <% [ [ "fixed", "A total" ], [ "per_shell", "Per #{unit}" ], [ "per_unit_count", "Per person or unit, from a count" ], [ "percentage_of_cost_line", "A percentage of a cost" ], [ "balance", "The balance" ] ].each do |value, label| %>
           <% next if value == "per_shell" && shell_groups.empty? %>
           <% next if value == "percentage_of_cost_line" && arrangement.cost_lines.empty? %>
           <label class="dd-segmented-option">
@@ -58,6 +58,7 @@
           <%= form.select :cost_line_id, arrangement.cost_lines.map { |line| [ line.description, line.id ] }, { selected: values["cost_line_id"] || schedule_line.cost_line_id }, class: "dd-field" %>
         </div>
       </div>
+      <p class="dd-field-hint" data-conditional-fields-target="option" data-show-for="balance">On its date it posts the committed cost, less every amount the other payments have made due, such as a final payment after deposits.</p>
       <% if shell_groups.any? && arrangement.draft? %>
         <p class="dd-field-hint" data-conditional-fields-target="option" data-show-for="per_shell">The <%= unit.pluralize %> are created when the arrangement is confirmed. This rule applies to each of them; nothing needs naming now.</p>
       <% end %>

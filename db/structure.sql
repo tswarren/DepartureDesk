@@ -1808,9 +1808,11 @@ CREATE TABLE public.expected_commissions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    confirmed_by_id uuid,
+    confirmed_at timestamp(6) with time zone,
     CONSTRAINT expected_commissions_amounts CHECK (((proposed_amount_minor_units >= 0) AND (amount_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT expected_commissions_override CHECK ((((overridden_by_id IS NULL) = (overridden_at IS NULL)) AND (lock_version >= 0))),
-    CONSTRAINT expected_commissions_status CHECK (((status)::text = 'expected'::text))
+    CONSTRAINT expected_commissions_status CHECK (COALESCE(((((status)::text = 'expected'::text) AND (confirmed_by_id IS NULL) AND (confirmed_at IS NULL)) OR (((status)::text = 'confirmed'::text) AND (confirmed_by_id IS NOT NULL) AND (confirmed_at IS NOT NULL))), false))
 );
 
 
@@ -2139,7 +2141,7 @@ CREATE TABLE public.schedule_lines (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT schedule_lines_amount_kind CHECK (COALESCE(((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units >= 0) AND (rate_minor_units IS NULL) AND (percentage IS NULL)) OR (((amount_kind)::text = 'percentage_of_cost_line'::text) AND (cost_line_id IS NOT NULL) AND (percentage > (0)::numeric) AND (percentage <= (100)::numeric) AND (amount_minor_units IS NULL) AND (rate_minor_units IS NULL)) OR (((amount_kind)::text = ANY (ARRAY[('per_unit_count'::character varying)::text, ('per_shell'::character varying)::text])) AND (rate_minor_units >= 0) AND (amount_minor_units IS NULL) AND (percentage IS NULL))), false)),
+    CONSTRAINT schedule_lines_amount_kind CHECK (COALESCE(((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units >= 0) AND (rate_minor_units IS NULL) AND (percentage IS NULL)) OR (((amount_kind)::text = 'percentage_of_cost_line'::text) AND (cost_line_id IS NOT NULL) AND (percentage > (0)::numeric) AND (percentage <= (100)::numeric) AND (amount_minor_units IS NULL) AND (rate_minor_units IS NULL)) OR (((amount_kind)::text = ANY ((ARRAY['per_unit_count'::character varying, 'per_shell'::character varying])::text[])) AND (rate_minor_units >= 0) AND (amount_minor_units IS NULL) AND (percentage IS NULL)) OR (((amount_kind)::text = 'balance'::text) AND (amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (percentage IS NULL) AND (cost_line_id IS NULL))), false)),
     CONSTRAINT schedule_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT schedule_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
     CONSTRAINT schedule_lines_due_rule CHECK (COALESCE(((((due_rule)::text = 'fixed_date'::text) AND (due_on IS NOT NULL) AND (trigger_type IS NULL) AND (days_after IS NULL)) OR (((due_rule)::text = 'event'::text) AND (due_on IS NULL) AND (trigger_type IS NOT NULL) AND (days_after IS NULL)) OR (((due_rule)::text = 'event_plus_days'::text) AND (due_on IS NULL) AND (trigger_type IS NOT NULL) AND (days_after >= 1)) OR (((due_rule)::text = 'earlier_of'::text) AND (due_on IS NOT NULL) AND (trigger_type IS NOT NULL) AND (days_after IS NULL))), false)),
@@ -2426,6 +2428,65 @@ END) STORED,
     CONSTRAINT supplier_locations_phone_shape CHECK ((((phone_number IS NULL) AND (phone_normalized_number IS NULL) AND (phone_extension IS NULL) AND (phone_country_code IS NULL)) OR ((phone_number IS NOT NULL) AND (btrim((phone_number)::text) <> ''::text) AND (phone_normalized_number IS NOT NULL) AND ((phone_normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text) AND (phone_country_code IS NOT NULL) AND ((phone_country_code)::text ~ '^[A-Z]{2}$'::text) AND ((phone_extension IS NULL) OR ((phone_extension)::text ~ '^[0-9]{1,10}$'::text))))),
     CONSTRAINT supplier_locations_postal_shape CHECK ((((address_line_1 IS NULL) AND (address_line_2 IS NULL) AND (address_locality IS NULL) AND (address_region IS NULL) AND (address_postal_code IS NULL) AND (address_country_code IS NULL)) OR ((address_line_1 IS NOT NULL) AND (btrim((address_line_1)::text) <> ''::text) AND (address_country_code IS NOT NULL) AND ((address_country_code)::text ~ '^[A-Z]{2}$'::text)))),
     CONSTRAINT supplier_locations_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+);
+
+
+--
+-- Name: supplier_payment_applications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_payment_applications (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_payment_id uuid NOT NULL,
+    amount_due_id uuid NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_payment_applications_amount CHECK ((amount_minor_units <> 0))
+);
+
+
+--
+-- Name: supplier_payment_reversals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_payment_reversals (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_payment_id uuid NOT NULL,
+    reason character varying NOT NULL,
+    reversed_on date NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_payment_reversals_reason CHECK (((btrim((reason)::text) <> ''::text) AND (char_length((reason)::text) <= 500)))
+);
+
+
+--
+-- Name: supplier_payments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_payments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_id uuid NOT NULL,
+    payee_account_id uuid,
+    payment_reference character varying NOT NULL,
+    paid_on date NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    payment_method character varying NOT NULL,
+    bank_reference character varying,
+    invoice_reference character varying,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_payments_amount CHECK (((amount_minor_units > 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT supplier_payments_bank_reference CHECK (((bank_reference IS NULL) OR ((btrim((bank_reference)::text) <> ''::text) AND (char_length((bank_reference)::text) <= 120)))),
+    CONSTRAINT supplier_payments_invoice_reference CHECK (((invoice_reference IS NULL) OR ((btrim((invoice_reference)::text) <> ''::text) AND (char_length((invoice_reference)::text) <= 120)))),
+    CONSTRAINT supplier_payments_method CHECK (((payment_method)::text = ANY ((ARRAY['bank_transfer'::character varying, 'card'::character varying, 'check'::character varying, 'cash'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_payments_reference_format CHECK (((payment_reference)::text ~ '^SPY-[0-9]{4,}$'::text))
 );
 
 
@@ -3411,6 +3472,30 @@ ALTER TABLE ONLY public.supplier_email_addresses
 
 ALTER TABLE ONLY public.supplier_locations
     ADD CONSTRAINT supplier_locations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_payment_applications supplier_payment_applications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_applications
+    ADD CONSTRAINT supplier_payment_applications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_payment_reversals supplier_payment_reversals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_reversals
+    ADD CONSTRAINT supplier_payment_reversals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_payments supplier_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payments
+    ADD CONSTRAINT supplier_payments_pkey PRIMARY KEY (id);
 
 
 --
@@ -5132,6 +5217,48 @@ CREATE INDEX index_supplier_locations_on_supplier_and_agency ON public.supplier_
 
 
 --
+-- Name: index_supplier_payment_applications_on_amount_due; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_payment_applications_on_amount_due ON public.supplier_payment_applications USING btree (amount_due_id);
+
+
+--
+-- Name: index_supplier_payment_applications_on_payment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_payment_applications_on_payment ON public.supplier_payment_applications USING btree (supplier_payment_id);
+
+
+--
+-- Name: index_supplier_payment_reversals_one_per_payment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_payment_reversals_one_per_payment ON public.supplier_payment_reversals USING btree (supplier_payment_id);
+
+
+--
+-- Name: index_supplier_payments_on_agency_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_payments_on_agency_and_reference ON public.supplier_payments USING btree (agency_id, payment_reference);
+
+
+--
+-- Name: index_supplier_payments_on_departure_and_supplier; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_payments_on_departure_and_supplier ON public.supplier_payments USING btree (departure_id, supplier_id, paid_on);
+
+
+--
+-- Name: index_supplier_payments_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_payments_on_id_and_agency_id ON public.supplier_payments USING btree (id, agency_id);
+
+
+--
 -- Name: index_supplier_phone_numbers_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5892,6 +6019,27 @@ CREATE TRIGGER supplier_email_addresses_reject_owner_change BEFORE UPDATE ON pub
 --
 
 CREATE TRIGGER supplier_locations_reject_owner_change BEFORE UPDATE ON public.supplier_locations FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_location_owner_change();
+
+
+--
+-- Name: supplier_payment_applications supplier_payment_applications_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_payment_applications_reject_mutation BEFORE DELETE OR UPDATE ON public.supplier_payment_applications FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
+
+
+--
+-- Name: supplier_payment_reversals supplier_payment_reversals_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_payment_reversals_reject_mutation BEFORE DELETE OR UPDATE ON public.supplier_payment_reversals FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
+
+
+--
+-- Name: supplier_payments supplier_payments_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_payments_reject_mutation BEFORE DELETE OR UPDATE ON public.supplier_payments FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
 
 
 --
@@ -6883,6 +7031,14 @@ ALTER TABLE ONLY public.expected_commissions
 
 
 --
+-- Name: expected_commissions fk_expected_commissions_confirmer_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT fk_expected_commissions_confirmer_same_agency FOREIGN KEY (confirmed_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
 -- Name: expected_commissions fk_expected_commissions_overrider_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7507,6 +7663,102 @@ ALTER TABLE ONLY public.supplier_deadlines
 
 
 --
+-- Name: supplier_payment_applications fk_supplier_payment_applications_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_applications
+    ADD CONSTRAINT fk_supplier_payment_applications_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_payment_applications fk_supplier_payment_applications_amount_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_applications
+    ADD CONSTRAINT fk_supplier_payment_applications_amount_same_agency FOREIGN KEY (amount_due_id, agency_id) REFERENCES public.amounts_due(id, agency_id);
+
+
+--
+-- Name: supplier_payment_applications fk_supplier_payment_applications_payment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_applications
+    ADD CONSTRAINT fk_supplier_payment_applications_payment_same_agency FOREIGN KEY (supplier_payment_id, agency_id) REFERENCES public.supplier_payments(id, agency_id);
+
+
+--
+-- Name: supplier_payment_applications fk_supplier_payment_applications_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_applications
+    ADD CONSTRAINT fk_supplier_payment_applications_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_payment_reversals fk_supplier_payment_reversals_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_reversals
+    ADD CONSTRAINT fk_supplier_payment_reversals_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_payment_reversals fk_supplier_payment_reversals_payment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_reversals
+    ADD CONSTRAINT fk_supplier_payment_reversals_payment_same_agency FOREIGN KEY (supplier_payment_id, agency_id) REFERENCES public.supplier_payments(id, agency_id);
+
+
+--
+-- Name: supplier_payment_reversals fk_supplier_payment_reversals_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_reversals
+    ADD CONSTRAINT fk_supplier_payment_reversals_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_payments fk_supplier_payments_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payments
+    ADD CONSTRAINT fk_supplier_payments_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_payments fk_supplier_payments_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payments
+    ADD CONSTRAINT fk_supplier_payments_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_payments fk_supplier_payments_payee_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payments
+    ADD CONSTRAINT fk_supplier_payments_payee_same_agency FOREIGN KEY (payee_account_id, agency_id) REFERENCES public.payee_accounts(id, agency_id);
+
+
+--
+-- Name: supplier_payments fk_supplier_payments_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payments
+    ADD CONSTRAINT fk_supplier_payments_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_payments fk_supplier_payments_supplier_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payments
+    ADD CONSTRAINT fk_supplier_payments_supplier_same_agency FOREIGN KEY (supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
 -- Name: supplier_rate_bands fk_supplier_rate_bands_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7921,6 +8173,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261109100000'),
 ('20261108120000'),
 ('20261108100000'),
 ('20261107160000'),

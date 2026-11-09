@@ -5,7 +5,7 @@
 <% currency = arrangement.currency %>
 <% cost_lines = arrangement.cost_lines.includes(:inventory_group, :base_cost_line, :unit_shells) %>
 <% schedule_lines = arrangement.schedule_lines.includes(:cost_line, :supplier_deadline, :amounts_due) %>
-<% amounts = arrangement.amounts_due.includes(:schedule_line, :unit_shell) %>
+<% amounts = arrangement.amounts_due.includes(:schedule_line, :unit_shell, :payment_applications) %>
 <article class="dd-panel" id="supplier-cost">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">What it costs</h2>

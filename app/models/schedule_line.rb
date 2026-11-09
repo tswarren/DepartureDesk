@@ -3,7 +3,8 @@
 # adds to cost (SMN-03). It may name the supplier deadline it pays, whose
 # task it then uses (SMN-17).
 class ScheduleLine < ApplicationRecord
-  AMOUNT_KINDS = %w[fixed percentage_of_cost_line per_unit_count per_shell].freeze
+  # D-96 (2): balance is the arrangement's committed cost less the amounts its other lines have made due.
+  AMOUNT_KINDS = %w[fixed percentage_of_cost_line per_unit_count per_shell balance].freeze
   DUE_RULES = %w[fixed_date event event_plus_days earlier_of].freeze
   EVENT_RULES = %w[event event_plus_days earlier_of].freeze
   DESCRIPTION_LIMIT = 200

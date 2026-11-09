@@ -73,6 +73,8 @@ module AlphaFixture
     cruise: [
       { deadline_type: "deposit_payment", description: "Initial deposit, $50 per stateroom", due_on: Date.new(2026, 11, 1) },
       { deadline_type: "deposit_payment", description: "Full deposit and names for cabins not yet named", due_on: Date.new(2027, 3, 1) },
+      # D-97: cabins unsold on Jul 15, 2027 go back to Alpha, which keeps their deposits.
+      { deadline_type: "option_release", description: "Release unsold cabins to Alpha", due_on: Date.new(2027, 7, 15) },
       { deadline_type: "deposit_payment", description: "Final payment", due_on: Date.new(2027, 8, 1) }
     ],
     hotel: [
@@ -91,7 +93,8 @@ module AlphaFixture
         group_reference: "ALPHA-A", default_availability_promise: "firm_block",
         covered_services: "Alpha Omega, Port Everglades round trip, Nov 6–13, 2027. 8 cabins each in V01, O01, I01 and S01.",
         terms: "Agreement A. $50 per stateroom initial deposit due Nov 1, 2026, credited toward the $500 full deposit. " \
-               "Full deposit for cabins not yet named due Mar 1, 2027. Final payment due Aug 1, 2027."
+               "Full deposit for cabins not yet named due Mar 1, 2027. Cabins with no confirmed booking on Jul 15, 2027 are released " \
+               "to Alpha that day, and Alpha keeps their deposits. Final payment due Aug 1, 2027."
       }
     },
     hotel: {
@@ -133,7 +136,10 @@ module AlphaFixture
     client_terms = client_terms!(agency, actor, departure)
     trips = bookings == :none ? {} : roster!(agency, actor, departure)
     roster_bookings = bookings.in?(%i[held confirmed paid]) ? roster_bookings!(agency, actor, trips, confirm: bookings.in?(%i[confirmed paid])) : {}
-    roster_payments!(agency, actor, roster_bookings, arrangements) if bookings == :paid
+    if bookings == :paid
+      roster_payments!(agency, actor, roster_bookings, arrangements)
+      supplier_payment!(agency, actor, departure, arrangements.fetch(:cruise))
+    end
     Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings)
   end
 
@@ -341,6 +347,9 @@ module AlphaFixture
       schedule!(agency, actor, departure, arrangement, description: "Full deposit, $450 per cabin", amount_kind: "per_shell", rate: "450",
         due_rule: "earlier_of", trigger_type: "client_booking_confirmed", due_on: Date.new(2027, 3, 1),
         supplier_deadline_id: deadline.("Full deposit and names for cabins not yet named"))
+      # D-96 (2), D-97: the booked cabins' cost less every deposit already due.
+      schedule!(agency, actor, departure, arrangement, description: "Final payment", amount_kind: "balance",
+        due_rule: "fixed_date", due_on: Date.new(2027, 8, 1), supplier_deadline_id: deadline.("Final payment"))
     when :hotel
       arrangement.inventory_groups.where(label: HOTEL_FIRM_ROOMS.keys).each do |group|
         rate = HOTEL_FIRM_ROOMS.fetch(group.label)
@@ -521,6 +530,23 @@ module AlphaFixture
     end
   end
   private_class_method :roster_payments!
+
+  # D-96 (3), D10: staff pay Alpha what is due by Feb 3, 2027: the $1,600
+  # initial deposit and $450 for each of the three confirmed cabins.
+  SUPPLIER_PAYMENT = { on: Time.utc(2027, 2, 3, 15), amount: "2950", payment_method: "bank_transfer", bank_reference: "Wire 0203" }.freeze
+
+  def self.supplier_payment!(agency, actor, departure, arrangement)
+    return if departure.supplier_payments.exists?
+
+    Clock.use(Clock.fixed(SUPPLIER_PAYMENT.fetch(:on))) do
+      due = arrangement.amounts_due.reload.by_due.map { |amount| { amount_due_id: amount.id, amount: MoneyInput.display(amount.amount_minor_units, CURRENCY).delete(",") } }
+      created!(RecordSupplierPayment.new(agency:, actor:, departure:, supplier: arrangement.supplier, applications: due, attributes: {
+        payee_account_id: arrangement.payee_account_id, paid_on: SUPPLIER_PAYMENT.fetch(:on).to_date.iso8601, amount: SUPPLIER_PAYMENT.fetch(:amount),
+        payment_method: SUPPLIER_PAYMENT.fetch(:payment_method), bank_reference: SUPPLIER_PAYMENT.fetch(:bank_reference)
+      }).call, "the Alpha payment")
+    end
+  end
+  private_class_method :supplier_payment!
 
   # A booking on each roster trip, with its travelers, choices and a hold
   # placed at the current clock; with confirm:, each is held, accepted and

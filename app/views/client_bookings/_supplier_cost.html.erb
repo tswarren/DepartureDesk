@@ -1,6 +1,7 @@
 <%# A confirmed booking's supplier cost and expected commission, proposed from the rate table (SUP-35, SMN-32, D-75). Only for view_supplier_costs (ACC-31). %>
 <%# locals: (booking:) -%>
 <% override = Current.agency_user.permitted?(:override_booking_supplier_cost) && booking.status_confirmed? %>
+<% confirm = Current.agency_user.permitted?(:confirm_commission) && booking.status_confirmed? && booking.expected_commissions.any? { |commission| commission.status == "expected" } %>
 <article class="dd-panel" id="supplier-cost">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Supplier cost and commission</h2>
@@ -11,7 +12,7 @@
       <table class="dd-table dd-stacked-table">
         <caption class="dd-visually-hidden">Supplier cost and expected commission</caption>
         <thead>
-          <tr><th scope="col">Service</th><th scope="col">Kind</th><th scope="col" class="num">Amount</th><% if override %><th scope="col">Override</th><% end %></tr>
+          <tr><th scope="col">Service</th><th scope="col">Kind</th><th scope="col" class="num">Amount</th><% if override %><th scope="col">Override</th><% end %><% if confirm %><th scope="col">Supplier's confirmation</th><% end %></tr>
         </thead>
         <tbody>
           <% booking.cost_lines.each do |line| %>
@@ -37,14 +38,34 @@
           <% booking.expected_commissions.each do |commission| %>
             <tr>
               <th scope="row"><%= booking.booking_reference %> · <%= commission.choice_selection.label %></th>
-              <td><span class="dd-cabin-field-label dd-visually-hidden">Kind </span>Expected commission<% if commission.overridden? %><span class="dd-cell-subtext">Proposed <%= booking_money(commission.proposed_amount_minor_units, commission.currency) %>; overridden by <%= commission.overridden_by.display_name %></span><% end %></td>
+              <td>
+                <span class="dd-cabin-field-label dd-visually-hidden">Kind </span>Commission <%= status_badge(commission.status_label, modifier: commission.confirmed? ? "success" : "neutral") %>
+                <% if commission.overridden? %><span class="dd-cell-subtext">Proposed <%= booking_money(commission.proposed_amount_minor_units, commission.currency) %>; overridden by <%= commission.overridden_by.display_name %></span><% end %>
+                <% if commission.confirmed? %><span class="dd-cell-subtext">Confirmed by the supplier; recorded by <%= commission.confirmed_by.display_name %>, <%= booking_time(commission.confirmed_at) %></span><% end %>
+              </td>
               <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Amount </span><%= booking_money(commission.amount_minor_units, commission.currency) %></td>
               <% if override %>
                 <td>
-                  <%= form_with url: client_booking_commission_path(booking, commission), method: :patch, class: "dd-inline-form" do |form| %>
-                    <%= form.label :amount, "New commission for #{commission.choice_selection.label}", class: "dd-visually-hidden", for: "commission-#{commission.id}" %>
-                    <%= form.text_field :amount, id: "commission-#{commission.id}", inputmode: "decimal", class: "dd-field dd-field--numeric dd-field--narrow" %>
-                    <%= form.submit "Override", class: "dd-button dd-button--quiet", name: nil %>
+                  <% if commission.confirmed? %>
+                    <span class="dd-cell-subtext">Confirmed; can't be overridden</span>
+                  <% else %>
+                    <%= form_with url: client_booking_commission_path(booking, commission), method: :patch, class: "dd-inline-form" do |form| %>
+                      <%= form.label :amount, "New commission for #{commission.choice_selection.label}", class: "dd-visually-hidden", for: "commission-#{commission.id}" %>
+                      <%= form.text_field :amount, id: "commission-#{commission.id}", inputmode: "decimal", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                      <%= form.submit "Override", class: "dd-button dd-button--quiet", name: nil %>
+                    <% end %>
+                  <% end %>
+                </td>
+              <% end %>
+              <% if confirm %>
+                <td>
+                  <% unless commission.confirmed? %>
+                    <%= form_with url: client_booking_commission_confirmation_path(booking, commission), class: "dd-inline-form" do |form| %>
+                      <%= label_tag "confirm-#{commission.id}", "Amount the supplier confirms for #{commission.choice_selection.label}", class: "dd-visually-hidden" %>
+                      <%= text_field_tag :amount, MoneyInput.display(commission.amount_minor_units, commission.currency).delete(","), id: "confirm-#{commission.id}",
+                            inputmode: "decimal", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                      <%= form.submit "Confirm", class: "dd-button dd-button--secondary", name: nil, aria: { label: "Confirm the commission for #{commission.choice_selection.label}" } %>
+                    <% end %>
                   <% end %>
                 </td>
               <% end %>

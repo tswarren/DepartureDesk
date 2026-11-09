@@ -1,0 +1,26 @@
+<%# Amounts to apply to each open amount due (SMN-19). With propose:, filled oldest first up to that amount. %>
+<%# locals: (amounts:, values:, currency:, propose: nil) -%>
+<% left = propose.to_i %>
+<div class="dd-table-wrap">
+  <table class="dd-table dd-stacked-table">
+    <caption class="dd-visually-hidden">Amounts to apply to open amounts due</caption>
+    <thead><tr><th scope="col">Amount due</th><th scope="col">Due</th><th scope="col" class="num">Open</th><th scope="col">Apply</th></tr></thead>
+    <tbody>
+      <% amounts.each do |amount| %>
+        <% take = propose ? [ left, amount.open_minor_units ].min : nil %>
+        <% left -= take.to_i %>
+        <tr>
+          <th scope="row"><%= amount.description %></th>
+          <td><span class="dd-cabin-field-label dd-visually-hidden">Due </span><%= amount.due_on.to_fs(:long) %></td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Open </span><%= money(amount.open_minor_units, currency) %></td>
+          <td>
+            <%= label_tag "apply_#{amount.id}", "Apply to #{amount.description}", class: "dd-visually-hidden" %>
+            <%= text_field_tag "applications[#{amount.id}]", values[amount.id] || (take&.positive? ? MoneyInput.display(take, currency).delete(",") : nil), id: "apply_#{amount.id}",
+                  inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow",
+                  data: { payment_allocation_target: "row", open: MoneyInput.display(amount.open_minor_units, currency).delete(",") } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

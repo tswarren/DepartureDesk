@@ -67,7 +67,9 @@ Rails.application.routes.draw do
       resource :evidence, only: :show, controller: "booking_acceptance_evidence"
     end
     resources :cost_lines, only: :update, controller: "booking_supplier_costs", defaults: { record: "cost_line" }
-    resources :commissions, only: :update, controller: "booking_supplier_costs", defaults: { record: "commission" }
+    resources :commissions, only: :update, controller: "booking_supplier_costs", defaults: { record: "commission" } do
+      resource :confirmation, only: :create, controller: "commission_confirmations"
+    end
   end
   resources :client_people, path: "clients/people", param: :client_person_id, only: %i[new create show edit update] do
     member do
@@ -193,6 +195,11 @@ Rails.application.routes.draw do
     resources :bookings, only: %i[index new create], controller: "departure_bookings"
     resources :tasks, only: :index, controller: "departure_tasks"
     resource :supplier_money, only: :show, controller: "departure_supplier_money"
+    # S-30, S-31: supplier payments (SMN-18, SMN-19, SMN-22, SMN-23).
+    resources :supplier_payments, only: %i[new create] do
+      resource :reversal, only: %i[new create], controller: "supplier_payment_reversals"
+    end
+    resource :supplier_payment_application, only: :create, controller: "supplier_payment_applications"
     # S-20 and S-21: the package and its client terms (BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31, CMN-09).
     resources :offerings, only: %i[index new create edit update] do
       resources :choices, only: %i[new create edit update destroy], controller: "offering_choices" do
