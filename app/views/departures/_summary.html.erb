@@ -1,0 +1,124 @@
+<%# S-07 the Departure at a glance (UX consolidation audit A3): bookings, space left in what the package includes, client money, supplier money (kept apart, never netted: CMN-06, SMN-26) and the next tasks. Each panel shows only to staff who may see its tab. %>
+<%# locals: (departure:, summary:) -%>
+<% user = Current.agency_user %>
+<% currency = summary.currency %>
+<div class="dd-grid dd-grid--summary">
+  <% if user.permitted?(:view_bookings) %>
+    <article class="dd-panel" id="summary-bookings" aria-labelledby="summary-bookings-heading">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title" id="summary-bookings-heading">Bookings</h2>
+        <%= link_to "All bookings", departure_bookings_path(departure) %>
+      </header>
+      <div class="dd-panel-body dd-stack">
+        <dl class="dd-figures">
+          <div><dt>Confirmed</dt><dd><%= summary.confirmed_bookings.size %></dd><dd class="dd-cell-subtext"><%= pluralize(summary.confirmed_travelers, "traveler") %></dd></div>
+          <div><dt>Draft</dt><dd><%= summary.draft_bookings.size %></dd></div>
+        </dl>
+        <% awaiting = summary.awaiting_supplier %>
+        <% if awaiting.any? %>
+          <p class="dd-field-hint"><%= pluralize(awaiting.size, "booking") %> awaiting a supplier: <%= safe_join(awaiting.map { |booking| link_to(booking.booking_reference, client_booking_path(booking), class: "dd-type-mono") }, ", ") %>.</p>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+
+  <% if user.permitted?(:view_arrangements) %>
+    <article class="dd-panel" id="summary-space" aria-labelledby="summary-space-heading">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title" id="summary-space-heading">Space left</h2>
+        <%= link_to "All inventory", departure_inventory_path(departure) %>
+      </header>
+      <div class="dd-panel-body dd-stack">
+        <% rows = summary.space_rows %>
+        <% if rows.empty? %>
+          <p class="dd-empty-copy">Space left shows here once the package includes an option that draws on inventory.</p>
+        <% else %>
+          <% rows.group_by(&:choice).each do |choice, choice_rows| %>
+            <div class="dd-table-wrap">
+              <table class="dd-table">
+                <caption class="dd-summary-caption"><%= choice %></caption>
+                <tbody>
+                  <% choice_rows.each do |row| %>
+                    <tr><th scope="row"><%= row.label %></th><td class="num"><%= space_left_label(row.space) %></td></tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+          <p class="dd-field-hint">What the package includes. Add-ons and other inventory are on the Inventory tab.</p>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+
+  <% if user.permitted?(:view_client_money) %>
+    <article class="dd-panel" id="summary-client-money" aria-labelledby="summary-client-money-heading">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title" id="summary-client-money-heading">Client money</h2>
+        <%= link_to "Client money detail", departure_money_path(departure, anchor: "client-money") %>
+      </header>
+      <div class="dd-panel-body dd-stack">
+        <% if currency.nil? || !summary.charged? %>
+          <p class="dd-empty-copy">No confirmed booking yet. A booking's charge and installments are made when it is confirmed.</p>
+        <% else %>
+          <% next_due = summary.next_client_installment %>
+          <dl class="dd-figures">
+            <div><dt>Still due from clients</dt><dd class="dd-type-mono"><%= money(summary.still_due_from_clients, currency) %></dd><dd class="dd-cell-subtext"><%= next_due ? "Next: #{money(next_due.open_minor_units, currency)} on #{next_due.due_on.to_fs(:long)}" : "Nothing open" %></dd></div>
+            <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= money(summary.paid_to_agency, currency) %></dd></div>
+            <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= money(summary.paid_to_suppliers_by_clients, currency) %></dd><dd class="dd-cell-subtext">By clients, directly</dd></div>
+          </dl>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+
+  <% if user.permitted?(:view_supplier_costs) %>
+    <article class="dd-panel" id="summary-supplier-money" aria-labelledby="summary-supplier-money-heading">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title" id="summary-supplier-money-heading">Supplier money</h2>
+        <%= link_to "Supplier money detail", departure_money_path(departure, anchor: "exposure") %>
+      </header>
+      <div class="dd-panel-body dd-stack">
+        <% if currency.nil? %>
+          <p class="dd-empty-copy">Set the departure's operating currency first.</p>
+        <% else %>
+          <% next_amount = summary.next_amount_due %>
+          <dl class="dd-figures">
+            <div><dt>Owed to suppliers now</dt><dd class="dd-type-mono"><%= money(summary.owed_to_suppliers, currency) %></dd><dd class="dd-cell-subtext"><%= next_amount ? "Oldest: #{next_amount.supplier_arrangement.supplier.display_name_for_directory}, due #{next_amount.due_on.to_fs(:long)}" : "Nothing open" %></dd></div>
+            <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(summary.committed_cost, currency) %></dd></div>
+            <div><dt>Expected commission</dt><dd class="dd-type-mono"><%= money(summary.expected_commission, currency) %></dd></div>
+          </dl>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+</div>
+
+<% if user.permitted?(:use_tasks) %>
+  <article class="dd-panel" id="summary-tasks" aria-labelledby="summary-tasks-heading">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title" id="summary-tasks-heading">Next tasks</h2>
+      <%= link_to "All tasks", departure_tasks_path(departure) %>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <% tasks = summary.next_tasks %>
+      <% if tasks.empty? %>
+        <p class="dd-empty-copy">No open tasks.</p>
+      <% else %>
+        <% overdue = summary.overdue_tasks.size %>
+        <p><%= pluralize(summary.active_tasks.size, "open task") %><%= ", #{overdue} overdue" if overdue.positive? %>.</p>
+        <ul class="dd-record-list">
+          <% tasks.each do |task| %>
+            <li class="dd-record">
+              <div class="dd-record-main">
+                <%= link_to task.action, task_path(task) %>
+                <p class="dd-record-detail">Due <%= local_due_label(task.due_at, task.due_time_zone) %> · <%= task.owner.display_name %></p>
+              </div>
+              <div class="dd-record-actions"><%= task_status_badges(task) %></div>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </article>
+<% end %>

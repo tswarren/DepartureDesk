@@ -2419,6 +2419,20 @@
     .dd-booking-steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
+  /* Departure overview (UX audit A3): summary panels side by side, each a
+     few labelled figures. */
+  .dd-grid--summary { grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
+  .dd-figures { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin: 0; }
+  .dd-figures > div { min-width: 7rem; }
+  .dd-figures dt { color: var(--dd-text-muted); font-size: 11px; font-weight: 700; }
+  .dd-figures dd { margin: 0.15rem 0 0; color: var(--dd-navy); font-size: 1.1rem; font-weight: 600; }
+  .dd-figures dd.dd-cell-subtext { margin-top: 0.1rem; color: var(--dd-text-muted); font-size: 12px; font-weight: 400; }
+  .dd-definition-list--columns { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+  .dd-cell-line { display: block; }
+  .dd-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1rem; }
+  .dd-results { margin-top: 1rem; }
+  .dd-summary-caption { padding-bottom: 0.25rem; text-align: left; font-size: 12px; font-weight: 600; color: var(--dd-text-muted); }
+
   /* Setup checklists: Ready to confirm? and Ready to sell? */
   /* Record list (UX audit D1): one row per record, its title and details
      on the left, its text-link actions on the right. */

@@ -19,15 +19,18 @@ class DeparturesController < ApplicationController
       ends_on_from: params[:ends_on_from],
       ends_on_to: params[:ends_on_to]
     )
+    @summaries = DepartureSummary.for(@search.records)
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     @search = SearchDepartures::Outcome.new(records: [], truncated: false)
+    @summaries = {}
     flash.now[:alert] = error.message
     render :index, status: :unprocessable_entity
   end
 
   def show
+    @summary = DepartureSummary.for([ @departure ]).fetch(@departure)
   end
 
   def new

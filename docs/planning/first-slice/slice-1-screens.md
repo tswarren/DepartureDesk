@@ -30,8 +30,8 @@ The Departure overview is the hub: it answers the charter's four questions (what
 
 | ID | Screen | Kind | Step | Who | Shows and does | D-cases | Rules |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| S-06 | Departures | Page | 2 | Staff | List with derived status label, dates, cabins sold of 32, open client balance |  | DEP-04 |
-| S-07 | Departure overview | Page | 2 | Staff | Three statuses and the derived label; four summary panels for acceptance, supplier confirmation, capacity and open money; links to every area below; a Mark as Departed prompt once the last service date has passed (D-83) | D4 | DEP-01, DEP-03, DEP-04 |
+| S-06 | Departures | Page | 2 | Staff | List with derived status label, dates, confirmed and draft bookings, space left in each choice the package includes (such as Cabin: 29 of 32 left), and money still due from clients; date filters behind a disclosure (UX consolidation pass, D-98) |  | DEP-04, CMN-06 |
+| S-07 | Departure overview | Page | 2 | Staff | Three statuses and the derived label; Ready to sell? while a Draft; summary panels for bookings (and those awaiting a supplier), space left in what the package includes, client money and supplier money (separate, never netted), and the next tasks, each linking its tab and shown only to staff who may see that tab; status and details, operating decision and team; a Mark as Departed prompt once the last service date has passed (D-83) | D4 | DEP-01, DEP-03, DEP-04, CMN-06, SMN-05, OPS-01 |
 | S-08 | Departure form | Page | 2 | Staff | Identity, dates, currency, time zone, optional hold duration and installment buffer overrides; saves as Draft with required fields missing | D16 | DEP-01, DEP-05 |
 | S-09 | Departure team | Panel | 2 | Staff | Team members and the default task owner |  | ACC-09, OPS-12 |
 | S-10 | Publish to reseller | Dialog | 9 (D-90) | Staff | Set Ready to sell, choose the offering and the one reseller channel; refused with reasons if not ready |  | DEP-06, DEP-07, FIN-22 |
