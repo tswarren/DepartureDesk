@@ -3,16 +3,18 @@
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Development</p>
-    <h1 class="dd-page-title">CAI specimen</h1>
-    <p class="dd-page-description">Development-only field kit, badges, empty states, and buttons. Not a production route.</p>
+    <h1 class="dd-page-title">UI specimen</h1>
+    <p class="dd-page-description">The shared patterns as the staff screens use them. The rules are in the interface contract. Development only.</p>
   </div>
 </header>
 
-<article class="dd-panel">
+<article class="dd-panel" aria-labelledby="specimen-panels">
   <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Buttons</h2>
+    <h2 class="dd-panel-title" id="specimen-panels">Panels and buttons</h2>
+    <a href="#specimen-panels" class="dd-button dd-button--quiet">Quiet header action</a>
   </header>
-  <div class="dd-panel-body">
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-field-hint">A panel's title and actions sit in its header. Header actions are quiet buttons; the record's next step may be secondary. A page has one primary action.</p>
     <div class="dd-button-group">
       <button type="button" class="dd-button">Primary</button>
       <button type="button" class="dd-button dd-button--secondary">Secondary</button>
@@ -23,48 +25,122 @@
   </div>
 </article>
 
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Fields</h2>
-  </header>
+<article class="dd-panel" aria-labelledby="specimen-fields">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="specimen-fields">Forms</h2></header>
   <div class="dd-panel-body">
-    <p class="dd-required-legend">Required fields are marked with an asterisk (<span class="dd-required">*</span>).</p>
     <form class="dd-form">
+      <%= render "shared/form_errors", message: "Amount must be an amount in USD, such as 1234.50.", title: "The payment wasn't recorded" %>
       <div class="dd-field-group">
-        <label class="dd-label" for="specimen_name">Short name <span class="dd-required">*</span></label>
-        <input class="dd-field dd-field--narrow" id="specimen_name" value="Horizon">
+        <label class="dd-label" for="specimen_description">Description</label>
+        <input class="dd-field" id="specimen_description" value="Deposit" aria-describedby="specimen_description_hint">
+        <p class="dd-field-hint" id="specimen_description_hint">Required fields carry no marker.</p>
       </div>
       <div class="dd-field-group">
-        <label class="dd-label" for="specimen_code">Currency</label>
-        <input class="dd-field dd-field--code dd-type-mono" id="specimen_code" value="USD" maxlength="3">
+        <label class="dd-label" for="specimen_amount">Amount (USD)</label>
+        <input class="dd-field dd-field--numeric dd-field--narrow" id="specimen_amount" value="12.345" inputmode="decimal" aria-invalid="true" aria-describedby="specimen_amount_error">
+        <p class="dd-field-error" id="specimen_amount_error">Amount must be an amount in USD, such as 1234.50.</p>
       </div>
       <div class="dd-field-group">
-        <label class="dd-label" for="specimen_invalid">Invalid field</label>
-        <input class="dd-field" id="specimen_invalid" aria-invalid="true" aria-describedby="specimen_invalid_error">
-        <p class="dd-field-error" id="specimen_invalid_error">Enter a value.</p>
+        <label class="dd-label" for="specimen_due">Due date</label>
+        <input class="dd-field dd-field--narrow" type="date" id="specimen_due" value="2027-07-09">
       </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="specimen_reference">Reference (optional)</label>
+        <input class="dd-field" id="specimen_reference">
+      </div>
+      <%= disclosure "Use the supplier's time zone" do %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="specimen_zone">Supplier's time zone</label>
+          <select class="dd-field" id="specimen_zone"><option>Departure time zone</option><option>America/New_York</option></select>
+        </div>
+      <% end %>
+      <aside class="dd-payment-summary" aria-labelledby="specimen-summary">
+        <h3 class="dd-payment-summary-title" id="specimen-summary">In plain words</h3>
+        <p>$500.00 for each cabin, due when a client booking for that cabin is confirmed.</p>
+      </aside>
     </form>
   </div>
 </article>
 
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Badges</h2>
-  </header>
+<article class="dd-panel" aria-labelledby="specimen-records">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="specimen-records">Record list</h2></header>
   <div class="dd-panel-body">
-    <%= status_badge("Active", modifier: "success") %>
-    <%= status_badge("Client", modifier: "role") %>
-    <%= status_badge("Person", modifier: "kind") %>
-    <%= status_badge("Inactive", modifier: "neutral") %>
-    <%= status_badge("Do not use", modifier: "danger") %>
-    <%= status_badge("Attention", modifier: "warning") %>
+    <ul class="dd-record-list" aria-label="Specimen payments">
+      <li class="dd-record">
+        <div class="dd-record-main">
+          <strong class="dd-type-mono">PAY-00002</strong> · $500.00 to the agency
+          <p class="dd-record-detail">Jan 19, 2027 · Sofia Bennett · Bank transfer · Transfer 0119</p>
+          <p class="dd-record-detail">Applied to T-00002-1 Deposit $500.00</p>
+        </div>
+        <span class="dd-record-actions">
+          <a href="#specimen-records" class="dd-row-action dd-row-action--text">Receipt RCP-00002</a>
+          <a href="#specimen-records" class="dd-row-action dd-row-action--text dd-row-action--danger" aria-label="Reverse PAY-00002">Reverse</a>
+        </span>
+      </li>
+      <li class="dd-record">
+        <div class="dd-record-main">
+          <strong class="dd-type-mono">PAY-00003</strong> · $500.00 to Alpha Cruises <%= status_badge("Reversed", modifier: "danger") %>
+          <p class="dd-record-detail">Feb 2, 2027 · Mateo Rivera · Card</p>
+        </div>
+      </li>
+    </ul>
   </div>
 </article>
 
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Empty states</h2>
-  </header>
+<article class="dd-panel" aria-labelledby="specimen-table">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="specimen-table">Table</h2></header>
+  <div class="dd-table-wrap">
+    <table class="dd-table dd-stacked-table">
+      <caption class="dd-visually-hidden">Specimen installments</caption>
+      <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="dd-visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+        <tr>
+          <th scope="row">Deposit</th>
+          <td><span class="dd-cabin-field-label dd-visually-hidden">Due </span>Jan 19, 2027</td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Amount </span>$500.00</td>
+          <td><%= status_badge("Paid", modifier: "success") %></td>
+          <td></td>
+        </tr>
+        <tr>
+          <th scope="row">Balance</th>
+          <td><span class="dd-cabin-field-label dd-visually-hidden">Due </span>Jul 9, 2027</td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Amount </span>$12,070.00</td>
+          <td><%= status_badge("Unpaid", modifier: "warning") %></td>
+          <td><a href="#specimen-table" class="dd-row-action dd-row-action--text" aria-label="Edit Balance">Edit</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</article>
+
+<article class="dd-panel" aria-labelledby="specimen-details">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="specimen-details">Details</h2></header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Status</dt><dd><%= status_badge("Confirmed", modifier: "success") %></dd></div>
+      <div><dt>Responsible client</dt><dd>Sofia Bennett <span class="dd-type-mono">CL-000002</span></dd></div>
+      <div><dt>Still due</dt><dd class="dd-type-mono">$12,070.00</dd></div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel" aria-labelledby="specimen-badges">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="specimen-badges">Status badges</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-field-hint">Badges name a status, always in words. Guidance is plain text, not a badge.</p>
+    <div>
+      <%= status_badge("Confirmed", modifier: "success") %>
+      <%= status_badge("Awaiting supplier", modifier: "warning") %>
+      <%= status_badge("Draft", modifier: "neutral") %>
+      <%= status_badge("Overdue", modifier: "danger") %>
+      <%= status_badge("Client", modifier: "role") %>
+      <%= status_badge("Person", modifier: "kind") %>
+    </div>
+  </div>
+</article>
+
+<article class="dd-panel" aria-labelledby="specimen-empty">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="specimen-empty">Empty states</h2></header>
   <div class="dd-panel-body">
     <div class="dd-empty-state dd-empty-state--actionable">
       <h3 class="dd-empty-title">Actionable</h3>
@@ -82,6 +158,5 @@
       <h3 class="dd-empty-title">Error</h3>
       <p class="dd-empty-copy">The list could not be loaded.</p>
     </div>
-    <div class="dd-skeleton" aria-hidden="true"></div>
   </div>
 </article>

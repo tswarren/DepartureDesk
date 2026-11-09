@@ -179,6 +179,12 @@ Superseded as primary Staff chrome by Composition Slice 1. Retained for historic
 - Keep essential actions keyboard reachable; use a labeled overflow only for genuinely secondary actions.
 - Use explicit actionable, positive, filtered, permission, and error empty states.
 
+## Print and the specimen
+
+- Every staff page prints as its content alone: the print rules hide navigation, breadcrumbs, tabs, steps, actions and forms, print black on white, keep rows and panels whole, and open disclosures. Staff print or save a PDF from the browser. That is a copy of the screen, not an issued document (ADR 0019).
+- Form summaries and the amount splitter format amounts, dates and times through `app/javascript/helpers/format.js`, so a sentence reads them as the server's helpers do. Showing fields for a choice is `conditional-fields`.
+- `/dev/ui` (development only) shows the shared patterns as the screens use them. Update it when a pattern changes.
+
 ## Turbo and state changes
 
 - Turbo Frames may localize editing or replacement, but commands retain full-page fallback behavior.

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { money, longDate } from "helpers/format"
 
 // Sums up a supplier payment in one sentence as the form is filled in,
 // matching SupplierMoneyHelper#schedule_line_sentence.
@@ -83,20 +84,10 @@ export default class extends Controller {
   }
 
   money(name) {
-    const amount = Number(this.field(name).replace(/,/g, "").trim())
-    if (!this.field(name).trim() || Number.isNaN(amount)) return null
-    try {
-      return new Intl.NumberFormat("en-US", { style: "currency", currency: this.currencyValue }).format(amount)
-    } catch {
-      return `${amount} ${this.currencyValue}`
-    }
+    return money(this.field(name), this.currencyValue)
   }
 
   date() {
-    const value = this.field("due_on")
-    if (!value) return null
-    const [year, month, day] = value.split("-").map(Number)
-    const name = new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })
-    return `${name} ${day}, ${year}`
+    return longDate(this.field("due_on"))
   }
 }

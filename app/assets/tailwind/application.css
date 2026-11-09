@@ -1800,16 +1800,6 @@
     border-bottom: 1px solid var(--dd-border);
   }
 
-  .dd-required {
-    color: var(--dd-danger-text);
-  }
-
-  .dd-required-legend {
-    margin: 0 0 var(--dd-space-3);
-    color: var(--dd-text-muted);
-    font-size: 11px;
-  }
-
   .dd-field-affix {
     display: flex;
     max-width: 24rem;
@@ -2436,7 +2426,7 @@
   .dd-record { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 0.5rem 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--dd-border); }
   .dd-record:last-child { border-bottom: 0; }
   .dd-record-main { flex: 1 1 18rem; min-width: 0; }
-  .dd-record-list .dd-record-detail { margin: 0.15rem 0 0; font-size: 14px; color: var(--dd-text-muted); }
+  .dd-record-list .dd-record-detail { margin: 0.15rem 0 0; font-size: 13px; color: var(--dd-text-muted); }
   .dd-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; }
   .dd-checklist { display: flex; flex-direction: column; }
   .dd-checklist-item { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.55rem 0; border-bottom: 1px solid var(--dd-border); }
@@ -3102,4 +3092,36 @@
   .dd-reference-text a {
     text-decoration: underline;
   }
+}
+
+/* Print (UX audit E4): a page prints as its content alone, black on white,
+   with its disclosures open, so it can be printed or saved as a PDF from
+   the browser. Nothing here is an issued document (ADR 0019). */
+@media print {
+  @page { margin: 14mm 12mm; }
+
+  html, body { background: #fff !important; color: #000 !important; }
+
+  .dd-skip-link, .dd-topbar, .dd-sidebar, .dd-drawer-backdrop, .dd-breadcrumbs, .dd-subnav, .dd-booking-steps,
+  .dd-page-actions, .dd-form-actions, .dd-record-actions, .dd-row-action, .dd-button, .dd-inline-form,
+  .dd-alert--success, .dd-form, form.button_to, input, select, textarea, button { display: none !important; }
+
+  .dd-app-shell { display: block !important; min-height: 0 !important; }
+  .dd-main { display: block !important; overflow: visible !important; }
+  .dd-workspace { padding: 0 !important; }
+
+  .dd-panel, .dd-subpanel, .dd-payment-summary {
+    background: #fff !important; color: #000 !important; box-shadow: none !important;
+    border: 1px solid #999 !important; break-inside: avoid;
+  }
+  .dd-panel-header, .dd-table thead { background: #fff !important; }
+  .dd-table tr, .dd-record, .dd-definition-list > div { break-inside: avoid; }
+  .dd-table-wrap { overflow: visible !important; }
+  h1, h2, h3, .dd-panel-header { break-after: avoid; }
+
+  .dd-badge { border: 1px solid #000 !important; background: #fff !important; color: #000 !important; }
+  a { color: #000 !important; text-decoration: none !important; }
+
+  .dd-disclosure > summary::before { content: none; }
+  details::details-content { content-visibility: visible; display: block; }
 }
