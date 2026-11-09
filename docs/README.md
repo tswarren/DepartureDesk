@@ -36,6 +36,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/first-slice/first-slice-charter.md`](planning/first-slice/first-slice-charter.md) | The active slice: scope, fixture, demonstration cases and build plan. |
 | [`architecture/current-state.md`](architecture/current-state.md) | What exists in the application now. |
 | [`adr/`](adr/README.md) | Durable architectural decisions, including superseded history. |
+| [`agents/`](agents/) | Contributor rules by area (ADR list, shipped vocabulary, database, authentication and tenancy, money, UI, jobs), moved from `AGENTS.md`, which points to them. Binding when a task touches the area. |
 | [`planning/README.md`](planning/README.md) | Where the product stands. Slice-level status. |
 | [`planning/departure-desk-mvp.md`](planning/departure-desk-mvp.md) | Superseded MVP requirements. History only. |
 | [`planning/commercial-domain-decision-register.md`](planning/commercial-domain-decision-register.md) | Superseded commercial and financial rules. History only. |

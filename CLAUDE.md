@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-AGENTS.md (imported above) is the binding repository contract: scope boundary, invariants, ADR index, conventions, and prohibited shortcuts. This file adds a working map of the code. Where the two ever differ, AGENTS.md and the documents it names win.
+AGENTS.md (imported above) is the binding repository contract: scope boundary, invariants, conventions and prohibited shortcuts; its reference files in [docs/agents/](docs/agents/) hold the ADR list, shipped vocabulary and area rules. This file adds a working map of the code. Where the two ever differ, AGENTS.md and the documents it names win.
 
 ## Before any change
 
