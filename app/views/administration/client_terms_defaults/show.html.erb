@@ -16,6 +16,7 @@
   <header class="dd-panel-header"><h2 class="dd-panel-title">Reusable terms</h2></header>
   <div class="dd-panel-body">
     <%= form_with model: @agency, url: administration_client_terms_defaults_path, method: :patch, scope: :agency, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
       <%= form.hidden_field :lock_version %>
       <div class="dd-field-group">
         <%= form.label :client_terms_wording, "Terms wording", class: "dd-label" %>

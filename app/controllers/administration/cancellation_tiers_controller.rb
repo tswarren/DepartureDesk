@@ -17,7 +17,7 @@ module Administration
     rescue AgencyCommand::Error => error
       @tier = Current.agency.agency_cancellation_tiers.new
       @values = tier_params
-      render_error(error, :new)
+      render_form_error(error, @tier, :new, LABELS)
     end
 
     def edit
@@ -30,7 +30,7 @@ module Administration
       redirect_to administration_client_terms_defaults_path(anchor: "cancellation"), notice: "Tier saved."
     rescue AgencyCommand::Error => error
       @values = tier_params
-      render_error(error, :edit)
+      render_form_error(error, @tier, :edit, LABELS)
     end
 
     def destroy
@@ -45,11 +45,5 @@ module Administration
     end
 
     def tier_params = params.require(:cancellation_tier).permit(*FIELDS).to_h
-
-    def render_error(error, template)
-      field, label = LABELS.find { |_field, text| error.message.start_with?(text) }
-      field ? @tier.errors.add(field, error.message.delete_prefix(label).strip) : @tier.errors.add(:base, error.message)
-      render template, status: :unprocessable_entity
-    end
   end
 end

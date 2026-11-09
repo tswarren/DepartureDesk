@@ -39,13 +39,12 @@ module SupplierDirectoryAccess
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     record = form_error_record
-    if record && error.code == :invalid
-      attribute = supplier_form_error_attribute(error.message, record)
-      record.errors.add(attribute, error.message)
+    if record
+      render_form_error(error, record, template, attribute: (error.code == :invalid ? supplier_form_error_attribute(error.message, record) : :base))
     else
       flash.now[:alert] = error.message
+      render template, status: :unprocessable_entity
     end
-    render template, status: :unprocessable_entity
   end
 
   def form_error_record

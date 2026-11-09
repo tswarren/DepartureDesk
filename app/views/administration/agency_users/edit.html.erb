@@ -13,13 +13,14 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with model: @agency_user, url: administration_agency_user_path(@agency_user), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
       <%= form.hidden_field :lock_version %>
       <div class="dd-field-group">
         <%= form.label :user_type, "User type", class: "dd-label" %>
         <%= form.select :user_type, user_type_options, {}, disabled: @agency_user.invited? || @agency_user.closed?, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
-        <%= form.label :relationship, "Relationship", class: "dd-label" %>
+        <%= form.label :relationship, "Relationship (optional)", class: "dd-label" %>
         <%= form.text_field :relationship, class: "dd-field" %>
       </div>
       <div class="dd-field-group">

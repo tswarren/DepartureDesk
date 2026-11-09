@@ -14,14 +14,6 @@ module SupplierMoneyAccess
     params.require(scope).permit(*fields.map { |field| field == :unit_shell_ids ? { unit_shell_ids: [] } : field }).to_h
   end
 
-  def render_money_error(error, record, template, labels)
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    field, label = labels.find { |_field, text| error.message.start_with?(text) }
-    field ? record.errors.add(field, error.message.delete_prefix(label).strip) : record.errors.add(:base, error.message)
-    render template, status: :unprocessable_entity
-  end
-
   def redirect_to_money(notice, anchor: "supplier-cost")
     redirect_to departure_arrangement_path(@departure, @arrangement, anchor:), notice:
   end

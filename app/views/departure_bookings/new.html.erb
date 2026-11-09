@@ -12,12 +12,7 @@
   </div>
 </header>
 
-<% if @error %>
-  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
-    <p class="dd-alert-title">The booking wasn't started</p>
-    <p><%= @error %></p>
-  </div>
-<% end %>
+<%= render "shared/form_errors", message: @error, title: "The booking wasn't started" %>
 
 <article class="dd-panel" aria-labelledby="find-client-heading">
   <header class="dd-panel-header"><h2 class="dd-panel-title" id="find-client-heading">Who is it for?</h2></header>

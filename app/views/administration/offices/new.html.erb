@@ -13,6 +13,7 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with model: @office, url: administration_offices_path, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
       <div class="dd-field-group">
         <%= form.label :name, class: "dd-label" %>
         <%= form.text_field :name, required: true, class: "dd-field" %>

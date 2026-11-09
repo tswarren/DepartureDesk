@@ -10,9 +10,7 @@
   </div>
 </header>
 
-<% if @error %>
-  <p class="dd-alert dd-alert--danger" role="alert"><%= @error %></p>
-<% end %>
+<%= render "shared/form_errors", message: @error %>
 
 <article class="dd-panel">
   <div class="dd-panel-body">

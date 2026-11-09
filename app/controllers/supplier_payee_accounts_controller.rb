@@ -1,6 +1,8 @@
 class SupplierPayeeAccountsController < ApplicationController
   include SupplierDirectoryAccess
 
+  ERROR_FIELDS = [ [ :name, /name/i ], [ :currency, /currency/i ], [ :payment_instructions, /instructions/i ] ].freeze
+
   before_action :require_supplier_directory_view!
   before_action :require_supplier_directory_management!
   before_action :set_supplier
@@ -15,7 +17,7 @@ class SupplierPayeeAccountsController < ApplicationController
     redirect_to supplier_path(@supplier, anchor: "payee-accounts"), notice: "Payee account saved."
   rescue AgencyCommand::Error => error
     @payee_account = @supplier.payee_accounts.new(payee_account_params.except(:lock_version))
-    render_error(error, :new)
+    render_form_error(error, @payee_account, :new, ERROR_FIELDS)
   end
 
   def edit
@@ -29,7 +31,7 @@ class SupplierPayeeAccountsController < ApplicationController
     redirect_to supplier_path(@supplier, anchor: "payee-accounts"), notice: "Payee account saved."
   rescue AgencyCommand::Error => error
     @payee_account.assign_attributes(payee_account_params.except(:lock_version))
-    render_error(error, :edit)
+    render_form_error(error, @payee_account, :edit, ERROR_FIELDS)
   end
 
   private
@@ -40,18 +42,5 @@ class SupplierPayeeAccountsController < ApplicationController
 
   def payee_account_params
     params.require(:payee_account).permit(:name, :currency, :payment_instructions, :lock_version)
-  end
-
-  def render_error(error, template)
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    attribute = case error.message
-    when /name/i then :name
-    when /currency/i then :currency
-    when /instructions/i then :payment_instructions
-    else :base
-    end
-    @payee_account.errors.add(attribute, error.message.sub(/\A(Name|Currency|Payment instructions) /, ""))
-    render template, status: :unprocessable_entity
   end
 end

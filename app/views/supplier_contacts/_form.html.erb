@@ -25,9 +25,9 @@
 </div>
 
 <div class="dd-field-group">
-  <%= form.label :role_label, "Role label", class: "dd-label" %>
+  <%= form.label :role_label, "Role label (optional)", class: "dd-label" %>
   <%= form.text_field :role_label, maxlength: 80, **dd_field_options(form, :role_label, aria_describedby_extra: "supplier_contact_role_hint") %>
-  <p class="dd-field-hint" id="supplier_contact_role_hint">Optional work-context label. It grants no authority.</p>
+  <p class="dd-field-hint" id="supplier_contact_role_hint">A work-context label. It grants no authority.</p>
   <%= dd_field_error(form, :role_label) %>
 </div>
 

@@ -18,12 +18,7 @@
   </div>
 </header>
 
-<% if @error %>
-  <div class="dd-alert dd-alert--error" role="alert" id="form-error-summary" tabindex="-1">
-    <p class="dd-alert-title">The prices weren't saved</p>
-    <p><%= @error %></p>
-  </div>
-<% end %>
+<%= render "shared/form_errors", message: @error, title: "The prices weren't saved" %>
 
 <% if @grid.options.empty? %>
   <article class="dd-panel">

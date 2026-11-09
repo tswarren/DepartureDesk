@@ -13,6 +13,7 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with model: @office, url: administration_office_path(@office), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
       <%= form.hidden_field :lock_version %>
       <div class="dd-field-group">
         <%= form.label :name, class: "dd-label" %>

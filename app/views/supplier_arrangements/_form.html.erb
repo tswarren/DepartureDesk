@@ -40,7 +40,7 @@
   <%= form.text_area :covered_services, rows: 3, maxlength: SupplierArrangement::TEXT_LIMIT, class: "dd-field" %>
 </div>
 <div class="dd-field-group">
-  <%= form.label :terms, "Other terms", class: "dd-label" %>
+  <%= form.label :terms, "Other terms (optional)", class: "dd-label" %>
   <%= form.text_area :terms, rows: 4, maxlength: SupplierArrangement::TEXT_LIMIT, aria: { describedby: "arrangement_terms_hint" }, class: "dd-field" %>
   <p class="dd-field-hint" id="arrangement_terms_hint">Plain-language terms, such as attrition or special conditions (SUP-18).</p>
 </div>

@@ -17,6 +17,7 @@
 
     <% if @source == "organization" %>
       <%= form_with model: @client_organization, url: clients_path, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: form.object %>
         <%= hidden_field_tag :source, "organization" %>
         <%= render "client_organizations/form", form: form %>
         <div class="dd-form-actions">
@@ -26,6 +27,7 @@
       <% end %>
     <% else %>
       <%= form_with model: @client_person, url: clients_path, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: form.object %>
         <%= hidden_field_tag :source, "individual" %>
         <%= render "client_people/form", form: form %>
         <div class="dd-field-group">

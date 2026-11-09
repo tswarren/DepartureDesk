@@ -57,7 +57,7 @@ class ClientOrganizationContactsController < ApplicationController
     rescue_duplicate_review(error, :new)
   rescue AgencyCommand::Error, ActiveRecord::RecordNotFound => error
     prepare_new_after_error
-    flash.now[:alert] = error.message
+    add_refusal(@organization_contact, error.message)
     render :new, status: :unprocessable_entity
   end
 

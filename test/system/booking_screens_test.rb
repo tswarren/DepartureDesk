@@ -60,8 +60,8 @@ class BookingScreensTest < ApplicationSystemTestCase
     within("#add-travelers") do
       assert_text "Mateo Rivera"
       uncheck "Luca Rivera"
-      select "Adult", from: "Type for Mateo Rivera"
-      select "Adult", from: "Type for Elena Rivera"
+      select "Adult", from: "Traveler type for Mateo Rivera"
+      select "Adult", from: "Traveler type for Elena Rivera"
       click_button "Add ticked travelers"
     end
     assert_text "Travelers added."
@@ -158,7 +158,7 @@ class BookingScreensTest < ApplicationSystemTestCase
     fill_in "Or find a traveler in the agency", with: "Nadia"
     click_button "Find"
     within("ul[aria-label='Matching travelers']") do
-      select "Adult", from: "Type for Nadia Rowan"
+      select "Adult", from: "Traveler type for Nadia Rowan"
       find("input[aria-label='Link and add Nadia Rowan']").click
     end
     assert_text "Traveler added and linked"

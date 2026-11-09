@@ -141,7 +141,10 @@ Each batch is one pull request, in order, and each passes `bin/ci` and the 375px
    - the overlapping Stimulus controllers merged (E3);
    - print rules for every page (E4).
 
-   No page layout changes.
+   No page layout changes. Delivered as three pull requests:
+   - **1a, forms:** one error pattern (C1), label style (C4) and money labels (C5). The forms that sit inside a larger page still redirect with a flash message on refusal; each moves to the pattern with its page's batch: capacity changes and rules (batch 4), the operating decision (batch 3), the client terms wording and option prices (batch 6);
+   - **1b, lists and panels:** the record list (D1), panel header (B3), disclosure (B4) and text-link row actions (D2);
+   - **1c, behavior and reference:** the merged Stimulus controllers (E3), print rules (E4) and an updated `/dev/ui` (E2).
 2. **Navigation:** the Departure tabs reordered with a Money tab (A1, decision 2) and breadcrumbs (A5).
 3. **The Departure overview** (A3) and the Departures list.
 4. **Arrangement sub-pages** (B1, decision 3), with the conditional fields and summaries on its forms (C2, C3).

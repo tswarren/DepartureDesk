@@ -54,7 +54,7 @@
             <%= dd_field_error(form, :phone_number) %>
           </div>
           <div class="dd-field-group">
-            <%= form.label :phone_extension, "Extension", class: "dd-label" %>
+            <%= form.label :phone_extension, "Extension (optional)", class: "dd-label" %>
             <%= form.text_field :phone_extension, inputmode: "numeric", **dd_field_options(form, :phone_extension, class: "dd-field--narrow") %>
             <%= dd_field_error(form, :phone_extension) %>
           </div>
@@ -75,7 +75,7 @@
             <%= dd_field_error(form, :address_line_1) %>
           </div>
           <div class="dd-field-group">
-            <%= form.label :address_line_2, "Address line 2", class: "dd-label" %>
+            <%= form.label :address_line_2, "Address line 2 (optional)", class: "dd-label" %>
             <%= form.text_field :address_line_2, autocomplete: "address-line2", **dd_field_options(form, :address_line_2) %>
           </div>
           <div class="dd-field-group">

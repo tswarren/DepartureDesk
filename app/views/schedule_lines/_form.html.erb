@@ -76,7 +76,7 @@
       </div>
       <div class="dd-rate-inline">
         <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="date booked_or_date">
-          <%= form.label :due_on, "Date", class: "dd-label" %>
+          <%= form.label :due_on, "Due date", class: "dd-label" %>
           <%= form.date_field :due_on, value: values["due_on"] || schedule_line.due_on, **dd_field_options(form, :due_on) %>
           <%= dd_field_error(form, :due_on) %>
         </div>

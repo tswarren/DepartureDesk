@@ -13,14 +13,6 @@ module TripAccess
     params.fetch(scope, {}).permit(*fields).to_h
   end
 
-  def render_form_error(error, record, template, labels = [])
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    field, label = labels.find { |_field, text| error.message.start_with?(text) }
-    field ? record.errors.add(field, error.message.delete_prefix(label).strip) : record.errors.add(:base, error.message)
-    render template, status: :unprocessable_entity
-  end
-
   def client_profile_path_for(client, **options)
     client.client_person ? client_person_path(client.client_person, **options) : client_organization_path(client.client_organization, **options)
   end

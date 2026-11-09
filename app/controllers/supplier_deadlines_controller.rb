@@ -2,6 +2,8 @@
 class SupplierDeadlinesController < ApplicationController
   include ArrangementAccess
 
+  ERROR_FIELDS = [ [ :description, /description/i ], [ :due_on, /due date/i ], [ :time_zone, /time zone/i ], [ :due_at_time, /time/i ], [ :inventory_group_id, /group/i ] ].freeze
+
   FIELDS = %i[deadline_type actionable description due_on due_at_time time_zone inventory_group_id].freeze
 
   before_action :require_arrangement_view!
@@ -20,7 +22,7 @@ class SupplierDeadlinesController < ApplicationController
       notice: result.record.actionable ? "Deadline recorded, with a task." : "Deadline recorded as informational."
   rescue AgencyCommand::Error => error
     @deadline = @arrangement.deadlines.new(deadline_params.except(:actionable, :inventory_group_id))
-    render_error(error, :new)
+    render_form_error(error, @deadline, :new, ERROR_FIELDS)
   end
 
   def edit
@@ -34,7 +36,7 @@ class SupplierDeadlinesController < ApplicationController
     redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "deadlines"), notice: "Deadline updated."
   rescue AgencyCommand::Error => error
     @deadline.assign_attributes(deadline_params.except(:actionable, :inventory_group_id))
-    render_error(error, :edit)
+    render_form_error(error, @deadline, :edit, ERROR_FIELDS)
   end
 
   private
@@ -48,20 +50,5 @@ class SupplierDeadlinesController < ApplicationController
     values = params.require(:supplier_deadline).permit(*FIELDS).to_h.symbolize_keys
     values[:description] = helpers.deadline_type_label(values[:deadline_type]) if values[:description].blank? && values[:deadline_type].in?(SupplierDeadline::TYPES)
     values
-  end
-
-  def render_error(error, template)
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    attribute = case error.message
-    when /description/i then :description
-    when /due date/i then :due_on
-    when /time zone/i then :time_zone
-    when /time/i then :due_at_time
-    when /group/i then :inventory_group_id
-    else :base
-    end
-    @deadline.errors.add(attribute, error.message)
-    render template, status: :unprocessable_entity
   end
 end

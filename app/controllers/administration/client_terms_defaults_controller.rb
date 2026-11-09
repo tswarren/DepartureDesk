@@ -12,7 +12,10 @@ module Administration
         lock_version: params.dig(:agency, :lock_version)).call
       redirect_to administration_client_terms_defaults_path, notice: "Client terms wording saved."
     rescue AgencyCommand::Error => error
-      redirect_to administration_client_terms_defaults_path, alert: error.message
+      @agency = Current.agency.reload
+      @agency.client_terms_wording = params.dig(:agency, :client_terms_wording)
+      @tiers = @agency.agency_cancellation_tiers.ordered
+      render_form_error(error, @agency, :show, [ [ :client_terms_wording, /wording/i ] ])
     end
   end
 end

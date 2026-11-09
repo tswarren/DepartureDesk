@@ -11,12 +11,7 @@
   </div>
 </header>
 
-<% if @error %>
-  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
-    <p class="dd-alert-title">The acceptance wasn't recorded</p>
-    <p><%= @error %></p>
-  </div>
-<% end %>
+<%= render "shared/form_errors", message: @error, title: "The acceptance wasn't recorded" %>
 
 <article class="dd-panel">
   <div class="dd-panel-body">

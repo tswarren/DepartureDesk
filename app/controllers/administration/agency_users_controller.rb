@@ -1,5 +1,7 @@
 module Administration
   class AgencyUsersController < BaseController
+    ERROR_FIELDS = [ [ :email_address, /email/i ], [ :first_name, /first name/i ], [ :last_name, /last name/i ], [ :default_office_id, /office/i ] ].freeze
+
     before_action :set_agency_user, only: %i[show edit update suspend reactivate close replace_invitation revoke_invitation]
 
     def index
@@ -30,8 +32,7 @@ module Administration
     rescue AgencyCommand::Error => error
       @agency_user = agency_users.new(agency_user_params)
       @offices = offices.order(:name)
-      flash.now[:alert] = error.message
-      render :new, status: :unprocessable_entity
+      render_form_error(error, @agency_user, :new, ERROR_FIELDS)
     end
 
     def edit
@@ -51,9 +52,9 @@ module Administration
     rescue AgencyCommand::Error => error
       raise ActiveRecord::RecordNotFound if error.code == :not_found
 
+      @agency_user.assign_attributes(agency_user_params.slice(:user_type, :relationship, :default_office_id))
       @offices = offices.order(:name)
-      flash.now[:alert] = error.message
-      render :edit, status: :unprocessable_entity
+      render_form_error(error, @agency_user, :edit, ERROR_FIELDS)
     end
 
     def suspend

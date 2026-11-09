@@ -13,7 +13,7 @@
       <%= form.select :basis, PackageHelper::SCHEDULE_BASIS_LABELS.invert, {}, class: "dd-field", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
     </div>
     <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="per_traveler per_unit per_booking">
-      <%= form.label :amount, "Fixed amount in #{currency}", class: "dd-label" %>
+      <%= form.label :amount, "Fixed amount (#{currency})", class: "dd-label" %>
       <%= form.text_field :amount, value: values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow") %>
       <%= dd_field_error(form, :amount) %>
     </div>

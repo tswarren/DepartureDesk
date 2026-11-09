@@ -14,6 +14,7 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with model: @contact_point, url: organization_contact_form_url(@client_organization, @contact_point), method: (@contact_point.persisted? ? :patch : :post), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @contact_point %>
       <%= form.hidden_field :lock_version if form.object.persisted? %>
       <% if @contact_point.is_a?(ClientOrganizationEmailAddress) %>
         <div class="dd-field-group">
@@ -46,7 +47,7 @@
           <%= form.text_field :line_1, required: true, class: "dd-field" %>
         </div>
         <div class="dd-field-group">
-          <%= form.label :line_2, "Address line 2", class: "dd-label" %>
+          <%= form.label :line_2, "Address line 2 (optional)", class: "dd-label" %>
           <%= form.text_field :line_2, class: "dd-field" %>
         </div>
         <div class="dd-field-group">

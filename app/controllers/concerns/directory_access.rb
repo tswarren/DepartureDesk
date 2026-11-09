@@ -35,11 +35,18 @@ module DirectoryAccess
     Current.agency_user.permitted?(:view_client_contact_details)
   end
 
-  def rescue_directory_error(error, template)
+  def rescue_directory_error(error, template, record = directory_form_record)
+    return render_form_error(error, record, template) if record
+
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     flash.now[:alert] = error.message
     render template, status: :unprocessable_entity
+  end
+
+  # The record whose form was submitted, which shows the refusal.
+  def directory_form_record
+    @contact_point || @organization_contact || @client || @client_organization || @client_person
   end
 
   def rescue_duplicate_review(error, template)

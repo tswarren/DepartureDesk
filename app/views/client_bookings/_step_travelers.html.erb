@@ -52,7 +52,7 @@
                   <% if manage %>
                     <%= form_with model: row, url: client_booking_traveler_path(booking, row), method: :patch, scope: :booking_traveler, class: "dd-inline-form" do |form| %>
                       <%= form.hidden_field :lock_version, id: nil %>
-                      <%= form.label :traveler_type_id, "Type for #{row.display_name}", class: "dd-visually-hidden", for: "booking_traveler_type_#{row.id}" %>
+                      <%= form.label :traveler_type_id, "Traveler type for #{row.display_name}", class: "dd-visually-hidden", for: "booking_traveler_type_#{row.id}" %>
                       <%= form.select :traveler_type_id, traveler_types.map { |type| [ type.name, type.id ] }, { include_blank: "Choose a type" }, id: "booking_traveler_type_#{row.id}", class: "dd-field" %>
                       <%= form.submit "Save type", class: "dd-button dd-button--quiet", name: nil, aria: { label: "Save type for #{row.display_name}" } %>
                     <% end %>
@@ -100,7 +100,7 @@
                       <span class="dd-cell-subtext"><%= link.relationship_label %> · <%= age ? "#{age} at departure" : "No date of birth" %></span></span>
                   </label>
                   <div class="dd-field-group">
-                    <%= label_tag "traveler_type_#{traveler.id}", "Type for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                    <%= label_tag "traveler_type_#{traveler.id}", "Traveler type for #{traveler.display_name}", class: "dd-visually-hidden" %>
                     <%= select_tag "travelers[#{traveler.id}][traveler_type_id]", options_from_collection_for_select(traveler_types, :id, :name),
                           include_blank: "Choose a type", id: "traveler_type_#{traveler.id}", class: "dd-field" %>
                   </div>
@@ -173,7 +173,7 @@
                       <%= hidden_field_tag :traveler_id, traveler.id, id: nil %>
                       <%= label_tag "found_relationship_#{traveler.id}", "Relationship for #{traveler.display_name}", class: "dd-visually-hidden" %>
                       <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.invert, "other"), id: "found_relationship_#{traveler.id}", class: "dd-field" %>
-                      <%= label_tag "found_type_#{traveler.id}", "Type for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                      <%= label_tag "found_type_#{traveler.id}", "Traveler type for #{traveler.display_name}", class: "dd-visually-hidden" %>
                       <%= select_tag :traveler_type_id, options_from_collection_for_select(traveler_types, :id, :name), include_blank: "Choose a type", id: "found_type_#{traveler.id}", class: "dd-field" %>
                       <% if placeholders.any? %>
                         <%= label_tag "found_replacing_#{traveler.id}", "Add #{traveler.display_name} as", class: "dd-visually-hidden" %>
@@ -196,7 +196,7 @@
           <p class="dd-field-hint" id="booking_traveler_placeholder_hint">Holds a place until you know who it is.</p>
         </div>
         <div class="dd-field-group">
-          <%= form.label :traveler_type_id, "Placeholder type", class: "dd-label" %>
+          <%= form.label :traveler_type_id, "Traveler type", class: "dd-label" %>
           <%= form.select :traveler_type_id, traveler_types.map { |type| [ type.name, type.id ] }, { include_blank: "Choose later" }, class: "dd-field" %>
         </div>
         <%= form.submit "Add placeholder", class: "dd-button dd-button--secondary", name: nil %>
