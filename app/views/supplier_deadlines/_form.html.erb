@@ -39,22 +39,20 @@
       </div>
     </div>
     <p class="dd-field-hint">No time means the end of that day, 11:59 p.m. agency time (<%= Current.agency.default_timezone %>).</p>
-    <details class="dd-disclosure" <%= "open" if deadline.time_zone.present? && deadline.time_zone != departure.time_zone || form.object.errors[:time_zone].any? %>>
-      <summary>The supplier's time zone, for a time</summary>
+    <%= disclosure "Use the supplier's time zone", open: (deadline.time_zone.present? && deadline.time_zone != departure.time_zone) || form.object.errors[:time_zone].any? do %>
       <div class="dd-field-group">
         <%= form.label :time_zone, "Supplier's time zone", class: "dd-label" %>
         <%= form.select :time_zone, iana_timezone_options, { include_blank: "Departure time zone" }, **dd_field_options(form, :time_zone), data: { deadline_form_target: "zone" } %>
         <%= dd_field_error(form, :time_zone) %>
       </div>
-    </details>
+    <% end %>
     <% if arrangement.inventory_groups.any? %>
-      <details class="dd-disclosure" <%= "open" if deadline.inventory_group_id %>>
-        <summary>Only for one inventory group</summary>
+      <%= disclosure "Limit it to one inventory group", open: deadline.inventory_group_id.present? || form.object.errors[:inventory_group_id].any? do %>
         <div class="dd-field-group">
           <%= form.label :inventory_group_id, "Inventory group", class: "dd-label" %>
           <%= form.select :inventory_group_id, arrangement.inventory_groups.map { |group| [ group.label, group.id ] }, { include_blank: "Whole arrangement" }, **dd_field_options(form, :inventory_group_id) %>
         </div>
-      </details>
+      <% end %>
     <% end %>
     <div class="dd-choice-group">
       <%= hidden_field_tag "supplier_deadline[actionable]", "false", id: nil %>

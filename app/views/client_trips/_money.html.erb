@@ -6,7 +6,7 @@
 <article class="dd-panel" id="money">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Client money</h2>
-    <% if manage && currency %><%= link_to "Record a payment", new_client_trip_payment_path(trip), class: "dd-button" %><% end %>
+    <% if manage && currency %><%= link_to "Record a payment", new_client_trip_payment_path(trip), class: "dd-button dd-button--secondary" %><% end %>
   </header>
   <div class="dd-panel-body dd-stack">
     <% if currency.nil? %>
@@ -45,23 +45,23 @@
         <% if money.payments.empty? %>
           <p class="dd-empty-copy">No payments recorded.</p>
         <% else %>
-          <ul class="dd-plain-list dd-payment-list" aria-label="Payments">
+          <ul class="dd-record-list" aria-label="Payments">
             <% money.payments.each do |payment| %>
-              <li class="dd-payment-item">
-                <div>
+              <li class="dd-record">
+                <div class="dd-record-main">
                   <strong class="dd-type-mono"><%= payment.payment_reference %></strong> · <%= booking_money(payment.amount_minor_units, currency) %>
                   to <%= payment.collector_label %>
                   <% if payment.reversed? %><%= status_badge("Reversed", modifier: "danger") %><% end %>
-                  <p class="dd-cell-subtext">
+                  <p class="dd-record-detail">
                     <%= payment.paid_on.to_fs(:long) %> · <%= payment.payer.source.display_name %> · <%= payment.method_label %><%= " · #{payment.reference}" if payment.reference %><%= " · supplier's reference #{payment.supplier_reference}" if payment.supplier_reference %>
                   </p>
-                  <p class="dd-cell-subtext">
+                  <p class="dd-record-detail">
                     <% applied = payment.applications.group_by(&:installment).transform_values { |rows| rows.sum(&:amount_minor_units) }.select { |_, amount| amount.positive? } %>
                     <%= applied.any? ? "Applied to " + applied.map { |installment, amount| "#{installment.client_charge.client_booking.booking_reference} #{installment.description} #{booking_money(amount, currency)}" }.to_sentence : "Not applied" %><%= " · #{booking_money(payment.credit_minor_units, currency)} credit" if payment.credit_minor_units.positive? %>
                     <% if payment.reversal %> · Reversed <%= payment.reversal.reversed_on.to_fs(:long) %>: <%= payment.reversal.reason %><% end %>
                   </p>
                 </div>
-                <span class="dd-section-header">
+                <span class="dd-record-actions">
                   <% if payment.receipt %><%= link_to "Receipt #{payment.receipt.receipt_number}", receipt_path(payment.receipt), class: "dd-row-action dd-row-action--text" %><% else %><span class="dd-cell-subtext">No receipt: paid to a supplier</span><% end %>
                   <% if manage && !payment.reversed? %><%= link_to "Reverse", new_client_trip_payment_reversal_path(trip, payment), class: "dd-row-action dd-row-action--text dd-row-action--danger", aria: { label: "Reverse #{payment.payment_reference}" } %><% end %>
                 </span>

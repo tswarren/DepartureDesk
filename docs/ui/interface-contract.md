@@ -106,6 +106,8 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 
 - Use a page header with title, optional concise context, and one primary action.
 - Use panels for coherent groups, not as nested decoration.
+- A panel has a `dd-panel-header` with its title and its actions, which are quiet buttons; the record's next step may be a secondary button. A page whose only content is one form, an empty state, a search filter or a results table may use one untitled panel, since the page title names it. A show page's facts sit in a panel titled Details.
+- A disclosure is the `disclosure` helper: its summary says what opening it lets you do (“Use the supplier's time zone”, “Add one option instead”), it shows a + or − marker, and it opens itself when a field inside it is refused or already set.
 - Index pages use tables or compact rows when records share comparison fields.
 - Show pages display facts first. Substantial edits use dedicated GET pages.
 - Only one inline composer or row editor should be open at a time.
@@ -172,6 +174,8 @@ Superseded as primary Staff chrome by Composition Slice 1. Retained for historic
 
 - Keep primary identity and status visible without opening row detail.
 - Align repeated fields and numeric values consistently.
+- A list of records that aren't compared column by column is a `dd-record-list`: each `dd-record` has its title and `dd-record-detail` lines in `dd-record-main`, and its actions in `dd-record-actions`. Records compared by the same fields are a table.
+- Row actions are text links (`dd-row-action`, `dd-row-action--danger` to remove or reverse), with an `aria-label` naming the record. An inline form in a row is for editing a value in place or choosing from search results.
 - Keep essential actions keyboard reachable; use a labeled overflow only for genuinely secondary actions.
 - Use explicit actionable, positive, filtered, permission, and error empty states.
 

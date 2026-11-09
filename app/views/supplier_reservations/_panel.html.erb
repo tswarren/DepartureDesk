@@ -15,16 +15,16 @@
     <% if reservations.empty? %>
       <p class="dd-empty-copy">No supplier requests yet.</p>
     <% else %>
-      <ul class="dd-plain-list dd-payment-list" aria-label="Supplier reservations">
+      <ul class="dd-record-list" aria-label="Supplier reservations">
         <% reservations.each do |reservation| %>
           <% booking = reservation.client_booking %>
-          <li class="dd-payment-item">
-            <div>
+          <li class="dd-record">
+            <div class="dd-record-main">
               <strong><%= link_to booking.booking_reference, client_booking_path(booking, step: "rooms", anchor: "supplier-requests"), class: "dd-type-mono" %></strong>
               · <%= booking.client_trip.client.source.display_name %>
               <%= status_badge(reservation.status_requested? && booking.status_confirmed? ? "Awaiting supplier" : reservation.status_label, modifier: reservation.status_confirmed? ? "success" : "warning") %>
-              <p class="dd-payment-sentence"><%= reservation.units.map { |unit| unit.choice_selection.label }.to_sentence %></p>
-              <p class="dd-cell-subtext">
+              <p class="dd-record-detail"><%= reservation.units.map { |unit| unit.choice_selection.label }.to_sentence %></p>
+              <p class="dd-record-detail">
                 Requested <%= reservation.requested_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %> by <%= reservation.requested_by.display_name %>
                 <% if reservation.status_confirmed? %>
                   · Accepted <%= reservation.responded_on.to_fs(:long) %>, ref <span class="dd-type-mono"><%= reservation.supplier_reference %></span>, recorded by <%= reservation.responded_by.display_name %><%= " · #{reservation.response_note}" if reservation.response_note %>
@@ -33,7 +33,7 @@
             </div>
             <% if manage && reservation.status_requested? %>
               <%= link_to "Record acceptance", new_departure_arrangement_supplier_reservation_acceptance_path(departure, arrangement, reservation),
-                    class: "dd-button dd-button--secondary", aria: { label: "Record acceptance for #{booking.booking_reference}" } %>
+                    class: "dd-row-action dd-row-action--text", aria: { label: "Record acceptance for #{booking.booking_reference}" } %>
             <% end %>
           </li>
         <% end %>

@@ -4,14 +4,16 @@
   <p class="dd-empty-copy">No tiers. Cancellations would carry no charge under this schedule.</p>
 <% else %>
   <% sentences = tier_sentences(tiers, starts_on) %>
-  <ul class="dd-plain-list dd-checklist">
+  <ul class="dd-record-list">
     <% tiers.sort_by { |tier| -tier.min_days_before_departure }.each_with_index do |tier, index| %>
-      <li class="dd-checklist-item">
-        <span><%= sentences[index] %></span>
+      <li class="dd-record">
+        <span class="dd-record-main"><%= sentences[index] %></span>
         <% if edit_path %>
-          <%= link_to "Edit", edit_path.call(tier), class: "dd-row-action dd-row-action--text", aria: { label: "Edit the tier from #{tier.min_days_before_departure} days" } %>
-          <%= button_to "Remove", remove_path.call(tier), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
-                aria: { label: "Remove the tier from #{tier.min_days_before_departure} days" } %>
+          <span class="dd-record-actions">
+            <%= link_to "Edit", edit_path.call(tier), class: "dd-row-action dd-row-action--text", aria: { label: "Edit the tier from #{tier.min_days_before_departure} days" } %>
+            <%= button_to "Remove", remove_path.call(tier), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
+                  aria: { label: "Remove the tier from #{tier.min_days_before_departure} days" } %>
+          </span>
         <% end %>
       </li>
     <% end %>

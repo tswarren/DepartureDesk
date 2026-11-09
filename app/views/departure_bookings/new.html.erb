@@ -29,17 +29,17 @@
       <% if @clients.empty? %>
         <p class="dd-empty-copy">No active client matches “<%= @query %>”.<%= " Add them below." if can_create_client %></p>
       <% else %>
-        <ul class="dd-plain-list dd-payment-list" aria-label="Matching clients">
+        <ul class="dd-record-list" aria-label="Matching clients">
           <% @clients.each do |client| %>
             <% trip = client.client_trips.select { |candidate| candidate.departure_id == @departure.id }.max_by(&:created_at) %>
             <% name = client.source.display_name %>
-            <li class="dd-payment-item">
-              <div>
+            <li class="dd-record">
+              <div class="dd-record-main">
                 <strong><%= name %></strong>
-                <p class="dd-cell-subtext">
+                <p class="dd-record-detail">
                   <%= client.client_reference %> · <%= client.client_organization ? "organization" : "person" %><% if client.travelers.any? %> · travels with <%= client.travelers.map(&:display_name).to_sentence %><% end %>
                 </p>
-                <p class="dd-cell-subtext"><%= trip ? "Has trip #{trip.trip_reference} on this Departure; the booking goes on it." : "A new trip is made for this Departure." %></p>
+                <p class="dd-record-detail"><%= trip ? "Has trip #{trip.trip_reference} on this Departure; the booking goes on it." : "A new trip is made for this Departure." %></p>
               </div>
               <%= button_to "Book for #{name}", departure_bookings_path(@departure), params: { client_id: client.id }, class: "dd-button dd-button--secondary" %>
             </li>

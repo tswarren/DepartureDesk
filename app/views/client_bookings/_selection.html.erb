@@ -28,9 +28,8 @@
     </ul>
   <% end %>
   <% if manage && !choice.made_per_trip? %>
-    <details class="dd-disclosure">
-      <summary>Change who is in it</summary>
+    <%= disclosure "Change who is in it" do %>
       <%= render "client_bookings/selection_form", booking:, choice:, selection:, choices: [] %>
-    </details>
+    <% end %>
   <% end %>
 </div>

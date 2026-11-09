@@ -448,6 +448,15 @@ module ApplicationHelper
     letters.join.upcase.presence || "?"
   end
 
+  # The one disclosure (UX audit B4): a summary that says what opening it
+  # lets you do, and a body. Opens itself when told to, such as when a field
+  # inside it was refused.
+  def disclosure(summary, open: false, class_name: nil, **options, &block)
+    tag.details(class: [ "dd-disclosure", class_name ].compact.join(" "), open: (open || nil), **options) do
+      tag.summary(summary) + tag.div(capture(&block), class: "dd-disclosure-body")
+    end
+  end
+
   def empty_state_classes(family: :inline)
     [ "dd-empty-state", "dd-empty-state--#{family}" ]
   end

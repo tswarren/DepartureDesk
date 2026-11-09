@@ -75,13 +75,13 @@
       <% if schedule_lines.empty? %>
         <p class="dd-empty-copy">No payments yet. Add one for each deposit or balance the supplier asks for.</p>
       <% else %>
-        <ul class="dd-plain-list dd-payment-list">
+        <ul class="dd-record-list">
           <% schedule_lines.each do |line| %>
-            <li class="dd-payment-item">
-              <div>
+            <li class="dd-record">
+              <div class="dd-record-main">
                 <strong><%= line.description %></strong>
-                <p class="dd-payment-sentence"><%= schedule_line_sentence(line) %></p>
-                <p class="dd-cell-subtext">
+                <p class="dd-record-detail"><%= schedule_line_sentence(line) %></p>
+                <p class="dd-record-detail">
                   <%= line.amounts_due.any? ? "Posted: #{pluralize(line.amounts_due.size, "amount")}, #{money(line.amounts_due.sum(&:amount_minor_units), currency)}" : "Nothing posted yet" %><%= " · Pays the deadline #{line.supplier_deadline.description}" if line.supplier_deadline %>
                 </p>
               </div>

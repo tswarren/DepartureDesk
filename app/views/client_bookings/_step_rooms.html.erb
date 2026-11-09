@@ -19,10 +19,9 @@
         <% if manage && choice.options.any? %>
           <% if choice.made_per_unit? && choice.optional_multiple? && choice.options.count(&:night_kind) >= 2 %>
             <%= render "client_bookings/nights_form", booking:, choice:, choices: %>
-            <details class="dd-disclosure">
-              <summary>Add one option instead</summary>
+            <%= disclosure "Add one option instead" do %>
               <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil, choices: %>
-            </details>
+            <% end %>
           <% else %>
             <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil, choices: %>
           <% end %>
