@@ -3,7 +3,7 @@
 <% client_name = @trip.client.source.display_name %>
 <% manage = Current.agency_user.permitted?(:manage_bookings) && @booking.status_draft? %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ departure.display_reference, departure_path(departure) ], [ "Bookings", departure_bookings_path(departure) ], [ @booking.booking_reference, nil ] ] %>
+<%= render "shared/breadcrumbs", trail: booking_trail(@booking, current: true) %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">

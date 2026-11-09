@@ -95,7 +95,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     get departure_arrangement_path(@departure, @hotel)
     assert_select "#supplier-cost"
     assert_select "#supplier-cost a", text: "Add cost line", count: 0
-    get departure_supplier_money_path(@departure)
+    get departure_money_path(@departure)
     assert_select "#exposure", text: /\$2,745\.00/
     get new_departure_arrangement_cost_line_path(@departure, @hotel)
     assert_redirected_to root_path
@@ -103,9 +103,10 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     sign_in_as agency_users(:harbor_baseline_staff)
     get departure_arrangement_path(@departure, @hotel)
     assert_select "#supplier-cost", count: 0
-    assert_select "nav[aria-label='Departure sections'] a", text: "Supplier money", count: 0
-    get departure_supplier_money_path(@departure)
-    assert_redirected_to root_path
+    get departure_money_path(@departure)
+    assert_response :success
+    assert_select "#client-money"
+    assert_select "#exposure", count: 0
   end
 
   test "Financial records may record a direct amount due" do
@@ -119,7 +120,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
 
   test "other agencies get not found" do
     sign_in_as agency_users(:cove_admin)
-    get departure_supplier_money_path(@departure)
+    get departure_money_path(@departure)
     assert_response :not_found
     get new_departure_arrangement_cost_line_path(@departure, @hotel)
     assert_response :not_found

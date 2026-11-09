@@ -18,7 +18,7 @@ class ClientMoneyScreensTest < ApplicationSystemTestCase
     payment = trip.client_payments.sole
     paths = [ client_trip_path(trip), new_client_trip_payment_path(trip), new_client_trip_payment_reversal_path(trip, payment), receipt_path(payment.receipt),
               client_booking_path(@alpha.bookings.fetch("BK-101"), step: "price"), departure_bookings_path(@alpha.departure),
-              departure_supplier_money_path(@alpha.departure), client_booking_path(@alpha.bookings.fetch("BK-101"), step: "confirm"),
+              departure_money_path(@alpha.departure), client_booking_path(@alpha.bookings.fetch("BK-101"), step: "confirm"),
               new_departure_supplier_payment_path(@alpha.departure, supplier_id: @alpha.arrangements.fetch(:cruise).supplier_id),
               new_departure_supplier_payment_reversal_path(@alpha.departure, @alpha.departure.supplier_payments.sole) ]
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)

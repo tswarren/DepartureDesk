@@ -16,7 +16,7 @@ class SupplierPaymentsControllerTest < ActionDispatch::IntegrationTest
 
   test "the Supplier money tab lists the paid amounts and payments; only Financial records records one" do
     sign_in_as agency_users(:harbor_staff)
-    get departure_supplier_money_path(@departure)
+    get departure_money_path(@departure)
     assert_select "#amounts-due td", text: /Paid/
     assert_select "#supplier-payments li", text: /#{@payment.payment_reference}.*\$2,950\.00.*Wire 0203/m
     assert_select "#supplier-payments a", text: /Record a payment/, count: 0
@@ -24,8 +24,8 @@ class SupplierPaymentsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
 
     sign_in_as agency_users(:harbor_baseline_staff)
-    get departure_supplier_money_path(@departure)
-    assert_redirected_to root_path
+    get departure_money_path(@departure)
+    assert_select "#supplier-payments", count: 0
   end
 
   test "a payment made before anything is open stays unapplied, then is applied from the tab (SMN-22)" do
@@ -34,7 +34,7 @@ class SupplierPaymentsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "#supplier-payments div", text: /Paid, not yet applied\s*\$100\.00/
     ReverseSupplierPayment.new(agency: @agency, actor: @admin, payment: @payment, reason: "Wire returned").call
-    get departure_supplier_money_path(@departure)
+    get departure_money_path(@departure)
     first = @cruise.amounts_due.by_due.first
     assert_select "#apply-#{@cruise.supplier_id} input[name='applications[#{first.id}]'][value='100.00']"
     post departure_supplier_payment_application_path(@departure), params: { supplier_id: @cruise.supplier_id, applications: { first.id => "100" } }

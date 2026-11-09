@@ -12,7 +12,7 @@ class DepartureSupplierMoneyBreakdownTest < ActionDispatch::IntegrationTest
 
   test "by arrangement lists each arrangement's committed cost and its cost lines, with the booking each is for" do
     sign_in_as agency_users(:harbor_admin)
-    get departure_supplier_money_path(@departure)
+    get departure_money_path(@departure)
     assert_select "nav[aria-label='Break committed cost down'] a[aria-current=page]", text: "By arrangement"
     cruise = @alpha.arrangements.fetch(:cruise)
     section = css_select("#breakdown section").find { |node| node.text.include?(cruise.arrangement_reference) }
@@ -24,7 +24,7 @@ class DepartureSupplierMoneyBreakdownTest < ActionDispatch::IntegrationTest
 
   test "by booking totals each booking's supplier cost, commission and net" do
     sign_in_as agency_users(:harbor_admin)
-    get departure_supplier_money_path(@departure, view: "booking")
+    get departure_money_path(@departure, view: "booking")
     assert_select "nav[aria-label='Break committed cost down'] a[aria-current=page]", text: "By booking"
     booking = @alpha.bookings.fetch("BK-104")
     cost = booking.cost_lines.select(&:stage_committed?).sum(&:amount_minor_units)
@@ -37,9 +37,11 @@ class DepartureSupplierMoneyBreakdownTest < ActionDispatch::IntegrationTest
     assert_select "#breakdown tfoot td", text: /#{Regexp.escape(Money.new(total, "USD").format)}/
   end
 
-  test "staff who can't see supplier cost can't open the tab" do
+  test "staff who can't see supplier cost see only client money on the Money tab" do
     sign_in_as agency_users(:harbor_baseline_staff)
-    get departure_supplier_money_path(@departure, view: "booking")
-    assert_redirected_to root_path
+    get departure_money_path(@departure, view: "booking")
+    assert_response :success
+    assert_select "#client-money"
+    assert_select "#exposure, #breakdown, #amounts-due, #supplier-payments", count: 0
   end
 end

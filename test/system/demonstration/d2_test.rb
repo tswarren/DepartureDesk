@@ -19,14 +19,14 @@ class DemonstrationD2Test < ApplicationSystemTestCase
   test "D2: Agreement A's deposits fall due on schedule" do
     assert_empty amounts_due
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
-    visit departure_supplier_money_path(@alpha.departure)
+    visit departure_money_path(@alpha.departure)
     within("#exposure") { assert_text "$2,745.00" } # the hotel's $1,745 and the excursion's $1,000
     within("#amounts-due") { assert_text "Nothing has fallen due yet." }
 
     sweep_at Time.utc(2026, 11, 1, 14)
     initial = amounts_due.sole
     assert_equal [ 160_000, Date.new(2026, 11, 1), 32 ], initial.values_at(:amount_minor_units, :due_on, :quantity)
-    visit departure_supplier_money_path(@alpha.departure)
+    visit departure_money_path(@alpha.departure)
     within("#amounts-due tr", text: "Initial deposit, $50 per stateroom") do
       assert_text "November 01, 2026"
       assert_text "$1,600.00"
@@ -44,7 +44,7 @@ class DemonstrationD2Test < ApplicationSystemTestCase
 
     sweep_at Time.utc(2027, 3, 2, 14)
     assert_equal 33, amounts_due.count, "running the sweep again posts nothing"
-    visit departure_supplier_money_path(@alpha.departure)
+    visit departure_money_path(@alpha.departure)
     within("#amounts-due") { assert_selector "tr", text: "Full deposit, $450 per cabin", count: 32 }
   end
 

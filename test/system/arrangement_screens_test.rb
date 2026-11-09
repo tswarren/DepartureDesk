@@ -38,8 +38,8 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       edit_departure_arrangement_schedule_line_path(departure, hotel, hotel.schedule_lines.first),
       new_departure_arrangement_trigger_event_path(departure, hotel),
       new_departure_arrangement_amount_due_path(departure, hotel),
-      departure_supplier_money_path(departure),
-      departure_supplier_money_path(departure, view: "booking"),
+      departure_money_path(departure),
+      departure_money_path(departure, view: "booking"),
       task_path(@alpha.arrangements.fetch(:excursion).deadlines.find_by!(deadline_type: "final_count").task)
     ]
 

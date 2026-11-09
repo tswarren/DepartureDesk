@@ -4,7 +4,7 @@
 <% payers = ([ @trip.client ] + @trip.client_bookings.flat_map { |booking| booking.booking_travelers.filter_map(&:traveler) }.flat_map(&:clients)).uniq.select(&:active?) %>
 <% applied = @applied || @money.proposed_applications(0).transform_values { nil } %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @trip.client.source.display_name, client_profile_path_for(@trip.client) ], [ @trip.trip_reference, client_trip_path(@trip) ], [ "Record a payment", nil ] ] %>
+<%= render "shared/breadcrumbs", trail: trip_trail(@trip) + [ [ "Record a payment", nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">

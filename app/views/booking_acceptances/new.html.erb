@@ -4,7 +4,7 @@
 <% payment_line = terms&.acceptance_line %>
 <% payments = @booking.client_trip.client_payments.includes(:reversal).reject(&:reversed?) %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ departure.display_reference, departure_path(departure) ], [ "Bookings", departure_bookings_path(departure) ], [ @booking.booking_reference, client_booking_path(@booking) ], [ "Record acceptance", nil ] ] %>
+<%= render "shared/breadcrumbs", trail: booking_trail(@booking) + [ [ "Record acceptance", nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">

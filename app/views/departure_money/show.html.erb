@@ -1,0 +1,28 @@
+<% content_for :title, "Money · #{@departure.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Money", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">What clients owe and have paid, and what this departure owes its suppliers. The two are kept apart and never netted.</p>
+  </div>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :money %>
+
+<% if @client_money && @cost_lines %>
+  <nav class="dd-segmented" aria-label="Money sections">
+    <a class="dd-segmented-option dd-segmented-link" href="#client-money">Client money</a>
+    <a class="dd-segmented-option dd-segmented-link" href="#exposure">Supplier money</a>
+  </nav>
+<% end %>
+
+<% if @client_money %>
+  <%= render "departure_money/client", departure: @departure, trips: @client_money %>
+<% end %>
+
+<% if @cost_lines %>
+  <%= render "departure_money/supplier" %>
+<% end %>

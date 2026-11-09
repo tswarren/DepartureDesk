@@ -1,7 +1,7 @@
 <% content_for :title, "Pay #{@supplier.display_name_for_directory} · DepartureDesk" %>
 <% currency = @departure.supplier_arrangements.live.find_by(supplier: @supplier)&.currency %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Supplier money", departure_supplier_money_path(@departure) ], [ "Record a payment", nil ] ] %>
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Money", departure_money_path(@departure) ], [ "Record a payment", nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -55,7 +55,7 @@
       </fieldset>
       <div class="dd-form-actions">
         <%= form.submit "Record payment", class: "dd-button", name: nil %>
-        <%= link_to "Cancel", departure_supplier_money_path(@departure, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_money_path(@departure, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

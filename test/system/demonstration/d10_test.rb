@@ -21,7 +21,7 @@ class DemonstrationD10Test < ApplicationSystemTestCase
     capacity = [ CapacityEvent.where(agency: @scenario.agency).count, InventoryAllocation.where(agency: @scenario.agency).pluck(:id, :state).sort ]
 
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
-    visit departure_supplier_money_path(@alpha.departure)
+    visit departure_money_path(@alpha.departure)
     within("#supplier-payments") { click_link "Record a payment to Alpha Cruises" }
     fill_in "Amount (USD)", with: "2,950"
     fill_in "Bank or card reference (optional)", with: "Wire 0203"

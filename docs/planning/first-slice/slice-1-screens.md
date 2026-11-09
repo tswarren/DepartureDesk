@@ -10,7 +10,7 @@ Kind is Page (its own URL), Panel (a section inside a page) or Dialog. Who is Ad
 
 ![Slice 1 screen map · 36 staff, 4 reseller](images/slice-1-screen-map.png)
 
-Agency-wide screens sit outside any Departure. Inside a Departure, a tab bar under its header links the areas: Overview, Bookings, Inventory, Suppliers, Supplier money, Tasks and Closeout, each its own page. Indented grey lines are panels and dialogs inside the screen above them. S-05 Change history appears on every record.
+Agency-wide screens sit outside any Departure. Inside a Departure, a tab bar under its header links the areas in the order the work runs: Overview, Suppliers, Inventory, Package, Client terms, Bookings, Money, Tasks and Closeout, each its own page (UX consolidation pass, D-98). Indented grey lines are panels and dialogs inside the screen above them. S-05 Change history appears on every record.
 
 ## Foundation and access
 
@@ -69,13 +69,13 @@ The booking workspace is the heaviest screen in the slice. It keeps booking stat
 
 ## Money, tasks, documents and closeout
 
-Client money and supplier money live on different screens and never link directly. Balances are always shown as calculated from applications, with the trip's unapplied credit visible.
+Client money and supplier money are separate sections of the Departure's Money tab (UX consolidation audit, decision 2): never netted, and no client record links to a supplier record. A trip's own money stays on the trip. Balances are always shown as calculated from applications, with the trip's unapplied credit visible.
 
 | ID | Screen | Kind | Step | Who | Shows and does | D-cases | Rules |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | S-28 | Trip money | Panel | 12 | Staff, Fin | Charge lines, installments with due dates, payments by route, applications, credit and open balance; agency cash and supplier-direct payments shown apart | D9 | CMN-01 to CMN-03, CMN-06, CMN-08, CMN-21, CMN-23, CMN-55 |
 | S-29 | Record client payment | Dialog | 12 | Fin | Payer, date, amount, route (agency or supplier, and which supplier), method, reference; applies to installments; issues a receipt for agency payments only | D9 | CMN-18, CMN-19, CMN-29 |
-| S-30 | Supplier money | Page | 13 | Fin | Amounts due by supplier and arrangement, due date, supplier invoice reference, derived paid status | D2, D10 | SMN-05, SMN-06, SMN-22 |
+| S-30 | Supplier money | Money tab section | 13 | Fin | Amounts due by supplier and arrangement, due date, supplier invoice reference, derived paid status | D2, D10 | SMN-05, SMN-06, SMN-22 |
 | S-31 | Record supplier payment | Dialog | 13 | Fin | Payee account, date, amount, method, reference; applied to amounts due; reversal instead of edit | D10 | SMN-18, SMN-19, SMN-23 |
 | S-32 | Expected commission | Panel | 13 | Fin | Per booking service and supplier: amount and status Expected, Confirmed, Received, Offset, Reversed | D14 | SMN-32, SMN-33 |
 | S-33 | My tasks | Page | 4 | Staff | The user's open tasks by due instant, overdue derived; complete or waive with a note | D12 | OPS-01 to OPS-05 |
@@ -109,7 +109,7 @@ Slice 1b adds no new pages. Each case adds an action or a state to a Slice 1 scr
 
 ## Open screen questions
 
-- [x] **Departure areas as tabs or pages:** settled 2026-11-03: tabs, each its own page with its own URL, under a persistent Departure header. Tabs: Overview, Bookings, Inventory, Suppliers, Supplier money (hidden without Financial records), Tasks, Closeout. The booking workspace is a drill-down page under Bookings; the reseller view has no tabs; at 375px the tab bar scrolls inside its own strip.
+- [x] **Departure areas as tabs or pages:** settled 2026-11-03: tabs, each its own page with its own URL, under a persistent Departure header. Tabs: Overview, Bookings, Inventory, Suppliers, Supplier money (hidden without Financial records), Tasks, Closeout. Reordered by the UX consolidation pass (D-98) to Overview, Suppliers, Inventory, Package, Client terms, Bookings, Money, Tasks; Money shows its client section to anyone who may see client money and its supplier section only with supplier costs. The booking workspace is a drill-down page under Bookings; the reseller view has no tabs; at 375px the tab bar scrolls inside its own strip.
 - [ ] **Reuse of existing views:** which existing screens (client and supplier directories, sign-in, audit) carry over unchanged, and which cruise and hotel screens are frozen with M3?
 - [ ] **Wide grids at 375px:** the rate table already switches to one profile column; do the inventory shell grid (S-17) and roster (S-25) need the same pattern?
 - [ ] **Booking workspace shape:** one long page with sections, or steps (travelers, choices, price, acceptance) for the hold-to-confirm path?
