@@ -23,7 +23,7 @@ class DepartureScreensTest < ApplicationSystemTestCase
 
     assert_text "Departure saved."
     assert_text "Not on sale"
-    within("#statuses") do
+    within("#details") do
       assert_text "Draft"
       assert_text "Undecided"
     end

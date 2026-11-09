@@ -26,13 +26,23 @@
 
 <%= render "departures/tabs", departure: @departure, current: :overview %>
 
-<article class="dd-panel" id="statuses">
+<% if manage && @departure.draft? && !@departure.departed? %>
+  <%= render "shared/setup_checklist", id: "ready-to-sell", title: "Ready to sell?",
+        items: departure_checklist(@departure),
+        required_note: "Marking it Ready to sell needs each required item.",
+        optional_title: "Not required to be Ready to sell, but a booking needs them before it is confirmed" %>
+<% end %>
+
+<div class="dd-stack">
+<%= render "departures/summary", departure: @departure, summary: @summary %>
+
+<article class="dd-panel" id="details" aria-labelledby="details-heading">
   <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Status</h2>
+    <h2 class="dd-panel-title" id="details-heading">Status and details</h2>
+    <% if manage && !@departure.departed? %><%= link_to "Edit details", edit_departure_path(@departure) %><% end %>
   </header>
-  <div class="dd-panel-body dd-stack">
-    <p><%= departure_label_badge(@departure) %></p>
-    <dl class="dd-definition-list">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list dd-definition-list--columns">
       <div>
         <dt>Sales status</dt>
         <dd><%= @departure.sales_status.humanize %></dd>
@@ -45,38 +55,9 @@
         <dt>Completion</dt>
         <dd><%= @departure.completion_status.humanize %><%= " on #{@departure.departed_at.in_time_zone(Current.agency.default_timezone).to_fs(:long)}" if @departure.departed_at %></dd>
       </div>
-    </dl>
-  </div>
-</article>
-
-<% if manage && @departure.draft? && !@departure.departed? %>
-  <%= render "shared/setup_checklist", id: "ready-to-sell", title: "Ready to sell?",
-        items: departure_checklist(@departure),
-        required_note: "Marking it Ready to sell needs each required item.",
-        optional_title: "Not required to be Ready to sell, but a booking needs them before it is confirmed" %>
-<% end %>
-
-<article class="dd-panel" id="details">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Details</h2>
-  </header>
-  <div class="dd-panel-body">
-    <dl class="dd-definition-list">
-      <div>
-        <dt>Reference</dt>
-        <dd class="dd-type-mono"><%= @departure.display_reference %></dd>
-      </div>
-      <div>
-        <dt>Name</dt>
-        <dd><%= @departure.name %></dd>
-      </div>
       <div>
         <dt>Description</dt>
         <dd><%= @departure.description.presence || "—" %></dd>
-      </div>
-      <div>
-        <dt>Dates</dt>
-        <dd><%= @departure.schedule_label %></dd>
       </div>
       <div>
         <dt>Time zone</dt>
@@ -98,6 +79,7 @@
   </div>
 </article>
 
-<%= render "departure_decisions/panel", departure: @departure, manage: manage %>
+<%= render "departure_decisions/panel", departure: @departure, manage: manage, decision: @decision || DepartureDecision.new %>
 
 <%= render "departure_team_members/panel", departure: @departure, manage: manage %>
+</div>

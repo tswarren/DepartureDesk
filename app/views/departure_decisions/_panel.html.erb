@@ -1,5 +1,5 @@
 <%# Operating decision and its history (DEP-16, DEP-19, DEP-20). %>
-<%# locals: (departure:, manage:) -%>
+<%# locals: (departure:, manage:, decision: DepartureDecision.new) -%>
 <article class="dd-panel" id="decision">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Operating decision</h2>
@@ -14,12 +14,14 @@
     </p>
     <p class="dd-page-description">Staff make this decision; the system never calculates it. Changing it later undoes nothing already done.</p>
     <% if manage && !departure.departed? %>
-      <%= form_with url: departure_decisions_path(departure), scope: :departure_decision, class: "dd-form" do |form| %>
+      <%= form_with model: decision, url: departure_decisions_path(departure), scope: :departure_decision, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: decision %>
         <%= form.hidden_field :decision, value: "proceed" %>
-        <%= form.hidden_field :lock_version, value: departure.lock_version %>
+        <%= hidden_field_tag "departure_decision[lock_version]", departure.lock_version %>
         <div class="dd-field-group">
           <%= form.label :note, "Note (optional)", class: "dd-label" %>
-          <%= form.text_area :note, rows: 2, maxlength: DepartureDecision::NOTE_LIMIT, class: "dd-field" %>
+          <%= form.text_area :note, rows: 2, maxlength: DepartureDecision::NOTE_LIMIT, **dd_field_options(form, :note) %>
+          <%= dd_field_error(form, :note) %>
         </div>
         <div class="dd-form-actions">
           <%= form.submit "Record Proceed", class: "dd-button dd-button--secondary" %>
