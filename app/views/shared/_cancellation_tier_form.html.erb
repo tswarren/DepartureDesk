@@ -19,7 +19,7 @@
       <%= dd_field_error(form, :percentage) %>
     </div>
     <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="fixed_per_traveler fixed_per_unit">
-      <%= form.label :amount, "Amount in #{currency}", class: "dd-label" %>
+      <%= form.label :amount, "Amount (#{currency})", class: "dd-label" %>
       <%= form.text_field :amount, value: values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow") %>
       <%= dd_field_error(form, :amount) %>
     </div>

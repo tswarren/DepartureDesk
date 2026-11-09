@@ -1,6 +1,8 @@
 class InventoryGroupsController < ApplicationController
   include ArrangementAccess
 
+  ERROR_FIELDS = [ [ :label, /label/i ], [ :quantity, /quantity/i ], [ :positions_per_unit, /positions/i ], [ :ends_on, /end date|start date/i ], [ :time_zone, /time ?zone/i ] ].freeze
+
   before_action :require_arrangement_view!
   before_action :require_arrangement_management!, except: :show
   before_action :set_departure
@@ -19,7 +21,7 @@ class InventoryGroupsController < ApplicationController
     redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), notice: "#{result.record.label} added."
   rescue AgencyCommand::Error => error
     @group = @arrangement.inventory_groups.new(group_params.except(:lock_version))
-    render_error(error, :new)
+    render_form_error(error, @group, :new, ERROR_FIELDS)
   end
 
   def edit
@@ -33,7 +35,7 @@ class InventoryGroupsController < ApplicationController
     redirect_to departure_arrangement_group_path(@departure, @arrangement, @group), notice: "Inventory group updated."
   rescue AgencyCommand::Error => error
     @group.assign_attributes(group_params.except(:lock_version))
-    render_error(error, :edit)
+    render_form_error(error, @group, :edit, ERROR_FIELDS)
   end
 
   def destroy
@@ -56,20 +58,5 @@ class InventoryGroupsController < ApplicationController
       :label, :service_category, :representation, :availability_promise, :quantity, :positions_per_unit,
       :starts_on, :starts_at_time, :ends_on, :ends_at_time, :time_zone, :lock_version
     )
-  end
-
-  def render_error(error, template)
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    attribute = case error.message
-    when /label/i then :label
-    when /quantity/i then :quantity
-    when /positions/i then :positions_per_unit
-    when /end date|start date/i then :ends_on
-    when /time ?zone/i then :time_zone
-    else :base
-    end
-    @group.errors.add(attribute, error.message)
-    render template, status: :unprocessable_entity
   end
 end

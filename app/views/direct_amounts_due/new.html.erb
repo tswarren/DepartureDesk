@@ -21,7 +21,7 @@
       </div>
       <div class="dd-form-grid dd-form-grid--two-column">
         <div class="dd-field-group">
-          <%= form.label :amount, "Amount in #{@arrangement.currency}", class: "dd-label" %>
+          <%= form.label :amount, "Amount (#{@arrangement.currency})", class: "dd-label" %>
           <%= form.text_field :amount, value: @values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow") %>
           <%= dd_field_error(form, :amount) %>
         </div>

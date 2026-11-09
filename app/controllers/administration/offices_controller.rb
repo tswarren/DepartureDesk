@@ -1,5 +1,7 @@
 module Administration
   class OfficesController < BaseController
+    ERROR_FIELDS = [ [ :code, /code/i ], [ :name, /name/i ] ].freeze
+
     before_action :set_office, only: %i[show edit update deactivate reactivate]
 
     def index
@@ -23,8 +25,7 @@ module Administration
       redirect_to administration_office_path(result.record), notice: "Office created."
     rescue AgencyCommand::Error => error
       @office = offices.new(office_params)
-      flash.now[:alert] = error.message
-      render :new, status: :unprocessable_entity
+      render_form_error(error, @office, :new, ERROR_FIELDS)
     end
 
     def edit
@@ -39,8 +40,8 @@ module Administration
       ).call
       redirect_to administration_office_path(@office), notice: "Office updated."
     rescue AgencyCommand::Error => error
-      flash.now[:alert] = error.message
-      render :edit, status: :unprocessable_entity
+      @office.assign_attributes(name: office_params[:name])
+      render_form_error(error, @office, :edit, ERROR_FIELDS)
     end
 
     def deactivate

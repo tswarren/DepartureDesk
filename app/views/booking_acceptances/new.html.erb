@@ -63,7 +63,7 @@
           </div>
         </div>
         <div class="dd-field-group">
-          <%= form.label :note, "Note", class: "dd-label" %>
+          <%= form.label :note, "Note (optional)", class: "dd-label" %>
           <%= form.text_area :note, rows: 3, maxlength: BookingAcceptance::NOTE_LIMIT, **dd_field_options(form, :note) %>
           <%= dd_field_error(form, :note) %>
         </div>

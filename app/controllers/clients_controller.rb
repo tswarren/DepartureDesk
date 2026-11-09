@@ -72,12 +72,12 @@ class ClientsController < ApplicationController
       @source = "organization"
       @client_organization = directory_organizations.new(organization_params.except(:lock_version))
       @client_person = directory_people.new
-      rescue_directory_error(error, :new)
+      rescue_directory_error(error, :new, @client_organization)
     else
       @source = "individual"
       @client_person = directory_people.new(person_params.except(:lock_version))
       @client_organization = directory_organizations.new
-      rescue_directory_error(error, :new)
+      rescue_directory_error(error, :new, @client_person)
     end
   end
 

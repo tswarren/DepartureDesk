@@ -11,6 +11,7 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with model: @organization_contact, url: client_organization_contact_path(@client_organization, @organization_contact), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
       <%= render "assignment_fields", form: form %>
       <div class="dd-form-actions">
         <%= form.submit "Save contact", class: "dd-button" %>

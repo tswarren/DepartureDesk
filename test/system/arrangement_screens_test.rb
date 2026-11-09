@@ -113,13 +113,13 @@ class ArrangementScreensTest < ApplicationSystemTestCase
     assert_text "The cabins are created when the arrangement is confirmed"
     fill_in "Amount each (USD)", with: "500"
     choose "When booked, or by a date"
-    fill_in_html_date "Date", "2027-03-01"
+    fill_in_html_date "Due date", "2027-03-01"
     within("[role=status]") do
       assert_text "$500.00 for each cabin, due when a client booking for that cabin is confirmed, or on Mar 1, 2027 for any cabin still unbooked."
     end
 
     choose "Some days after an event"
-    assert_no_field "Date"
+    assert_no_field "Due date"
     select "the final count is sent", from: "After"
     fill_in "Days later", with: "2"
     within("[role=status]") { assert_text "$500.00 for each cabin, due 2 days after the final count is sent." }

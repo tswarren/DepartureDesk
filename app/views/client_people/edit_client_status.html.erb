@@ -16,6 +16,7 @@
       <p>Inactivation does not inactivate the person or contact records.</p>
     <% end %>
     <%= form_with url: client_status_client_person_path(@client_person), method: :patch, class: "dd-form" do %>
+      <%= render "shared/form_errors", object: @client %>
       <%= hidden_field_tag :lock_version, @client.lock_version %>
       <%= hidden_field_tag :status, (@client.active? ? "inactive" : "active") %>
       <div class="dd-form-actions">

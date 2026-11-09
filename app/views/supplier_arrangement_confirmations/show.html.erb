@@ -13,12 +13,7 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body dd-stack">
-    <% if @error %>
-      <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
-        <p class="dd-alert-title">Please fix the following:</p>
-        <p><%= @error %></p>
-      </div>
-    <% end %>
+    <%= render "shared/form_errors", message: @error, title: "Please fix the following:" %>
     <% if blockers.any? %>
       <section class="dd-callout">
         <h2 class="dd-panel-title">Complete these first</h2>

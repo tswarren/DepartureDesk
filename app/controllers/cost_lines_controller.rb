@@ -23,7 +23,7 @@ class CostLinesController < ApplicationController
   rescue AgencyCommand::Error => error
     @cost_line = @arrangement.cost_lines.new(cost_params.slice("scope", "basis", "stage", "description").select { |_k, v| v.present? })
     @values = cost_params
-    render_money_error(error, @cost_line, :new, LABELS)
+    render_form_error(error, @cost_line, :new, LABELS)
   end
 
   def edit
@@ -40,7 +40,7 @@ class CostLinesController < ApplicationController
     redirect_to_money "Cost line updated."
   rescue AgencyCommand::Error => error
     @values = cost_params
-    render_money_error(error, @cost_line, :edit, LABELS)
+    render_form_error(error, @cost_line, :edit, LABELS)
   end
 
   def destroy

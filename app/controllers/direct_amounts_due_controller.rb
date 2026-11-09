@@ -20,6 +20,6 @@ class DirectAmountsDueController < ApplicationController
   rescue AgencyCommand::Error => error
     @amount_due = @arrangement.amounts_due.new
     @values = money_params(:amount_due, %i[description amount due_on])
-    render_money_error(error, @amount_due, :new, [ [ :amount, "Amount" ], [ :description, "Description" ], [ :due_on, "Due date" ] ])
+    render_form_error(error, @amount_due, :new, [ [ :amount, "Amount" ], [ :description, "Description" ], [ :due_on, "Due date" ] ])
   end
 end

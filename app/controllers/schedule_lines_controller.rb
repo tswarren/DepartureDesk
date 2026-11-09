@@ -29,7 +29,7 @@ class ScheduleLinesController < ApplicationController
   rescue AgencyCommand::Error => error
     @schedule_line = @arrangement.schedule_lines.new(line_params.slice("description", "amount_kind", "due_rule", "due_on", "trigger_type").select { |_k, v| v.present? })
     @values = line_params.merge("when" => params.dig(:schedule_line, :when))
-    render_money_error(error, @schedule_line, :new, LABELS)
+    render_form_error(error, @schedule_line, :new, LABELS)
   end
 
   def edit
@@ -48,7 +48,7 @@ class ScheduleLinesController < ApplicationController
     redirect_to_money "Payment updated.", anchor: "supplier-payments"
   rescue AgencyCommand::Error => error
     @values = line_params.merge("when" => params.dig(:schedule_line, :when))
-    render_money_error(error, @schedule_line, :edit, LABELS)
+    render_form_error(error, @schedule_line, :edit, LABELS)
   end
 
   private

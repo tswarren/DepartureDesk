@@ -11,6 +11,7 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with url: end_client_organization_contact_path(@client_organization, @organization_contact), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @organization_contact %>
       <%= hidden_field_tag :lock_version, @organization_contact.lock_version %>
       <% if @organization_contact.primary? && @replacement_contacts.any? %>
         <div class="dd-field-group">

@@ -12,6 +12,7 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with url: organization_contact_status_path(@contact_point), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @contact_point %>
       <%= hidden_field_tag :lock_version, @contact_point.lock_version %>
       <div class="dd-field-group">
         <%= label_tag :status, "Status", class: "dd-label" %>

@@ -12,12 +12,7 @@
   </div>
 </header>
 
-<% if @error %>
-  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
-    <p class="dd-alert-title">The rooms weren't added</p>
-    <p><%= @error %></p>
-  </div>
-<% end %>
+<%= render "shared/form_errors", message: @error, title: "The rooms weren't added" %>
 
 <article class="dd-panel">
   <header class="dd-panel-header"><h2 class="dd-panel-title">1. Nights and room types</h2></header>

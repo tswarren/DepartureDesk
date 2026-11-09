@@ -1,15 +1,18 @@
-<% if object.errors.any? %>
+<%# The one refusal summary at the top of a form (UX audit C1). Pass the form's
+    record as object:, or message: for a form without one; title: is optional. -%>
+<% object = local_assigns[:object] %>
+<% messages = object ? object.errors.map { |error| [ error, (error.options[:refused] ? error.message : error.full_message) ] } : Array(local_assigns[:message]).compact_blank.map { |text| [ nil, text ] } %>
+<% if messages.any? %>
   <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
-    <p class="dd-alert-title">Please fix the following:</p>
+    <p class="dd-alert-title"><%= local_assigns[:title] || "Please fix the following:" %></p>
     <ul class="dd-error-list">
-      <% object.errors.each do |error| %>
-        <% attribute = error.attribute %>
-        <% field_id = attribute == :base ? nil : "#{object.model_name.param_key}_#{attribute}" %>
+      <% messages.each do |error, message| %>
+        <% field_id = error && error.attribute != :base ? "#{object.model_name.param_key}_#{error.attribute}" : nil %>
         <li>
           <% if field_id %>
-            <%= link_to error.full_message, "##{field_id}", data: { action: "form-error-summary#focusField" } %>
+            <%= link_to message, "##{field_id}", data: { action: "form-error-summary#focusField" } %>
           <% else %>
-            <%= error.full_message %>
+            <%= message %>
           <% end %>
         </li>
       <% end %>

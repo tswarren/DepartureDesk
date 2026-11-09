@@ -25,7 +25,7 @@ class SupplierArrangementsController < ApplicationController
     redirect_to departure_arrangement_path(@departure, result.record), notice: "Arrangement saved as Draft."
   rescue AgencyCommand::Error => error
     @arrangement = @departure.supplier_arrangements.new(arrangement_params.except(:lock_version))
-    render_error(error, :new)
+    render_form_error(error, @arrangement, :new, attribute: arrangement_error_attribute(error.message))
   end
 
   def edit
@@ -40,15 +40,6 @@ class SupplierArrangementsController < ApplicationController
     redirect_to departure_arrangement_path(@departure, @arrangement), notice: "Arrangement updated."
   rescue AgencyCommand::Error => error
     @arrangement.assign_attributes(arrangement_params.except(:supplier_id, :lock_version))
-    render_error(error, :edit)
-  end
-
-  private
-
-  def render_error(error, template)
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    @arrangement.errors.add(arrangement_error_attribute(error.message), error.message)
-    render template, status: :unprocessable_entity
+    render_form_error(error, @arrangement, :edit, attribute: arrangement_error_attribute(error.message))
   end
 end

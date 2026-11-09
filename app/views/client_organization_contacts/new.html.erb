@@ -30,6 +30,7 @@
     <% end %>
 
     <%= form_with model: @organization_contact, url: client_organization_contacts_path(@client_organization), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
       <div class="dd-field-group">
         <%= form.label :client_person_id, "Existing person", class: "dd-label" %>
         <%= form.select :client_person_id, @person_choices.map { |person| [person.display_name, person.id] }, { include_blank: "Create a new person" }, class: "dd-field" %>

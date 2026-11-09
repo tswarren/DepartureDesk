@@ -132,7 +132,7 @@ class PackageScreensTest < ApplicationSystemTestCase
 
     visit new_departure_client_cancellation_tier_path(departure)
     select "Fixed amount per traveler", from: "Charge"
-    assert_field "Amount in USD"
+    assert_field "Amount (USD)"
     assert_no_field "Percentage"
     assert_no_field "For each"
   end

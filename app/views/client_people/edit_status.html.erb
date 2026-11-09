@@ -18,6 +18,7 @@
       <p>Reactivation restores this person only. It does not restore contact records or the Client.</p>
     <% end %>
     <%= form_with url: status_client_person_path(@client_person), method: :patch, class: "dd-form" do %>
+      <%= render "shared/form_errors", object: @client_person %>
       <%= hidden_field_tag :lock_version, @client_person.lock_version %>
       <%= hidden_field_tag :status, (@client_person.active? ? "inactive" : "active") %>
       <div class="dd-form-actions">

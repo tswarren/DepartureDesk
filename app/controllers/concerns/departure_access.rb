@@ -22,12 +22,12 @@ module DepartureAccess
   def rescue_departure_error(error, template)
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    if @departure && error.code == :invalid
-      @departure.errors.add(departure_error_attribute(error.message), error.message)
+    if @departure
+      render_form_error(error, @departure, template, attribute: (error.code == :invalid ? departure_error_attribute(error.message) : :base))
     else
       flash.now[:alert] = error.message
+      render template, status: :unprocessable_entity
     end
-    render template, status: :unprocessable_entity
   end
 
   def departure_error_attribute(message)

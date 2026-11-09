@@ -61,6 +61,7 @@
     <% end %>
 
     <%= form_with url: status_supplier_path(@supplier), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @supplier %>
       <%= hidden_field_tag :lock_version, @supplier.lock_version %>
       <div class="dd-field-group">
         <%= label_tag :status, "Status", class: "dd-label" %>

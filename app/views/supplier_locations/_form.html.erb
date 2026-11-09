@@ -7,9 +7,9 @@
 </div>
 
 <div class="dd-field-group">
-  <%= form.label :timezone, class: "dd-label" %>
+  <%= form.label :timezone, "Time zone (optional)", class: "dd-label" %>
   <%= form.text_field :timezone, **dd_field_options(form, :timezone, aria_describedby_extra: "supplier_location_timezone_hint") %>
-  <p class="dd-field-hint" id="supplier_location_timezone_hint">Optional IANA timezone, for example America/New_York.</p>
+  <p class="dd-field-hint" id="supplier_location_timezone_hint">An IANA time zone, for example America/New_York.</p>
   <%= dd_field_error(form, :timezone) %>
 </div>
 
@@ -21,7 +21,7 @@
   <%= dd_field_error(form, :address_line_1) %>
 </div>
 <div class="dd-field-group">
-  <%= form.label :address_line_2, "Address line 2", class: "dd-label" %>
+  <%= form.label :address_line_2, "Address line 2 (optional)", class: "dd-label" %>
   <%= form.text_field :address_line_2, **dd_field_options(form, :address_line_2) %>
   <%= dd_field_error(form, :address_line_2) %>
 </div>
@@ -47,7 +47,7 @@
 </div>
 
 <h2 class="dd-panel-title">Location phone</h2>
-<p class="dd-field-hint">Optional. Extension is allowed only with a phone number.</p>
+<p class="dd-field-hint">Extension is allowed only with a phone number.</p>
 <div class="dd-field-group">
   <%= form.label :phone_country_code, "Country", class: "dd-label" %>
   <%= form.select :phone_country_code, CountryCode.options, { include_blank: true, selected: form.object.phone_country_code }, **dd_field_options(form, :phone_country_code) %>
@@ -60,7 +60,7 @@
   <%= dd_field_error(form, :phone_number) %>
 </div>
 <div class="dd-field-group">
-  <%= form.label :phone_extension, "Extension", class: "dd-label" %>
+  <%= form.label :phone_extension, "Extension (optional)", class: "dd-label" %>
   <%= form.text_field :phone_extension, **dd_field_options(form, :phone_extension) %>
   <%= dd_field_error(form, :phone_extension) %>
 </div>

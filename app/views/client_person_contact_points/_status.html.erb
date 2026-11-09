@@ -14,6 +14,7 @@
       <p>Reactivate the person before reactivating this record.</p>
     <% end %>
     <%= form_with url: request.path.delete_suffix("/edit"), method: :patch, class: "dd-form" do %>
+      <%= render "shared/form_errors", object: @contact_point %>
       <%= hidden_field_tag :lock_version, @contact_point.lock_version %>
       <%= hidden_field_tag :status, (@contact_point.active? ? "inactive" : "active") %>
       <div class="dd-form-actions">
