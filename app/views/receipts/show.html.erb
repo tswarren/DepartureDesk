@@ -1,0 +1,39 @@
+<% content_for :title, "#{@receipt.receipt_number} · DepartureDesk" %>
+<% trip = @payment.client_trip %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @receipt.departure.display_reference, departure_path(@receipt.departure) ], [ trip.trip_reference, client_trip_path(trip, anchor: "money") ], [ @receipt.receipt_number, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Agency receipt · <%= @receipt.departure.name %></p>
+    <h1 class="dd-page-title"><span class="dd-type-mono"><%= @receipt.receipt_number %></span></h1>
+    <p class="dd-page-description">As issued <%= @receipt.issued_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %>. A receipt is never changed; its PDF arrives with documents.</p>
+  </div>
+</header>
+
+<% if @payment.reversed? %>
+  <p class="dd-alert dd-alert--danger" role="status">The payment was reversed on <%= @payment.reversal.reversed_on.to_fs(:long) %>: <%= @payment.reversal.reason %>. The receipt stays as issued.</p>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <dl class="dd-definition-list">
+      <div><dt>Received from</dt><dd><%= @receipt.payer_name %></dd></div>
+      <div><dt>Amount</dt><dd class="dd-type-mono"><%= Money.new(@receipt.amount_minor_units, @receipt.currency).format %></dd></div>
+      <div><dt>Date paid</dt><dd><%= @receipt.paid_on.to_fs(:long) %></dd></div>
+      <div><dt>Collected by</dt><dd><%= Current.agency.name %>, directly</dd></div>
+      <div><dt>Method</dt><dd><%= ClientPayment::METHOD_LABELS.fetch(@receipt.payment_method) %><%= " · #{@receipt.reference}" if @receipt.reference %></dd></div>
+      <div><dt>Payment</dt><dd class="dd-type-mono"><%= @payment.payment_reference %></dd></div>
+    </dl>
+    <h2 class="dd-section-title">Applied at issue</h2>
+    <% if @receipt.applied.empty? %>
+      <p class="dd-empty-copy">Not applied when issued; held as credit on trip <%= trip.trip_reference %>.</p>
+    <% else %>
+      <ul class="dd-plain-list">
+        <% @receipt.applied.each do |row| %>
+          <li><span class="dd-type-mono"><%= row["booking_reference"] %></span> · <%= row["installment"] %>, due <%= Date.iso8601(row["due_on"]).to_fs(:long) %>: <%= Money.new(row["amount_minor_units"], @receipt.currency).format %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>

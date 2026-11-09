@@ -31,7 +31,9 @@
         <% if latest.evidence_reference %><div><dt>Evidence kept</dt><dd><%= latest.evidence_reference %></dd></div><% end %>
         <% if latest.note %><div><dt>Note</dt><dd><%= latest.note %></dd></div><% end %>
         <% if latest.by_designated_payment? %>
-          <div><dt>Payment</dt><dd><%= booking_money(latest.payment_amount_minor_units, latest.currency) %> on <%= latest.payment_on.to_fs(:long) %>, reference <%= latest.payment_reference %></dd></div>
+          <% if (payment = latest.client_payment) %>
+            <div><dt>Payment</dt><dd><%= link_to payment.payment_reference, client_trip_path(booking.client_trip, anchor: "money"), class: "dd-type-mono" %> · <%= booking_money(payment.amount_minor_units, payment.currency) %> on <%= payment.paid_on.to_fs(:long) %><%= " · reversed" if payment.reversed? %></dd></div>
+          <% end %>
         <% end %>
         <div><dt>Recorded by</dt><dd><%= latest.recorded_by.display_name %>, <%= booking_time(latest.recorded_at) %></dd></div>
       </dl>

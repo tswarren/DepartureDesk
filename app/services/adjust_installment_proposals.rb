@@ -28,11 +28,12 @@ class AdjustInstallmentProposals < AgencyCommand
         raise Error.new("The installments total #{Money.new(planned, booking.currency).format}; they must total the price, #{Money.new(total, booking.currency).format}.", code: :invalid)
       end
 
-      changed = changes.select { |proposal, values| proposal.assign_attributes(values.merge(adjusted: true)) && (proposal.changed - %w[adjusted]).any? }
+      changes.each { |proposal, values| proposal.assign_attributes(values) }
+      changed = changes.map(&:first).select(&:changed?)
       return Result.new(status: :noop, record: booking) if changed.empty?
 
-      changes.each { |proposal, _| proposal.save! }
-      audit_booking!(booking, "client_booking.installments_adjusted", "installment_proposal_ids" => changed.map { |proposal, _| proposal.id })
+      changed.each { |proposal| proposal.update!(adjusted: true) }
+      audit_booking!(booking, "client_booking.installments_adjusted", "installment_proposal_ids" => changed.map(&:id))
       Result.new(status: :updated, record: booking)
     end
   end

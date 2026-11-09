@@ -30,9 +30,9 @@ if Rails.env.development?
   puts "  Email: #{administrator.email_address}"
   puts "  ID: #{administrator.id}"
 
-  # ALPHA_FIXTURE_BOOKINGS picks how far the roster goes: none, trips, held or
-  # confirmed (the default). The step 6 walkthrough uses none, so staff make
-  # the bookings themselves.
+  # ALPHA_FIXTURE_BOOKINGS picks how far the roster goes: none, trips, held,
+  # confirmed (the default) or paid (D9's payments, D-96). The step 6
+  # walkthrough uses none, so staff make the bookings themselves.
   bookings = ENV.fetch("ALPHA_FIXTURE_BOOKINGS", "confirmed").to_sym
   unless AlphaFixture::BOOKING_LEVELS.include?(bookings)
     abort "ALPHA_FIXTURE_BOOKINGS must be one of #{AlphaFixture::BOOKING_LEVELS.join(", ")}."

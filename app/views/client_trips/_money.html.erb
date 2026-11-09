@@ -1,0 +1,85 @@
+<%# S-28: the trip's client money (CMN-06, CMN-08, CMN-21, CMN-23, CMN-27 to CMN-29, CMN-55, SMN-27). %>
+<%# locals: (trip:) -%>
+<% money = TripMoney.new(trip) %>
+<% currency = money.currency %>
+<% manage = Current.agency_user.permitted?(:manage_client_money) %>
+<article class="dd-panel" id="money">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Client money</h2>
+    <% if manage && currency %><%= link_to "Record a payment", new_client_trip_payment_path(trip), class: "dd-button" %><% end %>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% if currency.nil? %>
+      <p class="dd-empty-copy">Link the trip to a Departure first.</p>
+    <% else %>
+      <dl class="dd-definition-list">
+        <div><dt>Still due from the client</dt><dd class="dd-type-mono"><%= booking_money(money.receivable_minor_units, currency) %></dd></div>
+        <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(money.agency_cash_minor_units, currency) %></dd></div>
+        <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= booking_money(money.supplier_route_minor_units, currency) %></dd></div>
+        <div><dt>Credit not yet applied</dt><dd class="dd-type-mono"><%= booking_money(money.credit_minor_units, currency) %></dd></div>
+        <% if money.supplier_held_minor_units.positive? %>
+          <div><dt>Held by suppliers for the agency</dt><dd class="dd-type-mono"><%= booking_money(money.supplier_held_minor_units, currency) %></dd></div>
+        <% end %>
+      </dl>
+      <p class="dd-field-hint">A payment to a supplier reduces what the client owes but is never agency cash and gets no receipt.</p>
+
+      <% if money.bookings.empty? %>
+        <p class="dd-empty-copy">No confirmed booking yet. A payment received before confirmation is held as credit.</p>
+      <% end %>
+      <% money.bookings.each do |booking| %>
+        <% charge = booking.client_charge %>
+        <section class="dd-stack" aria-labelledby="charge-<%= booking.id %>">
+          <h3 class="dd-section-title" id="charge-<%= booking.id %>"><%= link_to booking.booking_reference, client_booking_path(booking, step: "price", anchor: "installments"), class: "dd-type-mono" %></h3>
+          <dl class="dd-definition-list">
+            <div><dt>Charge</dt><dd class="dd-type-mono"><%= booking_money(charge.total_minor_units, currency) %></dd></div>
+            <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(charge.paid_minor_units("agency"), currency) %></dd></div>
+            <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= booking_money(charge.paid_minor_units("supplier"), currency) %></dd></div>
+            <div><dt>Remainder</dt><dd class="dd-type-mono"><%= booking_money(charge.remainder_minor_units, currency) %></dd></div>
+          </dl>
+          <%= render "client_bookings/installments_table", installments: charge.installments, currency: %>
+        </section>
+      <% end %>
+
+      <section class="dd-stack" aria-labelledby="payments-heading">
+        <h3 class="dd-section-title" id="payments-heading">Payments</h3>
+        <% if money.payments.empty? %>
+          <p class="dd-empty-copy">No payments recorded.</p>
+        <% else %>
+          <ul class="dd-plain-list dd-payment-list" aria-label="Payments">
+            <% money.payments.each do |payment| %>
+              <li class="dd-payment-item">
+                <div>
+                  <strong class="dd-type-mono"><%= payment.payment_reference %></strong> · <%= booking_money(payment.amount_minor_units, currency) %>
+                  to <%= payment.collector_label %>
+                  <% if payment.reversed? %><%= status_badge("Reversed", modifier: "danger") %><% end %>
+                  <p class="dd-cell-subtext">
+                    <%= payment.paid_on.to_fs(:long) %> · <%= payment.payer.source.display_name %> · <%= payment.method_label %><%= " · #{payment.reference}" if payment.reference %><%= " · supplier's reference #{payment.supplier_reference}" if payment.supplier_reference %>
+                  </p>
+                  <p class="dd-cell-subtext">
+                    <% applied = payment.applications.group_by(&:installment).transform_values { |rows| rows.sum(&:amount_minor_units) }.select { |_, amount| amount.positive? } %>
+                    <%= applied.any? ? "Applied to " + applied.map { |installment, amount| "#{installment.client_charge.client_booking.booking_reference} #{installment.description} #{booking_money(amount, currency)}" }.to_sentence : "Not applied" %><%= " · #{booking_money(payment.credit_minor_units, currency)} credit" if payment.credit_minor_units.positive? %>
+                    <% if payment.reversal %> · Reversed <%= payment.reversal.reversed_on.to_fs(:long) %>: <%= payment.reversal.reason %><% end %>
+                  </p>
+                </div>
+                <span class="dd-section-header">
+                  <% if payment.receipt %><%= link_to "Receipt #{payment.receipt.receipt_number}", receipt_path(payment.receipt), class: "dd-row-action dd-row-action--text" %><% else %><span class="dd-cell-subtext">No receipt: paid to a supplier</span><% end %>
+                  <% if manage && !payment.reversed? %><%= link_to "Reverse", new_client_trip_payment_reversal_path(trip, payment), class: "dd-row-action dd-row-action--text dd-row-action--danger", aria: { label: "Reverse #{payment.payment_reference}" } %><% end %>
+                </span>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </section>
+
+      <% if manage && money.credit_minor_units.positive? && money.open_installments.any? %>
+        <% proposal = money.proposed_applications(money.credit_minor_units) %>
+        <%= form_with url: client_trip_credit_application_path(trip), class: "dd-form dd-subpanel", id: "apply-credit" do |form| %>
+          <h3 class="dd-section-title">Apply credit</h3>
+          <p class="dd-field-hint"><%= booking_money(money.credit_minor_units, currency) %> of credit, proposed oldest installment first. Change the amounts before applying.</p>
+          <%= render "client_payments/application_fields", installments: money.open_installments, values: proposal.transform_values { |amount| MoneyInput.display(amount, currency).delete(",") }, currency: %>
+          <%= form.submit "Apply credit", class: "dd-button dd-button--secondary", name: nil %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

@@ -2,7 +2,7 @@
 <% departure = @booking.client_trip.departure %>
 <% terms = @booking.client_terms_version %>
 <% payment_line = terms&.acceptance_line %>
-<% payment = @payment || {} %>
+<% payments = @booking.client_trip.client_payments.includes(:reversal).reject(&:reversed?) %>
 
 <%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ departure.display_reference, departure_path(departure) ], [ "Bookings", departure_bookings_path(departure) ], [ @booking.booking_reference, client_booking_path(@booking) ], [ "Record acceptance", nil ] ] %>
 
@@ -71,24 +71,17 @@
       <% if payment_line %>
         <fieldset class="dd-form-section">
           <legend class="dd-section-title">The payment, for a payment that counts as acceptance</legend>
-          <p class="dd-field-hint">Recorded as notes on this acceptance. The payment itself is entered with client payments, which link to it later (D-94).</p>
-          <div class="dd-form-grid dd-form-grid--two-column">
+          <% if payments.any? %>
             <div class="dd-field-group">
-              <%= form.label :payment_on, "Payment date", class: "dd-label" %>
-              <%= form.date_field :payment_on, value: payment["payment_on"], **dd_field_options(form, :payment_on) %>
-              <%= dd_field_error(form, :payment_on) %>
+              <%= form.label :client_payment_id, "Payment", class: "dd-label" %>
+              <%= form.select :client_payment_id, payments.map { |payment| [ "#{payment.payment_reference} · #{payment.paid_on.to_fs(:long)} · #{Money.new(payment.amount_minor_units, payment.currency).format} to #{payment.collector_label}", payment.id ] },
+                    { include_blank: "Choose the payment" }, **dd_field_options(form, :client_payment_id, aria_describedby_extra: "client_payment_hint") %>
+              <p class="dd-field-hint" id="client_payment_hint">One of the payments recorded on trip <%= @booking.client_trip.trip_reference %>.</p>
+              <%= dd_field_error(form, :client_payment_id) %>
             </div>
-            <div class="dd-field-group">
-              <%= form.label :payment_amount, "Payment amount (#{@booking.currency})", class: "dd-label" %>
-              <%= form.text_field :payment_amount, value: payment["payment_amount"], inputmode: "decimal", **dd_field_options(form, :payment_amount, class: "dd-field--numeric") %>
-              <%= dd_field_error(form, :payment_amount) %>
-            </div>
-            <div class="dd-field-group">
-              <%= form.label :payment_reference, "Payment reference", class: "dd-label" %>
-              <%= form.text_field :payment_reference, maxlength: 120, **dd_field_options(form, :payment_reference) %>
-              <%= dd_field_error(form, :payment_reference) %>
-            </div>
-          </div>
+          <% else %>
+            <p class="dd-field-hint">No payment is recorded on trip <%= link_to @booking.client_trip.trip_reference, client_trip_path(@booking.client_trip, anchor: "money") %> yet. Someone with Financial records records it there, then it can be chosen here.</p>
+          <% end %>
         </fieldset>
       <% end %>
       <div class="dd-form-actions">

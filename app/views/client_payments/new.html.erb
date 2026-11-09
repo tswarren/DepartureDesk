@@ -1,0 +1,91 @@
+<% content_for :title, "Record a payment · #{@trip.trip_reference} · DepartureDesk" %>
+<% currency = @money.currency %>
+<% suppliers = @trip.departure.supplier_arrangements.live.includes(:supplier).map(&:supplier).uniq %>
+<% payers = ([ @trip.client ] + @trip.client_bookings.flat_map { |booking| booking.booking_travelers.filter_map(&:traveler) }.flat_map(&:clients)).uniq.select(&:active?) %>
+<% applied = @applied || @money.proposed_applications(0).transform_values { nil } %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @trip.client.source.display_name, client_profile_path_for(@trip.client) ], [ @trip.trip_reference, client_trip_path(@trip) ], [ "Record a payment", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client money · <%= @trip.trip_reference %></p>
+    <h1 class="dd-page-title">Record a payment</h1>
+    <p class="dd-page-description">A payment the client has made, to the agency or straight to a supplier. DepartureDesk processes no payments.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The payment wasn't recorded</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: client_trip_payments_path(@trip), scope: :client_payment, class: "dd-form", data: { controller: "unsaved-changes payment-allocation" } do |form| %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :payer_client_id, "Paid by", class: "dd-label" %>
+          <%= form.select :payer_client_id, payers.map { |client| [ client.source.display_name, client.id ] }, { selected: @values["payer_client_id"] }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :paid_on, "Date paid", class: "dd-label" %>
+          <%= form.date_field :paid_on, value: @values["paid_on"], class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :amount, "Amount (#{currency})", class: "dd-label" %>
+          <%= form.text_field :amount, value: @values["amount"], inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow",
+                data: { payment_allocation_target: "amount", action: "input->payment-allocation#allocate" } %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :payment_method, "How it was paid", class: "dd-label" %>
+          <%= form.select :payment_method, ClientPayment::METHOD_LABELS.invert, { selected: @values["payment_method"] }, class: "dd-field" %>
+        </div>
+      </div>
+      <fieldset class="dd-form-section" data-controller="conditional-fields">
+        <legend class="dd-section-title">Who received it</legend>
+        <div class="dd-choice-group">
+          <label class="dd-choice">
+            <%= form.radio_button :route, "agency", checked: @values["route"] != "supplier", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+            <span>The agency</span>
+          </label>
+          <label class="dd-choice">
+            <%= form.radio_button :route, "supplier", checked: @values["route"] == "supplier", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+            <span>A supplier, directly</span>
+          </label>
+        </div>
+        <div class="dd-rate-inline">
+          <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="supplier">
+            <%= form.label :supplier_id, "Supplier", class: "dd-label" %>
+            <%= form.select :supplier_id, suppliers.map { |supplier| [ supplier.display_name_for_directory, supplier.id ] }, { selected: @values["supplier_id"] }, class: "dd-field" %>
+          </div>
+          <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="supplier">
+            <%= form.label :supplier_reference, "Supplier's reference (optional)", class: "dd-label" %>
+            <%= form.text_field :supplier_reference, value: @values["supplier_reference"], maxlength: ClientPayment::REFERENCE_LIMIT, class: "dd-field" %>
+          </div>
+        </div>
+        <p class="dd-field-hint" data-conditional-fields-target="option" data-show-for="agency">Agency cash: a receipt is issued when it's recorded.</p>
+        <p class="dd-field-hint" data-conditional-fields-target="option" data-show-for="supplier">Reduces what the client owes, but isn't agency cash and gets no receipt.</p>
+      </fieldset>
+      <div class="dd-field-group">
+        <%= form.label :reference, "Reference (optional)", class: "dd-label" %>
+        <%= form.text_field :reference, value: @values["reference"], maxlength: ClientPayment::REFERENCE_LIMIT, class: "dd-field", aria: { describedby: "reference_hint" } %>
+        <p class="dd-field-hint" id="reference_hint">A check number or transfer reference. Never card details.</p>
+      </div>
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Apply it to</legend>
+        <% if @money.open_installments.empty? %>
+          <p class="dd-field-hint">No installment is open yet, so the whole payment is held as credit on the trip and applied once a booking is confirmed.</p>
+        <% else %>
+          <p class="dd-field-hint">Filled in oldest installment first as you type the amount; change any amount. What isn't applied is held as credit on the trip.</p>
+          <%= render "client_payments/application_fields", installments: @money.open_installments, values: applied, currency: %>
+        <% end %>
+      </fieldset>
+      <div class="dd-form-actions">
+        <%= form.submit "Record payment", class: "dd-button", name: nil %>
+        <%= link_to "Cancel", client_trip_path(@trip, anchor: "money"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

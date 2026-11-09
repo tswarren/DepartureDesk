@@ -13,7 +13,8 @@ class ClientBookingsController < ApplicationController
                              { option: [ :choice, { inventory_group: { supplier_arrangement: :supplier } } ] } ],
         inventory_allocations: %i[inventory_group unit_shell choice_selection],
         price_lines: [ :booking_traveler, { choice_selection: { option: :choice } } ],
-        acceptances: [ :recorded_by, :client_terms_version, { evidence_attachment: :blob } ], cost_lines: :schedule_lines,
+        acceptances: [ :recorded_by, :client_terms_version, :client_payment, { evidence_attachment: :blob } ], cost_lines: :schedule_lines,
+        installment_proposals: [], client_charge: { installments: { applications: :client_payment } },
         expected_commissions: [ :overridden_by, { choice_selection: { option: :choice } } ])
       .find(@booking.id)
     @trip = @booking.client_trip

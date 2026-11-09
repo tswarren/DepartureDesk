@@ -62,6 +62,10 @@
   </div>
 </article>
 
+<% if Current.agency_user.permitted?(:view_client_money) %>
+  <%= render "client_trips/money", trip: @trip %>
+<% end %>
+
 <article class="dd-panel" id="travelers">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">The client's usual travelers</h2>

@@ -13,7 +13,7 @@ class BookingProgress
     case anchor.to_s
     when "travelers", /\Abooking-traveler-/ then "travelers"
     when "choices", /\Achoice-/, "supplier-requests" then "rooms"
-    when "prices", "hold" then "price"
+    when "prices", "hold", "installments" then "price"
     else "confirm"
     end
   end

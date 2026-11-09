@@ -20,6 +20,7 @@ class Agency < ApplicationRecord
   has_many :client_bookings, dependent: :restrict_with_exception
   has_many :supplier_reservations, dependent: :restrict_with_exception
   has_many :client_payments, dependent: :restrict_with_exception
+  has_many :receipts, dependent: :restrict_with_exception
   has_many :booking_travelers, dependent: :restrict_with_exception
   has_many :choice_selections, dependent: :restrict_with_exception
   has_many :inventory_allocations, dependent: :restrict_with_exception
