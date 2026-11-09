@@ -18,7 +18,7 @@ class InventoryGroupsController < ApplicationController
 
   def create
     result = SaveInventoryGroup.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement, attributes: group_params.except(:lock_version)).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), notice: "#{result.record.label} added."
+    redirect_to departure_arrangement_inventory_path(@departure, @arrangement), notice: "#{result.record.label} added."
   rescue AgencyCommand::Error => error
     @group = @arrangement.inventory_groups.new(group_params.except(:lock_version))
     render_form_error(error, @group, :new, ERROR_FIELDS)
@@ -40,7 +40,7 @@ class InventoryGroupsController < ApplicationController
 
   def destroy
     RemoveInventoryGroup.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement, group: @group).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), notice: "Inventory group removed."
+    redirect_to departure_arrangement_inventory_path(@departure, @arrangement), notice: "Inventory group removed."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 

@@ -36,11 +36,11 @@ The Departure overview is the hub: it answers the charter's four questions (what
 | S-09 | Departure team | Panel | 2 | Staff | Team members and the default task owner |  | ACC-09, OPS-12 |
 | S-10 | Publish to reseller | Dialog | 9 (D-90) | Staff | Set Ready to sell, choose the offering and the one reseller channel; refused with reasons if not ready |  | DEP-06, DEP-07, FIN-22 |
 | S-11 | Supplier directory and detail | Page | 3 | Staff | Existing directory plus one payee account per supplier: currency and payment instructions |  | SUP-01, SUP-02 |
-| S-12 | Arrangement detail | Page | 3 | Staff | Status Draft to Confirmed, obligation shape, group reference, reservation scope, terms and documents; hosts S-14 to S-16 | D1 | SUP-06, SUP-07, SUP-11, SUP-12 |
+| S-12 | Arrangement detail | Page | 3 | Staff | Sub-pages under section tabs, each its own page (UX consolidation pass, decision 3): Overview with the Ready to confirm? checklist and the details (status, group reference, payee, obligation shape, reservation scope, terms); Inventory; Rates and cost (S-14, S-16 cost); Payments and deadlines (S-16 payments, S-15); Reservations (S-19); Documents. Rates and cost and Documents need supplier cost access, and without it Payments and deadlines shows deadlines only | D1 | SUP-06, SUP-07, SUP-11, SUP-12, ACC-31 |
 | S-13 | Arrangement form | Page | 3 | Staff | Create and edit; saves as Draft with required fields missing | D16 | SUP-06, SUP-09 |
 | S-14 | Supplier rate table | Panel | 6 | Fin | Matrix of inventory group by occupancy position: base fare, non-commissionable fees, taxes, discount, commission; the form sample's rate editor | D1 | SUP-35, D-75 |
 | S-15 | Supplier deadlines | Panel | 4 | Staff | Deposit, names, final payment, final count; actionable or informational; local time and zone with the resolved instant; each links its task | D12 | SUP-22 to SUP-25 |
-| S-16 | Cost and schedule | Panel | 6 | Fin | Cost lines with basis and estimated or committed; schedule lines with due rules; amounts due; trigger events such as booking confirmation (D-81); add a commitment for unsold space naming its shells (D-75) | D2 | SMN-01 to SMN-06, SMN-11 |
+| S-16 | Cost and schedule | Panel | 6 | Fin | Cost lines with basis and estimated or committed, on Rates and cost; schedule lines with due rules, amounts due and trigger events such as booking confirmation (D-81), on Payments and deadlines; add a commitment for unsold space naming its shells (D-75). The cost line form shows only the fields its scope and basis use and sums the line up in a sentence; the event form asks for a count only for an event a count-based payment waits on | D2 | SMN-01 to SMN-06, SMN-11, SMN-14 |
 
 ## Inventory and package
 
@@ -49,7 +49,7 @@ Inventory is one Departure-level page that shows every group the Alpha fixture n
 | ID | Screen | Kind | Step | Who | Shows and does | D-cases | Rules |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | S-17 | Departure inventory | Page | 5 | Staff | Groups by category with availability promise; shells as a grid with derived status; positions used and left; children 0–4 listed without positions | D4, D6 | INV-01 to INV-05, INV-07, INV-38, INV-39 |
-| S-18 | Inventory group detail | Page | 5 | Staff | Shells or pool, capacity rule by traveler type, option cutoff, allocations against it, and the inventory event history |  | INV-09, INV-12, INV-16, INV-26 |
+| S-18 | Inventory group detail | Page | 5 | Staff | Shells or pool, capacity rule by traveler type, option cutoff, allocations against it, and the inventory event history. The supply change form sums the change up in a sentence, including any shortfall against what bookings hold; a refused change or capacity rule keeps what was typed and shows the error on the page |  | INV-09, INV-12, INV-16, INV-26 |
 | S-19 | Supplier reservations | Page | 11 | Staff | Requests per arrangement or standalone; status Requested, Confirmed, Declined, Cancelled; record the supplier's reference; Awaiting supplier on the booking | D8 | INV-33 to INV-37 |
 | S-20 | Offering editor | Page | 7 | Staff | Package components, included or add-on; choices with scope and pattern (cabin as required single per unit); options drawing on groups; prices by traveler type and occupancy position |  | BKG-13 to BKG-16, BKG-21 |
 | S-21 | Client terms | Page | 7 | Staff | Terms version wording, cancellation tiers, payment schedule with per-cabin deposit; start by copying another Departure's terms; locked once a booking accepts it |  | BKG-28, BKG-31, CMN-09, D-76, D-77 |

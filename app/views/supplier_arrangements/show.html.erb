@@ -1,25 +1,4 @@
-<% content_for :title, "#{@arrangement.arrangement_reference} · DepartureDesk" %>
-<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
-
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, nil ] ] %>
-
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Arrangement · <%= @departure.name %></p>
-    <h1 class="dd-page-title"><%= @arrangement.supplier.display_name_for_directory %></h1>
-    <p class="dd-page-description"><span class="dd-type-mono"><%= @arrangement.arrangement_reference %></span> · <%= arrangement_status_badge(@arrangement) %></p>
-  </div>
-  <% if manage && @arrangement.draft? %>
-    <div class="dd-page-actions">
-      <%= link_to "Confirm arrangement", departure_arrangement_confirmation_path(@departure, @arrangement), class: "dd-button" %>
-      <%= link_to "Edit arrangement", edit_departure_arrangement_path(@departure, @arrangement), class: "dd-button dd-button--secondary" %>
-      <%= button_to "Discard", departure_arrangement_discard_path(@departure, @arrangement), params: { lock_version: @arrangement.lock_version },
-            class: "dd-button dd-button--quiet", form: { data: { turbo_confirm: "Discard this draft arrangement? It becomes Cancelled with no supplier or financial effect." } } %>
-    </div>
-  <% end %>
-</header>
-
-<%= render "departures/tabs", departure: @departure, current: :suppliers %>
+<%= render "header", departure: @departure, arrangement: @arrangement, current: :overview %>
 
 <% if @arrangement.draft? %>
   <%= render "shared/setup_checklist", id: "ready-to-confirm", title: "Ready to confirm?",
@@ -48,17 +27,3 @@
     </dl>
   </div>
 </article>
-
-<%= render "inventory_groups/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
-
-<%= render "supplier_deadlines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
-
-<% if Current.agency_user.permitted?(:view_supplier_reservations) && !@arrangement.draft? %>
-  <%= render "supplier_reservations/panel", departure: @departure, arrangement: @arrangement %>
-<% end %>
-
-<% if can_view_supplier_costs? %>
-  <%= render "supplier_rate_lines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
-  <%= render "supplier_money/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
-  <%= render "arrangement_documents/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
-<% end %>

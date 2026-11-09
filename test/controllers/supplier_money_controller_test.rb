@@ -21,7 +21,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     post departure_arrangement_cost_lines_path(@departure, @hotel), params: { cost_line: {
       description: "Late checkout", scope: "unit_shells", unit_shell_ids: group.unit_shells.first(2).map(&:id), basis: "per_unit", rate: "40", stage: "committed"
     } }
-    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-cost")
+    assert_redirected_to departure_arrangement_costs_path(@departure, @hotel, anchor: "supplier-cost")
     cost = @hotel.cost_lines.find_by!(description: "Late checkout")
     assert_equal 8_000, cost.amount_minor_units
 
@@ -29,15 +29,16 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
       description: "Late checkout on invoice", cost_line_id: cost.id, amount_kind: "percentage_of_cost_line", percentage: "100",
       when: "after_event", trigger_type: "supplier_invoice_received", days_after: "0"
     } }
-    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-payments")
+    assert_redirected_to departure_arrangement_payments_path(@departure, @hotel, anchor: "supplier-payments")
     line = @hotel.schedule_lines.find_by!(description: "Late checkout on invoice")
 
     post departure_arrangement_trigger_events_path(@departure, @hotel), params: { trigger_event: { event_type: "supplier_invoice_received", occurred_on: "2026-10-14", reference: "INV-77" } }
     assert_equal [ 8_000, Date.new(2026, 10, 14) ], line.amounts_due.sole.values_at(:amount_minor_units, :due_on)
 
-    get departure_arrangement_path(@departure, @hotel)
+    get departure_arrangement_costs_path(@departure, @hotel)
     assert_select "#supplier-cost th[scope=row]", text: "Late checkout"
     assert_select "#supplier-cost td", text: /\$40\.00 × 2 per unit\z/
+    get departure_arrangement_payments_path(@departure, @hotel)
     assert_select "#supplier-payments li", text: /Late checkout on invoice\s+100% of Late checkout, due when the supplier's invoice arrives\./
     assert_select "#supplier-payments li", text: /Supplier invoice received, October 14, 2026, ref INV-77/
     assert_select "#supplier-payments td", text: /Schedule line: Late checkout on invoice\z/
@@ -70,7 +71,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
       assert_equal [ rule, trigger, due_on, days ], [ line.due_rule, line.trigger_type, line.due_on, line.days_after ], choice
     end
 
-    get departure_arrangement_path(@departure, @hotel)
+    get departure_arrangement_payments_path(@departure, @hotel)
     assert_select "#supplier-payments li", text: /\$50\.00 for each Nov 5 Garden Queen room, due when a client booking for that room is confirmed, or on Mar 1, 2027 for any room still unbooked\./
     assert_select "#supplier-payments li", text: /\$50\.00 for each Nov 5 Garden Queen room, due 3 days after the rooming list is sent\./
 
@@ -92,7 +93,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
 
   test "Departure management sees supplier money but can't edit it; baseline staff see neither (ACC-31)" do
     sign_in_as agency_users(:harbor_staff)
-    get departure_arrangement_path(@departure, @hotel)
+    get departure_arrangement_costs_path(@departure, @hotel)
     assert_select "#supplier-cost"
     assert_select "#supplier-cost a", text: "Add cost line", count: 0
     get departure_money_path(@departure)
@@ -101,8 +102,12 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
 
     sign_in_as agency_users(:harbor_baseline_staff)
-    get departure_arrangement_path(@departure, @hotel)
-    assert_select "#supplier-cost", count: 0
+    get departure_arrangement_payments_path(@departure, @hotel)
+    assert_select "h1", text: @hotel.supplier.display_name_for_directory
+    assert_select "#supplier-payments", count: 0
+    assert_select "#deadlines"
+    get departure_arrangement_costs_path(@departure, @hotel)
+    assert_redirected_to root_path
     get departure_money_path(@departure)
     assert_response :success
     assert_select "#client-money"
@@ -114,7 +119,7 @@ class SupplierMoneyControllerTest < ActionDispatch::IntegrationTest
     UserPermission.create!(agency: @agency, agency_user: staff, permission: "financial_records")
     sign_in_as staff
     post departure_arrangement_amounts_due_path(@departure, @hotel), params: { amount_due: { description: "Resort fee", amount: "35", due_on: "2027-11-06" } }
-    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-payments")
+    assert_redirected_to departure_arrangement_payments_path(@departure, @hotel, anchor: "supplier-payments")
     assert_equal [ 3_500 ], @hotel.amounts_due.pluck(:amount_minor_units)
   end
 

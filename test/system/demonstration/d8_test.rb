@@ -40,7 +40,7 @@ class DemonstrationD8Test < ApplicationSystemTestCase
     assert_selector "tr", text: /#{booking.booking_reference}.*2 awaiting supplier/m
 
     reservation = booking.supplier_reservations.sole
-    [ client_booking_path(booking, step: "rooms"), departure_arrangement_path(@alpha.departure, hotel),
+    [ client_booking_path(booking, step: "rooms"), departure_arrangement_reservations_path(@alpha.departure, hotel),
       new_departure_arrangement_supplier_reservation_acceptance_path(@alpha.departure, hotel, reservation) ].each do |path|
       visit path
       [ 1400, 375 ].each do |width|
@@ -50,7 +50,7 @@ class DemonstrationD8Test < ApplicationSystemTestCase
     end
     resize_window(1400)
 
-    visit departure_arrangement_path(@alpha.departure, hotel)
+    visit departure_arrangement_reservations_path(@alpha.departure, hotel)
     within("#supplier-reservations") do
       assert_text "Awaiting supplier"
       click_link "Record acceptance"

@@ -1776,6 +1776,7 @@
 
   .dd-field-group {
     display: grid;
+    align-content: start;
     gap: 0.35rem;
   }
 

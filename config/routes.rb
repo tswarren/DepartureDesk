@@ -218,7 +218,12 @@ Rails.application.routes.draw do
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"
-      resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
+      # The arrangement's sub-pages (UX consolidation audit B1, decision 3); show is its overview.
+      resource :inventory, only: :show, controller: "arrangement_inventories"
+      resource :costs, only: :show, controller: "arrangement_costs"
+      resource :payments, only: :show, controller: "arrangement_payments"
+      resource :reservations, only: :show, controller: "arrangement_reservations"
+      resources :documents, only: %i[index show create destroy], controller: "arrangement_documents"
       # S-14: the supplier rate grid (SUP-35).
       resource :rates, only: %i[edit update], controller: "supplier_rates"
       resource :rate_pattern, only: :update, controller: "supplier_rate_patterns"

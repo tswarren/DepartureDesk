@@ -29,7 +29,7 @@ class SupplierReservationsControllerTest < ActionDispatch::IntegrationTest
 
     post departure_arrangement_supplier_reservation_acceptance_path(@departure, @hotel, reservation),
       params: { lock_version: reservation.lock_version, supplier_reservation: { supplier_reference: "SHH-24117", responded_on: "2027-01-20" } }
-    assert_redirected_to departure_arrangement_path(@departure, @hotel, anchor: "supplier-reservations")
+    assert_redirected_to departure_arrangement_reservations_path(@departure, @hotel)
     assert reservation.reload.status_confirmed?
   end
 

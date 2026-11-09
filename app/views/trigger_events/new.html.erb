@@ -12,23 +12,29 @@
 
 <%= render "shared/form_errors", message: @error %>
 
+<%# The count shows only for an event a count-based payment waits on (SMN-14, UX audit C3). %>
+<% counted = @arrangement.schedule_lines.select { |line| line.per_unit_count? && line.trigger_type } %>
+<% counted_types = counted.map(&:trigger_type).uniq %>
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with url: departure_arrangement_trigger_events_path(@departure, @arrangement), scope: :trigger_event, class: "dd-form" do |form| %>
+    <%= form_with url: departure_arrangement_trigger_events_path(@departure, @arrangement), scope: :trigger_event, class: "dd-form", data: { controller: "conditional-fields" } do |form| %>
       <div class="dd-form-grid dd-form-grid--two-column">
         <div class="dd-field-group">
           <%= form.label :event_type, "Event", class: "dd-label" %>
-          <%= form.select :event_type, SupplierMoneyHelper::TRIGGER_LABELS.slice(*TriggerEvent::STAFF_TYPES).invert, { selected: params.dig(:trigger_event, :event_type) }, class: "dd-field" %>
+          <%= form.select :event_type, SupplierMoneyHelper::TRIGGER_LABELS.slice(*TriggerEvent::STAFF_TYPES).invert, { selected: params.dig(:trigger_event, :event_type) }, class: "dd-field",
+                data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
         </div>
         <div class="dd-field-group">
           <%= form.label :occurred_on, "Date it happened", class: "dd-label" %>
           <%= form.date_field :occurred_on, value: params.dig(:trigger_event, :occurred_on), required: true, class: "dd-field" %>
         </div>
-        <div class="dd-field-group">
+        <% if counted_types.any? %>
+        <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="<%= counted_types.join(" ") %>">
           <%= form.label :count, "Count (optional)", class: "dd-label" %>
           <%= form.number_field :count, value: params.dig(:trigger_event, :count), min: 0, step: 1, aria: { describedby: "trigger_event_count_hint" }, class: "dd-field dd-field--numeric dd-field--narrow" %>
-          <p class="dd-field-hint" id="trigger_event_count_hint">Recorded with the event; count-based amounts use it.</p>
+          <p class="dd-field-hint" id="trigger_event_count_hint"><%= counted.map(&:description).to_sentence %> <%= counted.size == 1 ? "uses" : "use" %> it. Left blank, the count is the units still held from the supplier.</p>
         </div>
+        <% end %>
         <div class="dd-field-group">
           <%= form.label :reference, "Reference (optional)", class: "dd-label" %>
           <%= form.text_field :reference, value: params.dig(:trigger_event, :reference), maxlength: 120, class: "dd-field" %>
@@ -36,7 +42,7 @@
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Record event", class: "dd-button" %>
-        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_arrangement_payments_path(@departure, @arrangement, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

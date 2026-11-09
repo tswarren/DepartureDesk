@@ -1,5 +1,5 @@
 <%# Shells or pool, and the capacity event history (INV-05, INV-10, INV-26, INV-38). %>
-<%# locals: (departure:, arrangement:, group:, manage:) -%>
+<%# locals: (departure:, arrangement:, group:, manage:, change: nil) -%>
 <article class="dd-panel" id="capacity">
   <header class="dd-panel-header"><h2 class="dd-panel-title">Capacity</h2></header>
   <div class="dd-panel-body dd-stack">
@@ -37,8 +37,14 @@
         <% used = capacity.consumed %>
         <% pool = group.represented_as_capacity_pool? %>
         <% correctable = group.capacity_events.reject { |event| event.event_type.start_with?("correctable") } %>
+        <% typed = change ? change[:values] : {} %>
+        <% kind = typed["kind"].presence || "increase" %>
         <%= form_with url: departure_arrangement_group_capacity_events_path(departure, arrangement, group), method: :post, class: "dd-form dd-subpanel", id: "supply-change",
-              data: { controller: "conditional-fields" } do |form| %>
+              data: { controller: "conditional-fields capacity-summary", capacity_summary_supply_value: supply, capacity_summary_used_value: used,
+                      capacity_summary_unit_value: group.represented_as_unit_shells? ? "unit" : "place" } do |form| %>
+          <% if change %>
+            <%= render "shared/form_errors", message: change[:message], field: change[:field], title: "The change wasn't recorded" %>
+          <% end %>
           <%= hidden_field_tag :idempotency_key, SecureRandom.uuid, id: nil %>
           <h3 class="dd-section-title">Record a change</h3>
           <p class="dd-field-hint"><%= supply %> <%= unit %> from the supplier now · <%= used %> held or reserved by bookings · <%= [ supply - used, 0 ].max %> left</p>
@@ -50,7 +56,7 @@
                  options << [ "correction", "Fix a mistake", "We entered the wrong number; only #{unit} no booking holds can go" ] if pool && correctable.any? %>
               <% options.each do |value, label, hint| %>
                 <label class="dd-rate-pattern">
-                  <%= radio_button_tag :kind, value, value == "increase", id: "kind_#{value}", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+                  <%= radio_button_tag :kind, value, value == kind, id: "kind_#{value}", data: { conditional_fields_source: true, action: "conditional-fields#update capacity-summary#update" } %>
                   <span><strong><%= label %></strong><span class="dd-cell-subtext"><%= hint %></span></span>
                 </label>
               <% end %>
@@ -59,45 +65,62 @@
           <div class="dd-rate-inline">
             <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="increase">
               <%= label_tag "increase_quantity", "How many #{unit}", class: "dd-label" %>
-              <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "increase_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+              <%= number_field_tag :quantity, (typed["quantity"] if kind == "increase"), min: 1, step: 1, required: true, id: "increase_quantity", class: "dd-field dd-field--numeric dd-field--narrow",
+                      aria: capacity_field_aria(change, "increase_quantity"), data: { action: "capacity-summary#update", capacity_summary_target: "quantity" } %>
+                <%= capacity_field_error(change, "increase_quantity") %>
             </div>
             <% if group.represented_as_unit_shells? %>
               <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="supplier_release">
                 <%= label_tag "supplier_release_unit_shell_id", "Which unit they took back", class: "dd-label" %>
-                <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject(&:returned_to_supplier?).map { |shell| [ shell.label, shell.id ] }), id: "supplier_release_unit_shell_id", class: "dd-field" %>
+                <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject(&:returned_to_supplier?).map { |shell| [ shell.label, shell.id ] }, typed["unit_shell_id"]), id: "supplier_release_unit_shell_id", class: "dd-field",
+                      aria: capacity_field_aria(change, "supplier_release_unit_shell_id"), data: { action: "capacity-summary#update", capacity_summary_target: "shell" } %>
+                <%= capacity_field_error(change, "supplier_release_unit_shell_id") %>
               </div>
             <% else %>
               <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="supplier_release">
                 <%= label_tag "supplier_release_quantity", "How many #{unit}", class: "dd-label" %>
-                <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "supplier_release_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                <%= number_field_tag :quantity, (typed["quantity"] if kind == "supplier_release"), min: 1, step: 1, required: true, id: "supplier_release_quantity", class: "dd-field dd-field--numeric dd-field--narrow",
+                      aria: capacity_field_aria(change, "supplier_release_quantity"), data: { action: "capacity-summary#update", capacity_summary_target: "quantity" } %>
+                <%= capacity_field_error(change, "supplier_release_quantity") %>
               </div>
             <% end %>
             <% if pool && correctable.any? %>
               <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="correction">
                 <%= label_tag "correction_direction", "The right number is", class: "dd-label" %>
-                <%= select_tag :direction, options_for_select([ [ "More than entered", "up" ], [ "Fewer than entered", "down" ] ], "down"), id: "correction_direction", class: "dd-field" %>
+                <%= select_tag :direction, options_for_select([ [ "More than entered", "up" ], [ "Fewer than entered", "down" ] ], typed["direction"].presence || "down"), id: "correction_direction", class: "dd-field",
+                      aria: capacity_field_aria(change, "correction_direction"), data: { action: "capacity-summary#update", capacity_summary_target: "direction" } %>
+                <%= capacity_field_error(change, "correction_direction") %>
               </div>
               <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="correction">
                 <%= label_tag "correction_quantity", "By how many #{unit}", class: "dd-label" %>
-                <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "correction_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                <%= number_field_tag :quantity, (typed["quantity"] if kind == "correction"), min: 1, step: 1, required: true, id: "correction_quantity", class: "dd-field dd-field--numeric dd-field--narrow",
+                      aria: capacity_field_aria(change, "correction_quantity"), data: { action: "capacity-summary#update", capacity_summary_target: "quantity" } %>
+                <%= capacity_field_error(change, "correction_quantity") %>
               </div>
               <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="correction">
                 <%= label_tag "correction_event", "The entry that was wrong", class: "dd-label" %>
-                <%= select_tag :corrects_event_id, options_for_select(correctable.reverse.map { |event| [ "#{CapacityEvent::LABELS.fetch(event.event_type)}, #{event.quantity}, #{event.effective_on.to_fs(:long)}", event.id ] }),
-                      id: "correction_event", class: "dd-field" %>
+                <%= select_tag :corrects_event_id, options_for_select(correctable.reverse.map { |event| [ "#{CapacityEvent::LABELS.fetch(event.event_type)}, #{event.quantity}, #{event.effective_on.to_fs(:long)}", event.id ] }, typed["corrects_event_id"]),
+                      id: "correction_event", class: "dd-field", aria: capacity_field_aria(change, "correction_event") %>
+                <%= capacity_field_error(change, "correction_event") %>
               </div>
             <% end %>
             <div class="dd-field-group">
               <%= label_tag "effective_on", "From", class: "dd-label" %>
-              <%= date_field_tag :effective_on, nil, aria: { describedby: "effective_hint" }, class: "dd-field" %>
+              <%= date_field_tag :effective_on, typed["effective_on"], aria: capacity_field_aria(change, "effective_on", describedby: "effective_hint"), class: "dd-field",
+                    data: { action: "capacity-summary#update", capacity_summary_target: "date" } %>
+              <%= capacity_field_error(change, "effective_on") %>
               <p class="dd-field-hint" id="effective_hint">Blank means today. A later date takes effect at 11:59 p.m. agency time.</p>
             </div>
           </div>
           <div class="dd-field-group">
             <%= label_tag "evidence_note", "What the supplier said, or what was wrong", class: "dd-label" %>
-            <%= text_area_tag :evidence_note, nil, rows: 2, required: true, maxlength: 500, class: "dd-field", aria: { describedby: "evidence_hint" } %>
+            <%= text_area_tag :evidence_note, typed["evidence_note"], rows: 2, required: true, maxlength: 500, class: "dd-field", aria: { describedby: "evidence_hint" } %>
             <p class="dd-field-hint" id="evidence_hint">For example: Email from the hotel, Jan 20: one Garden Queen released for Nov 4.</p>
           </div>
+          <aside class="dd-payment-summary" aria-labelledby="capacity-summary-title">
+            <h4 class="dd-payment-summary-title" id="capacity-summary-title">In plain words</h4>
+            <p data-capacity-summary-target="output" aria-live="polite"></p>
+          </aside>
           <%= submit_tag "Record it", class: "dd-button dd-button--secondary", name: nil %>
         <% end %>
       <% end %>

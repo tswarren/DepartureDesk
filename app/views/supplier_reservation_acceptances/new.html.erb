@@ -34,7 +34,7 @@
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Record acceptance", class: "dd-button", name: nil %>
-        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-reservations"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_arrangement_reservations_path(@departure, @arrangement), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

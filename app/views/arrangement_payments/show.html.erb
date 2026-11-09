@@ -1,0 +1,9 @@
+<%= render "supplier_arrangements/header", departure: @departure, arrangement: @arrangement, current: :payments, title: can_view_supplier_costs? ? "Payments and deadlines" : "Deadlines" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
+
+<div class="dd-stack">
+  <% if can_view_supplier_costs? %>
+    <%= render "supplier_money/payments", departure: @departure, arrangement: @arrangement, manage: %>
+  <% end %>
+  <%= render "supplier_deadlines/panel", departure: @departure, arrangement: @arrangement, manage: %>
+</div>

@@ -30,7 +30,7 @@ class InventoryRoomNightsController < ApplicationController
     end
     result = AddRoomNights.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement,
       cells:, time_zone: @departure.time_zone).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), notice: "#{helpers.pluralize(result.record.size, "group")} added."
+    redirect_to departure_arrangement_inventory_path(@departure, @arrangement), notice: "#{helpers.pluralize(result.record.size, "group")} added."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 

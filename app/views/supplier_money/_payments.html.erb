@@ -1,66 +1,9 @@
-<%# S-16 What it costs and When you pay (SMN-01 to SMN-06, SMN-11, SUP-13, D-75). Shown only with view_supplier_costs (ACC-31). %>
+<%# S-16 When you pay (SMN-05, SMN-06, SMN-11). Shown only with view_supplier_costs (ACC-31). %>
 <%# locals: (departure:, arrangement:, manage:) -%>
-<% open_arrangement = arrangement.draft? || arrangement.confirmed? %>
-<% editable = manage && open_arrangement %>
+<% editable = manage && (arrangement.draft? || arrangement.confirmed?) %>
 <% currency = arrangement.currency %>
-<% cost_lines = arrangement.cost_lines.includes(:inventory_group, :base_cost_line, :unit_shells) %>
 <% schedule_lines = arrangement.schedule_lines.includes(:cost_line, :supplier_deadline, :amounts_due) %>
 <% amounts = arrangement.amounts_due.includes(:schedule_line, :unit_shell, :payment_applications) %>
-<article class="dd-panel" id="supplier-cost">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">What it costs</h2>
-  </header>
-  <div class="dd-panel-body dd-stack">
-    <dl class="dd-definition-list">
-      <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(cost_lines.select(&:stage_committed?).sum(&:amount_minor_units), currency) %></dd></div>
-      <div><dt>Estimated, not committed</dt><dd class="dd-type-mono"><%= money(cost_lines.select(&:stage_estimated?).sum(&:amount_minor_units), currency) %></dd></div>
-    </dl>
-    <p class="dd-page-description">What the supplier is owed. Deposits and balances are not costs; they go under When you pay. Confirming the arrangement records no cost. A commitment for unsold space is a committed cost line that names its shells; booking confirmation proposes the rest from the rate table.</p>
-
-    <section class="dd-stack" aria-labelledby="cost-lines-heading">
-      <div class="dd-section-header">
-        <h3 class="dd-section-title" id="cost-lines-heading">Cost lines</h3>
-        <% if editable %><%= link_to "Add cost line", new_departure_arrangement_cost_line_path(departure, arrangement), class: "dd-button dd-button--quiet" %><% end %>
-      </div>
-      <% if cost_lines.empty? %>
-        <p class="dd-empty-copy">No cost lines yet.</p>
-      <% else %>
-        <div class="dd-table-wrap">
-          <table class="dd-table dd-stacked-table">
-            <caption class="dd-visually-hidden">Cost lines</caption>
-            <thead><tr><th scope="col">Cost</th><th scope="col">Covers</th><th scope="col">Basis</th><th scope="col">Stage</th><th scope="col" class="num">Amount</th><% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
-            <tbody>
-              <% cost_lines.each do |line| %>
-                <tr>
-                  <th scope="row"><%= line.description %></th>
-                  <td><%= stacked_label("Covers") %><%= cost_line_covers(line) %></td>
-                  <td><%= stacked_label("Basis") %><%= cost_line_basis(line) %></td>
-                  <td><%= stacked_label("Stage") %><%= stage_badge(line) %></td>
-                  <td class="num"><%= stacked_label("Amount") %><%= money(line.amount_minor_units, currency) %></td>
-                  <% if editable %>
-                    <td class="dd-col-actions">
-                      <% if line.posted? %>
-                        <span class="dd-cell-subtext">Fixed: an amount has posted</span>
-                      <% else %>
-                        <%= link_to "Edit", edit_departure_arrangement_cost_line_path(departure, arrangement, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
-                        <% if arrangement.draft? %>
-                          <%= button_to "Remove", departure_arrangement_cost_line_path(departure, arrangement, line), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
-                                form_class: "dd-inline-form", aria: { label: "Remove #{line.description}" }, form: { data: { turbo_confirm: "Remove #{line.description}?" } } %>
-                        <% end %>
-                      <% end %>
-                    </td>
-                  <% end %>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      <% end %>
-    </section>
-
-  </div>
-</article>
-
 <article class="dd-panel" id="supplier-payments">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">When you pay</h2>

@@ -17,7 +17,7 @@
       <%= render "form", form:, arrangement: @arrangement, cost_line: @cost_line, values: @values %>
       <div class="dd-form-actions">
         <%= form.submit "Save", class: "dd-button" %>
-        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-cost"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_arrangement_costs_path(@departure, @arrangement, anchor: "supplier-cost"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

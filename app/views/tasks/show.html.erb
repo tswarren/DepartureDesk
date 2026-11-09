@@ -29,7 +29,7 @@
       <div><dt>Owner</dt><dd><%= @task.owner.display_name %></dd></div>
       <div><dt>Source</dt><dd><%= task_source_label(@task) %></dd></div>
       <% if deadline %>
-        <div><dt>Supplier deadline</dt><dd><%= link_to deadline.description, departure_arrangement_path(@task.departure, deadline.supplier_arrangement, anchor: "deadlines") %></dd></div>
+        <div><dt>Supplier deadline</dt><dd><%= link_to deadline.description, departure_arrangement_payments_path(@task.departure, deadline.supplier_arrangement, anchor: "deadlines") %></dd></div>
       <% end %>
       <% if @task.completion_note %><div><dt>Completion note</dt><dd><%= simple_format(@task.completion_note, {}, wrapper_tag: "span") %></dd></div><% end %>
       <% if @task.waiver_reason %><div><dt>Reason waived</dt><dd><%= @task.waiver_reason %></dd></div><% end %>
