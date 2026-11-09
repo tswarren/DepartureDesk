@@ -1,6 +1,6 @@
 # Slice 1 UX consolidation: audit
 
-**Status:** Decisions settled 2026-11-09; decisions 7 and 8 added the same day. It proposes **D-98**, below. Until D-98 is logged, it authorizes nothing.
+**Status:** Decisions settled 2026-11-09; decisions 7 and 8 added the same day. **D-98** logged 2026-11-08 with no changes; the batches below may start.
 
 Slice 1 has built steps 1 to 8. Each step added screens, and two walkthroughs fixed the worst friction one screen at a time. Before the reseller path (build step 9) reuses the booking screens, this pass makes the staff app consistent as a whole. It changes how screens are arranged and behave, never what the rules allow.
 
@@ -12,7 +12,7 @@ Four sources fed it:
 - the [UI acceptance](first-slice-charter.md#ui-acceptance) standards;
 - the [interface contract](../../ui/interface-contract.md).
 
-## D-98 as proposed
+## D-98 as logged
 
 > Amend the first-slice charter: between build steps 8 and 9, a UX consolidation pass revises the existing staff screens for consistency and ease of use, following the UX consolidation audit. It changes no rule, record, permission or case: each screen keeps the rules it cites, every demonstration case keeps passing, and the screen inventory is updated to match. Delivered as several pull requests, an exception to the one-per-step-or-case working rule; each passes the UI acceptance standards at desktop width and 375px. The reseller path (build step 9) starts when the last merges.
 
