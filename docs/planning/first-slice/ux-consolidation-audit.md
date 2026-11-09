@@ -1,6 +1,6 @@
 # Slice 1 UX consolidation: audit
 
-**Status:** Decisions settled 2026-11-09. It proposes **D-98**, below. Until D-98 is logged, it authorizes nothing.
+**Status:** Decisions settled 2026-11-09; decisions 7 and 8 added the same day. It proposes **D-98**, below. Until D-98 is logged, it authorizes nothing.
 
 Slice 1 has built steps 1 to 8. Each step added screens, and two walkthroughs fixed the worst friction one screen at a time. Before the reseller path (build step 9) reuses the booking screens, this pass makes the staff app consistent as a whole. It changes how screens are arranged and behave, never what the rules allow.
 
@@ -45,6 +45,7 @@ Each finding has an ID, cited in the screen findings below and in the batches.
 
   Each pair needs one primary path, with the other clearly secondary.
 - **A5. Breadcrumbs mix two hierarchies.** The trip page's trail starts at Clients; its booking's starts at Departures. The same trip is reached by two trails.
+- **A6. Neither a booking nor a trip can be seen whole.** The booking's steps each show one part of it, so checking a confirmed booking means opening five steps. The trip page lists its bookings and money, but not what each booking holds, who is traveling, or what is still awaited.
 
 ### B. Page anatomy
 
@@ -79,6 +80,7 @@ Each finding has an ID, cited in the screen findings below and in the batches.
 - **E1. Classes are reused for unrelated jobs.** `dd-rate-inline` lays out 14 different forms; `dd-payment-*` styles reservations and clients.
 - **E2. The design-system preview at `/dev/ui` is out of date.** It shows none of the patterns added in steps 3 to 8.
 - **E3. Stimulus controllers overlap.** `payment-summary`, `deadline-form` and `payment-allocation` each solve a small version of a shared need: summarize a form, or split an amount.
+- **E4. Nothing prints cleanly.** The stylesheet has no print rules, so a printed page carries the navigation, tabs, buttons and forms.
 
 ## Screen findings
 
@@ -101,8 +103,9 @@ Priority: **1** blocks ease of use, **2** is inconsistent, **3** is polish.
 | S-20 Package | A4, B3 | The price grid is the way to set prices; option pages edit the option | 2 |
 | S-21 Client terms | C2 | Sentence summaries as each schedule line and tier is filled in | 2 |
 | S-22 Client directory and profile | A5, B3 | Profile sections under one header pattern; trips and bookings listed with their Departure | 2 |
-| S-24 Client Trip | A4, A5 | The trip is the money and bookings page. Breadcrumbs follow the Departure when it has one | 2 |
+| S-24 Client Trip | A4, A5, A6 | The trip page becomes its summary: the responsible client and Departure, each booking in brief with its travelers listed under it (services, status, anything awaiting a supplier, balance), the money totals with the next amount due, and what's next. The full money panel stays on the page. Breadcrumbs follow the Departure when it has one | 1 |
 | S-25 Roster | A1, D4 | Client money moves to the Money tab; the roster stays bookings | 2 |
+| S-26 Booking summary | A6 | New: a read-only Summary ahead of the steps, with the whole booking: statuses, travelers and where each is placed, each service with its price, space and supplier status, acceptance, money and what's next. Each section links to the step that changes it. A confirmed booking opens on it; a draft opens on its next step | 1 |
 | S-26 Booking steps | B2 | Price and hold splits: price and installments, then hold. Once confirmed, money gets its own section: the booking's balances and each payment applied to it (decision 4) | 1 |
 | S-27 Record acceptance | C1 | Field errors on refusal | 2 |
 | S-28, S-29 Client money | C1, D1, E3 | Field errors; the shared record list; the shared splitter | 2 |
@@ -121,6 +124,8 @@ Priority: **1** blocks ease of use, **2** is inconsistent, **3** is polish.
 | 4 | **Where does money live for a booking?** | **The trip owns money.** The booking shows its own balances (charge, paid to the agency, paid to suppliers, still due) and the detail of each payment applied to it: reference, date, route, amount applied and receipt. |
 | 5 | **How far to go on the directories (M1 screens)?** They predate the slice and work. | **Header, list and label consistency only;** no redesign. |
 | 6 | **Mockups for which screens?** | **The Departure overview and tabs, the arrangement sub-pages, the booking steps after the split, and the Money tab.** The shared patterns are shown in those mockups, not on a sheet of their own. |
+| 7 | **Summary views for trips and bookings?** (A6) | **Yes, both.** A booking gets a read-only Summary ahead of its steps, where a confirmed booking opens. The trip page becomes the trip's summary. Both read existing records only. |
+| 8 | **Printable summaries?** (E4) | **Print-friendly pages, printed or saved as PDF from the browser.** A print stylesheet and a Print link on both summaries. Nothing is stored. A PDF the agency issues and keeps is an issued document under ADR 0019, which is build step 10's work. |
 
 ## Proposed batches
 
@@ -133,18 +138,19 @@ Each batch is one pull request, in order, and each passes `bin/ci` and the 375px
    - text-link row actions (D2);
    - label style (C4);
    - an updated `/dev/ui` (E2);
-   - the overlapping Stimulus controllers merged (E3).
+   - the overlapping Stimulus controllers merged (E3);
+   - print rules for every page (E4).
 
    No page layout changes.
 2. **Navigation:** the Departure tabs reordered with a Money tab (A1, decision 2) and breadcrumbs (A5).
 3. **The Departure overview** (A3) and the Departures list.
 4. **Arrangement sub-pages** (B1, decision 3), with the conditional fields and summaries on its forms (C2, C3).
-5. **The booking steps** (B2) and the trip page (A4, decision 4).
+5. **The booking steps** (B2), the booking Summary and the trip summary, each with a Print link (A4, A6, decisions 4, 7 and 8).
 6. **Package, client terms, inventory and the directories:** the remaining priority 2 and 3 items.
 
 ## Not in this pass
 
 - **No rule, record or permission changes.** A need found here goes to the backlog with its rule ID.
 - **The Dashboard's update** (A2), deferred to the backlog (decision 1).
-- **The reseller view** waits for build step 9. Batch 5's booking steps are built so the reseller variant can reuse them.
+- **The reseller view** waits for build step 9. Batch 5's booking steps and Summary are built so the reseller variant can reuse them.
 - **No new font, icon library or JavaScript framework** (AGENTS.md).
