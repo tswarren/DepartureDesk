@@ -93,6 +93,28 @@ class ClientMoneyControllerTest < ActionDispatch::IntegrationTest
     assert_nil booking.reload.current_acceptance, "adjusting the installments makes the acceptance stale (BKG-39)"
   end
 
+  test "a booking shows its money and opens the payment form, which returns to it" do
+    sign_in_as @admin
+    get client_booking_path(@rowan, step: "price")
+    assert_select "#booking-money dd", text: "$500.00"
+    form_path = new_client_trip_payment_path(@trip, booking_id: @rowan.id, step: "price")
+    assert_select "#booking-money a[href='#{form_path}']", text: "Record a payment"
+    get client_booking_path(@rowan, step: "confirm")
+    assert_select "#confirm #booking-money a", text: "Record a payment"
+
+    get form_path
+    assert_select "input[type=hidden][name=booking_id][value='#{@rowan.id}']"
+    post client_trip_payments_path(@trip), params: { booking_id: @rowan.id, step: "price", client_payment: {
+      payer_client_id: @trip.client_id, paid_on: "2027-02-03", amount: "100", route: "agency", payment_method: "cash"
+    } }
+    assert_redirected_to client_booking_path(@rowan, step: "price", anchor: "booking-money")
+
+    sign_in_as agency_users(:harbor_baseline_staff)
+    get client_booking_path(@rowan, step: "price")
+    assert_select "#booking-money dl"
+    assert_select "#booking-money a", text: "Record a payment", count: 0
+  end
+
   test "other agencies get not found" do
     sign_in_as agency_users(:cove_admin)
     get receipt_path(@trip.client_payments.sole.receipt)

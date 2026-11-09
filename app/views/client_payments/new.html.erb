@@ -24,6 +24,10 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with url: client_trip_payments_path(@trip), scope: :client_payment, class: "dd-form", data: { controller: "unsaved-changes payment-allocation" } do |form| %>
+      <% if @booking %>
+        <%= hidden_field_tag :booking_id, @booking.id, id: nil %>
+        <%= hidden_field_tag :step, params[:step], id: nil %>
+      <% end %>
       <div class="dd-form-grid dd-form-grid--two-column">
         <div class="dd-field-group">
           <%= form.label :payer_client_id, "Paid by", class: "dd-label" %>
@@ -84,7 +88,7 @@
       </fieldset>
       <div class="dd-form-actions">
         <%= form.submit "Record payment", class: "dd-button", name: nil %>
-        <%= link_to "Cancel", client_trip_path(@trip, anchor: "money"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", @booking ? client_booking_path(@booking, step: params[:step].presence || "price", anchor: "booking-money") : client_trip_path(@trip, anchor: "money"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

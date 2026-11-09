@@ -1,0 +1,24 @@
+<%# One booking's client money at a glance, with the way to record a payment (CMN-24, CMN-28). The trip's money panel is the full record. %>
+<%# locals: (booking:, step:) -%>
+<% currency = booking.currency %>
+<% trip = booking.client_trip %>
+<% charge = booking.client_charge %>
+<% record = Current.agency_user.permitted?(:manage_client_money) && trip.departure %>
+<div class="dd-stack" id="booking-money">
+  <% if charge %>
+    <dl class="dd-definition-list">
+      <div><dt>Charge</dt><dd class="dd-type-mono"><%= booking_money(charge.total_minor_units, currency) %></dd></div>
+      <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(charge.paid_minor_units("agency"), currency) %></dd></div>
+      <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= booking_money(charge.paid_minor_units("supplier"), currency) %></dd></div>
+      <div><dt>Still due</dt><dd class="dd-type-mono"><%= booking_money(charge.remainder_minor_units, currency) %></dd></div>
+    </dl>
+  <% else %>
+    <p class="dd-field-hint">A payment received before confirmation is held as credit on the trip, and applied to the deposit once the booking is confirmed (CMN-24).</p>
+  <% end %>
+  <p class="dd-inline-actions">
+    <% if record %>
+      <%= link_to "Record a payment", new_client_trip_payment_path(trip, booking_id: booking.id, step:), class: "dd-button dd-button--secondary" %>
+    <% end %>
+    <%= link_to "All payments and receipts on trip #{trip.trip_reference}", client_trip_path(trip, anchor: "money") %>
+  </p>
+</div>

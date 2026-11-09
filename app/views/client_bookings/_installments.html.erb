@@ -5,16 +5,19 @@
   <header class="dd-panel-header"><h2 class="dd-panel-title">When the client pays</h2></header>
   <div class="dd-panel-body dd-stack">
     <% if booking.client_charge %>
-      <p class="dd-page-description">Set at confirmation from the accepted schedule; never changed. Payments are recorded on <%= link_to "trip #{booking.client_trip.trip_reference}", client_trip_path(booking.client_trip, anchor: "money") %>.</p>
+      <p class="dd-page-description">Set at confirmation from the accepted schedule; never changed.</p>
+      <%= render "client_bookings/money_summary", booking:, step: "price" %>
       <% if booking.client_charge.installments.any? %>
         <%= render "client_bookings/installments_table", installments: booking.client_charge.installments, currency: %>
       <% else %>
         <p class="dd-empty-copy">No installments yet. Bookings confirmed before installments existed get theirs from <code>bin/rails bookings:create_missing_installments</code>.</p>
       <% end %>
     <% elsif booking.installment_proposals.empty? %>
+      <%= render "client_bookings/money_summary", booking:, step: "price" if Current.agency_user.permitted?(:manage_client_money) %>
       <p class="dd-empty-copy">Proposed from the client terms' payment schedule once the booking has a price.</p>
     <% else %>
       <p class="dd-page-description">Proposed from the client terms' payment schedule. The client's acceptance covers them, so changing them after acceptance means recording it again. At confirmation, any due by then become one installment due that day.</p>
+      <%= render "client_bookings/money_summary", booking:, step: "price" if Current.agency_user.permitted?(:manage_client_money) %>
       <% if manage %>
         <%= form_with url: client_booking_installment_proposals_path(booking), method: :patch, class: "dd-form", id: "adjust-installments", data: { controller: "unsaved-changes" } do |form| %>
           <div class="dd-table-wrap">
