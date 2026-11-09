@@ -286,9 +286,40 @@ module BookingCommandSupport
     ProposeBookingSupplierCost.new(group: selection.inventory_group, guests:).call
   end
 
-  # Re-proposes prices and re-holds after a change to travelers or selections.
+  # Re-proposes prices, installments and holds after a change to travelers or selections.
   def after_contents_change!(booking)
     refresh_price_lines!(booking)
+    refresh_installment_proposals!(booking)
     sync_holds!(booking)
+  end
+
+  # Step 8 plan, question 1: a draft's installments are proposed afresh only
+  # when what they depend on changes, so a staff adjustment survives edits
+  # that leave the price, the units and the terms alone.
+  def refresh_installment_proposals!(booking)
+    return unless booking.status_draft?
+
+    total = booking.price_lines.reload.sum(&:amount_minor_units)
+    schedule = InstallmentSchedule.new(booking:, terms_version: booking.client_terms_version, total_minor_units: total)
+    basis = booking.price_lines.empty? ? nil : schedule.basis
+    return if booking.installment_basis == basis && (basis.nil? || booking.installment_proposals.reload.any?)
+
+    InstallmentProposal.where(client_booking_id: booking.id).delete_all
+    schedule.rows.each { |row| booking.installment_proposals.create!(agency: @agency, **row.to_h) } if basis
+    booking.installment_proposals.reset
+    booking.update_columns(installment_basis: basis)
+  end
+
+  # CMN-08, CMN-12: a charge's installments from proposals, dated from the
+  # confirmation date; any due on or before it become one, due that day.
+  def create_installments!(charge, rows, confirmed_on, now)
+    early, later = rows.partition { |row| row.due_kind == "at_confirmation" || row.due_on <= confirmed_on }
+    planned = []
+    planned << [ early.map(&:description).join(", "), early.sum(&:amount_minor_units), confirmed_on ] if early.any?
+    later.sort_by(&:due_on).each { |row| planned << [ row.description, row.amount_minor_units, row.due_on ] }
+    planned.each_with_index.map do |(description, amount, due_on), index|
+      charge.installments.create!(agency: @agency, position: index + 1, description: description.truncate(300), amount_minor_units: amount,
+        currency: charge.currency, due_on:, route: "agency", created_at: now)
+    end
   end
 end

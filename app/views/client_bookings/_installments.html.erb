@@ -1,0 +1,63 @@
+<%# The booking's installments (CMN-08, CMN-09, CMN-12): proposed and adjustable on a draft, fixed once confirmed. %>
+<%# locals: (booking:, manage:) -%>
+<% currency = booking.currency %>
+<article class="dd-panel" id="installments">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">When the client pays</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <% if booking.client_charge %>
+      <p class="dd-page-description">Set at confirmation from the accepted schedule; never changed.</p>
+      <%= render "client_bookings/money_summary", booking:, step: "price" %>
+      <% if booking.client_charge.installments.any? %>
+        <%= render "client_bookings/installments_table", installments: booking.client_charge.installments, currency: %>
+      <% else %>
+        <p class="dd-empty-copy">No installments yet. Bookings confirmed before installments existed get theirs from <code>bin/rails bookings:create_missing_installments</code>.</p>
+      <% end %>
+    <% elsif booking.installment_proposals.empty? %>
+      <%= render "client_bookings/money_summary", booking:, step: "price" if Current.agency_user.permitted?(:manage_client_money) %>
+      <p class="dd-empty-copy">Proposed from the client terms' payment schedule once the booking has a price.</p>
+    <% else %>
+      <p class="dd-page-description">Proposed from the client terms' payment schedule. The client's acceptance covers them, so changing them after acceptance means recording it again. At confirmation, any due by then become one installment due that day.</p>
+      <%= render "client_bookings/money_summary", booking:, step: "price" if Current.agency_user.permitted?(:manage_client_money) %>
+      <% if manage %>
+        <%= form_with url: client_booking_installment_proposals_path(booking), method: :patch, class: "dd-form", id: "adjust-installments", data: { controller: "unsaved-changes" } do |form| %>
+          <div class="dd-table-wrap">
+            <table class="dd-table dd-stacked-table">
+              <caption class="dd-visually-hidden">Proposed installments</caption>
+              <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col">Amount (<%= currency %>)</th></tr></thead>
+              <tbody>
+                <% booking.installment_proposals.each do |proposal| %>
+                  <tr>
+                    <th scope="row"><%= proposal.description %><% if proposal.adjusted %><span class="dd-cell-subtext">Adjusted</span><% end %></th>
+                    <td data-controller="conditional-fields">
+                      <span class="dd-cabin-field-label dd-visually-hidden">Due </span>
+                      <%= label_tag "due_#{proposal.id}", "#{proposal.description}: due", class: "dd-visually-hidden" %>
+                      <%= select_tag "proposals[#{proposal.id}][due]", options_for_select([ [ "On confirmation", "at_confirmation" ], [ "On a date", "on_date" ] ], proposal.due_kind),
+                            id: "due_#{proposal.id}", class: "dd-field", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+                      <span data-conditional-fields-target="option" data-show-for="on_date">
+                        <%= label_tag "due_on_#{proposal.id}", "#{proposal.description}: due date", class: "dd-visually-hidden" %>
+                        <%= date_field_tag "proposals[#{proposal.id}][due_on]", proposal.due_on&.iso8601, id: "due_on_#{proposal.id}", class: "dd-field" %>
+                      </span>
+                    </td>
+                    <td>
+                      <%= label_tag "amount_#{proposal.id}", "#{proposal.description}: amount", class: "dd-visually-hidden" %>
+                      <%= text_field_tag "proposals[#{proposal.id}][amount]", MoneyInput.display(proposal.amount_minor_units, currency).delete(","), id: "amount_#{proposal.id}",
+                            inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+              <tfoot><tr><th scope="row" colspan="2">They must total</th><td class="num"><%= booking_money(booking.total_minor_units, currency) %></td></tr></tfoot>
+            </table>
+          </div>
+          <%= form.submit "Save installments", class: "dd-button dd-button--secondary", name: nil %>
+        <% end %>
+      <% else %>
+        <ul class="dd-plain-list">
+          <% booking.installment_proposals.each do |proposal| %>
+            <li><%= proposal.description %>: <%= booking_money(proposal.amount_minor_units, currency) %>, <%= proposal.at_confirmation? ? "due on confirmation" : "due #{proposal.due_on.to_fs(:long)}" %></li>
+          <% end %>
+        </ul>
+      <% end %>
+    <% end %>
+  </div>
+</article>

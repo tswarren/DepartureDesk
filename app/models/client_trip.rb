@@ -11,6 +11,7 @@ class ClientTrip < ApplicationRecord
   belongs_to :client
   belongs_to :departure, optional: true
   has_many :client_bookings, -> { order(:sequence) }, inverse_of: :client_trip, dependent: :restrict_with_exception
+  has_many :client_payments, -> { order(:paid_on, :recorded_at) }, inverse_of: :client_trip, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :trip_reference
 

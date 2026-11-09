@@ -1,0 +1,19 @@
+<%# A charge's installments with what is paid and open (CMN-08, CMN-28). %>
+<%# locals: (installments:, currency:) -%>
+<div class="dd-table-wrap">
+  <table class="dd-table dd-stacked-table">
+    <caption class="dd-visually-hidden">Installments</caption>
+    <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col" class="num">Paid</th><th scope="col" class="num">Open</th></tr></thead>
+    <tbody>
+      <% installments.each do |installment| %>
+        <tr>
+          <th scope="row"><%= installment.description %></th>
+          <td><span class="dd-cabin-field-label dd-visually-hidden">Due </span><%= installment.due_on.to_fs(:long) %></td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Amount </span><%= booking_money(installment.amount_minor_units, currency) %></td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Paid </span><%= booking_money(installment.paid_minor_units, currency) %></td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Open </span><%= installment.paid? ? status_badge("Paid", modifier: "success") : booking_money(installment.open_minor_units, currency) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

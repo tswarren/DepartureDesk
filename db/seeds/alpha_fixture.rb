@@ -20,7 +20,7 @@
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
 module AlphaFixture
   Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips, :bookings)
-  BOOKING_LEVELS = %i[none trips held confirmed].freeze
+  BOOKING_LEVELS = %i[none trips held confirmed paid].freeze
 
   DEPARTURE_NAME = "Alpha Omega"
   DEPARTURE_DESCRIPTION = "Port Everglades round trip."
@@ -132,7 +132,8 @@ module AlphaFixture
     offering = package!(agency, actor, departure, arrangements)
     client_terms = client_terms!(agency, actor, departure)
     trips = bookings == :none ? {} : roster!(agency, actor, departure)
-    roster_bookings = bookings.in?(%i[held confirmed]) ? roster_bookings!(agency, actor, trips, confirm: bookings == :confirmed) : {}
+    roster_bookings = bookings.in?(%i[held confirmed paid]) ? roster_bookings!(agency, actor, trips, confirm: bookings.in?(%i[confirmed paid])) : {}
+    roster_payments!(agency, actor, roster_bookings, arrangements) if bookings == :paid
     Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings)
   end
 
@@ -493,6 +494,33 @@ module AlphaFixture
     "BK-104" => { on: Time.utc(2027, 1, 19, 15), method: "phone", note: "Sofia Bennett accepted the price and terms by phone." },
     "BK-105" => { on: Time.utc(2027, 2, 2, 15), method: "in_person", note: "Mateo Rivera accepted the price and terms in person." }
   }.freeze
+
+  # D-96 (3): D9's payments, each recorded on its date and applied to the
+  # booking's deposit. BK-105's goes straight to Alpha Cruises.
+  ROSTER_PAYMENTS = {
+    "BK-101" => { on: Time.utc(2027, 1, 12, 16), route: "agency", payment_method: "check", reference: "Check 1047" },
+    "BK-104" => { on: Time.utc(2027, 1, 19, 16), route: "agency", payment_method: "bank_transfer", reference: "Transfer 0119" },
+    "BK-105" => { on: Time.utc(2027, 2, 2, 16), route: "supplier", payment_method: "card", supplier_reference: "8812457" }
+  }.freeze
+  ROSTER_PAYMENT_AMOUNT = "500"
+
+  def self.roster_payments!(agency, actor, bookings, arrangements)
+    ROSTER_PAYMENTS.each do |label, plan|
+      booking = bookings.fetch(label)
+      trip = booking.client_trip
+      next if trip.client_payments.exists?
+
+      Clock.use(Clock.fixed(plan.fetch(:on))) do
+        deposit = booking.client_charge.installments.first
+        created!(RecordClientPayment.new(agency:, actor:, trip:, applications: [ { installment_id: deposit.id, amount: ROSTER_PAYMENT_AMOUNT } ], attributes: {
+          payer_client_id: trip.client_id, paid_on: plan.fetch(:on).to_date.iso8601, amount: ROSTER_PAYMENT_AMOUNT, route: plan.fetch(:route),
+          supplier_id: (arrangements.fetch(:cruise).supplier_id if plan.fetch(:route) == "supplier"), payment_method: plan.fetch(:payment_method),
+          reference: plan[:reference], supplier_reference: plan[:supplier_reference]
+        }).call, "the #{label} payment")
+      end
+    end
+  end
+  private_class_method :roster_payments!
 
   # A booking on each roster trip, with its travelers, choices and a hold
   # placed at the current clock; with confirm:, each is held, accepted and

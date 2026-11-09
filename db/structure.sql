@@ -250,6 +250,19 @@ $$;
 
 
 --
+-- Name: reject_client_money_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_client_money_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION '% rows are append-only', TG_TABLE_NAME;
+END;
+$$;
+
+
+--
 -- Name: reject_client_organization_contact_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -828,7 +841,7 @@ CREATE TABLE public.agency_document_inclusions (
     include_footer boolean NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agency_document_inclusions_family_valid CHECK (((document_family)::text = ANY ((ARRAY['confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying, 'statement'::character varying])::text[])))
+    CONSTRAINT agency_document_inclusions_family_valid CHECK (((document_family)::text = ANY (ARRAY[('confirmation'::character varying)::text, ('invoice'::character varying)::text, ('receipt'::character varying)::text, ('statement'::character varying)::text])))
 );
 
 
@@ -869,7 +882,7 @@ CREATE TABLE public.agency_users (
     CONSTRAINT agency_users_reseller_iff_reseller_type CHECK ((((user_type)::text = 'reseller'::text) = (reseller_id IS NOT NULL))),
     CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY (ARRAY[('suspended'::character varying)::text, ('closed'::character varying)::text])) AND (invitation_token_digest IS NULL)))),
     CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
-    CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY ((ARRAY['agency_admin'::character varying, 'staff'::character varying, 'reseller'::character varying])::text[])))
+    CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY (ARRAY[('agency_admin'::character varying)::text, ('staff'::character varying)::text, ('reseller'::character varying)::text])))
 );
 
 
@@ -930,7 +943,7 @@ CREATE TABLE public.arrangement_documents (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT arrangement_documents_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200)))),
-    CONSTRAINT arrangement_documents_kind CHECK (((kind)::text = ANY ((ARRAY['quote'::character varying, 'agreement'::character varying, 'confirmation'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT arrangement_documents_kind CHECK (((kind)::text = ANY (ARRAY[('quote'::character varying)::text, ('agreement'::character varying)::text, ('confirmation'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT arrangement_documents_sha256 CHECK (((sha256)::text ~ '^[0-9a-f]{64}$'::text))
 );
 
@@ -981,14 +994,15 @@ CREATE TABLE public.booking_acceptances (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    client_payment_id uuid,
     CONSTRAINT booking_acceptances_accepted_by CHECK (((btrim((accepted_by)::text) <> ''::text) AND (char_length((accepted_by)::text) <= 160))),
-    CONSTRAINT booking_acceptances_evidence CHECK (COALESCE(((((acceptance_method)::text = ANY ((ARRAY['email'::character varying, 'signed'::character varying])::text[])) AND ((evidence_sha256 IS NOT NULL) OR (evidence_reference IS NOT NULL))) OR (((acceptance_method)::text = ANY ((ARRAY['phone'::character varying, 'in_person'::character varying])::text[])) AND (note IS NOT NULL)) OR ((acceptance_method)::text = 'designated_payment'::text)), false)),
+    CONSTRAINT booking_acceptances_evidence CHECK (COALESCE(((((acceptance_method)::text = ANY (ARRAY[('email'::character varying)::text, ('signed'::character varying)::text])) AND ((evidence_sha256 IS NOT NULL) OR (evidence_reference IS NOT NULL))) OR (((acceptance_method)::text = ANY (ARRAY[('phone'::character varying)::text, ('in_person'::character varying)::text])) AND (note IS NOT NULL)) OR ((acceptance_method)::text = 'designated_payment'::text)), false)),
     CONSTRAINT booking_acceptances_evidence_reference CHECK (((evidence_reference IS NULL) OR ((btrim((evidence_reference)::text) <> ''::text) AND (char_length((evidence_reference)::text) <= 300)))),
     CONSTRAINT booking_acceptances_evidence_sha256 CHECK (((evidence_sha256 IS NULL) OR ((evidence_sha256)::text ~ '^[0-9a-f]{64}$'::text))),
     CONSTRAINT booking_acceptances_fingerprint CHECK (((lines_fingerprint)::text ~ '^[0-9a-f]{64}$'::text)),
-    CONSTRAINT booking_acceptances_method CHECK (((acceptance_method)::text = ANY ((ARRAY['email'::character varying, 'signed'::character varying, 'phone'::character varying, 'in_person'::character varying, 'designated_payment'::character varying])::text[]))),
+    CONSTRAINT booking_acceptances_method CHECK (((acceptance_method)::text = ANY (ARRAY[('email'::character varying)::text, ('signed'::character varying)::text, ('phone'::character varying)::text, ('in_person'::character varying)::text, ('designated_payment'::character varying)::text]))),
     CONSTRAINT booking_acceptances_note CHECK (((note IS NULL) OR ((btrim(note) <> ''::text) AND (char_length(note) <= 2000)))),
-    CONSTRAINT booking_acceptances_payment CHECK (COALESCE(((((acceptance_method)::text = 'designated_payment'::text) AND (payment_on IS NOT NULL) AND (payment_amount_minor_units > 0) AND (payment_reference IS NOT NULL) AND (btrim((payment_reference)::text) <> ''::text) AND (char_length((payment_reference)::text) <= 120)) OR (((acceptance_method)::text <> 'designated_payment'::text) AND (payment_on IS NULL) AND (payment_amount_minor_units IS NULL) AND (payment_reference IS NULL))), false)),
+    CONSTRAINT booking_acceptances_payment CHECK ((COALESCE(((((acceptance_method)::text = 'designated_payment'::text) AND (client_payment_id IS NOT NULL)) OR (((acceptance_method)::text <> 'designated_payment'::text) AND (client_payment_id IS NULL))), false) AND (payment_on IS NULL) AND (payment_amount_minor_units IS NULL) AND (payment_reference IS NULL))),
     CONSTRAINT booking_acceptances_total CHECK (((accepted_total_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text)))
 );
 
@@ -1012,7 +1026,7 @@ CREATE TABLE public.booking_price_lines (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT booking_price_lines_amount CHECK ((amount_minor_units >= 0)),
     CONSTRAINT booking_price_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
-    CONSTRAINT booking_price_lines_occupancy_position CHECK (((occupancy_position)::text = ANY ((ARRAY['any'::character varying, 'single'::character varying, 'guest_1'::character varying, 'guest_2'::character varying, 'guest_3'::character varying, 'guest_4'::character varying, 'guest_5'::character varying, 'guest_6'::character varying, 'guest_7'::character varying, 'guest_8'::character varying, 'guest_9'::character varying])::text[])))
+    CONSTRAINT booking_price_lines_occupancy_position CHECK (((occupancy_position)::text = ANY (ARRAY[('any'::character varying)::text, ('single'::character varying)::text, ('guest_1'::character varying)::text, ('guest_2'::character varying)::text, ('guest_3'::character varying)::text, ('guest_4'::character varying)::text, ('guest_5'::character varying)::text, ('guest_6'::character varying)::text, ('guest_7'::character varying)::text, ('guest_8'::character varying)::text, ('guest_9'::character varying)::text])))
 );
 
 
@@ -1063,13 +1077,13 @@ CREATE TABLE public.capacity_events (
     actor_id uuid NOT NULL,
     idempotency_key character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT capacity_events_correction_pair CHECK ((((event_type)::text = ANY ((ARRAY['corrected_up'::character varying, 'corrected_down'::character varying])::text[])) = (corrects_event_id IS NOT NULL))),
+    CONSTRAINT capacity_events_correction_pair CHECK ((((event_type)::text = ANY (ARRAY[('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])) = (corrects_event_id IS NOT NULL))),
     CONSTRAINT capacity_events_effective_time_zone CHECK ((btrim((effective_time_zone)::text) <> ''::text)),
     CONSTRAINT capacity_events_evidence CHECK ((((event_type)::text = 'established'::text) OR ((evidence_note IS NOT NULL) AND (btrim(evidence_note) <> ''::text) AND (char_length(evidence_note) <= 500)))),
     CONSTRAINT capacity_events_quantity_positive CHECK ((quantity > 0)),
     CONSTRAINT capacity_events_sequence_positive CHECK ((effective_sequence > 0)),
     CONSTRAINT capacity_events_shell_quantity CHECK (((unit_shell_id IS NULL) OR (quantity = 1))),
-    CONSTRAINT capacity_events_type CHECK (((event_type)::text = ANY ((ARRAY['established'::character varying, 'increased'::character varying, 'released'::character varying, 'reinstated'::character varying, 'withdrawn'::character varying, 'corrected_up'::character varying, 'corrected_down'::character varying])::text[])))
+    CONSTRAINT capacity_events_type CHECK (((event_type)::text = ANY (ARRAY[('established'::character varying)::text, ('increased'::character varying)::text, ('released'::character varying)::text, ('reinstated'::character varying)::text, ('withdrawn'::character varying)::text, ('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])))
 );
 
 
@@ -1084,7 +1098,7 @@ CREATE TABLE public.capacity_pools (
     availability_promise character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT capacity_pools_availability_promise CHECK (((availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[])))
+    CONSTRAINT capacity_pools_availability_promise CHECK (((availability_promise)::text = ANY (ARRAY[('firm_block'::character varying)::text, ('releasable_block'::character varying)::text, ('courtesy_option'::character varying)::text, ('on_request'::character varying)::text, ('rate_only'::character varying)::text])))
 );
 
 
@@ -1146,10 +1160,10 @@ CREATE TABLE public.charge_lines (
     creditor character varying DEFAULT 'agency'::character varying NOT NULL,
     expected_route character varying DEFAULT 'agency'::character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT charge_lines_creditor_and_route CHECK ((((creditor)::text = ANY ((ARRAY['agency'::character varying, 'supplier'::character varying])::text[])) AND ((expected_route)::text = ANY ((ARRAY['agency'::character varying, 'supplier'::character varying])::text[])))),
+    CONSTRAINT charge_lines_creditor_and_route CHECK ((((creditor)::text = ANY (ARRAY[('agency'::character varying)::text, ('supplier'::character varying)::text])) AND ((expected_route)::text = ANY (ARRAY[('agency'::character varying)::text, ('supplier'::character varying)::text])))),
     CONSTRAINT charge_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT charge_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 300))),
-    CONSTRAINT charge_lines_type CHECK (((line_type)::text = ANY ((ARRAY['traveler_price'::character varying, 'add_on'::character varying])::text[])))
+    CONSTRAINT charge_lines_type CHECK (((line_type)::text = ANY (ARRAY[('traveler_price'::character varying)::text, ('add_on'::character varying)::text])))
 );
 
 
@@ -1191,12 +1205,13 @@ CREATE TABLE public.client_bookings (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT client_bookings_confirmed_at CHECK ((((status)::text = ANY ((ARRAY['confirmed'::character varying, 'cancelled'::character varying])::text[])) = (confirmed_at IS NOT NULL))),
+    installment_basis character varying,
+    CONSTRAINT client_bookings_confirmed_at CHECK ((((status)::text = ANY (ARRAY[('confirmed'::character varying)::text, ('cancelled'::character varying)::text])) = (confirmed_at IS NOT NULL))),
     CONSTRAINT client_bookings_counters CHECK (((sequence >= 1) AND (lock_version >= 0))),
     CONSTRAINT client_bookings_discarded_at CHECK ((((status)::text = 'discarded'::text) = (discarded_at IS NOT NULL))),
     CONSTRAINT client_bookings_owner_kind CHECK (((owner_kind)::text = 'agency'::text)),
     CONSTRAINT client_bookings_reference_format CHECK (((booking_reference)::text ~ '^T-[0-9]{5,}-[0-9]+$'::text)),
-    CONSTRAINT client_bookings_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'confirmed'::character varying, 'discarded'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT client_bookings_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('confirmed'::character varying)::text, ('discarded'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
@@ -1392,6 +1407,38 @@ CREATE TABLE public.client_organizations (
 
 
 --
+-- Name: client_payment_applications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_payment_applications (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_payment_id uuid NOT NULL,
+    installment_id uuid NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_payment_applications_amount CHECK ((amount_minor_units <> 0))
+);
+
+
+--
+-- Name: client_payment_reversals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_payment_reversals (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_payment_id uuid NOT NULL,
+    reason character varying NOT NULL,
+    reversed_on date NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_payment_reversals_reason CHECK (((btrim((reason)::text) <> ''::text) AND (char_length((reason)::text) <= 500)))
+);
+
+
+--
 -- Name: client_payment_schedule_lines; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1418,6 +1465,35 @@ CREATE TABLE public.client_payment_schedule_lines (
     CONSTRAINT client_payment_schedule_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT client_payment_schedule_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 120))),
     CONSTRAINT client_payment_schedule_lines_due_rule CHECK (COALESCE(((((due_rule)::text = 'at_confirmation'::text) AND (days_before_departure IS NULL) AND (due_on IS NULL)) OR (((due_rule)::text = 'days_before_departure'::text) AND (days_before_departure >= 0) AND (due_on IS NULL)) OR (((due_rule)::text = 'fixed_date'::text) AND (days_before_departure IS NULL) AND (due_on IS NOT NULL))), false))
+);
+
+
+--
+-- Name: client_payments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_payments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_trip_id uuid NOT NULL,
+    payment_reference character varying NOT NULL,
+    payer_client_id uuid NOT NULL,
+    paid_on date NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    route character varying NOT NULL,
+    supplier_id uuid,
+    payment_method character varying NOT NULL,
+    reference character varying,
+    supplier_reference character varying,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_payments_amount CHECK (((amount_minor_units > 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT client_payments_method CHECK (((payment_method)::text = ANY ((ARRAY['check'::character varying, 'bank_transfer'::character varying, 'card'::character varying, 'cash'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT client_payments_reference CHECK (((reference IS NULL) OR ((btrim((reference)::text) <> ''::text) AND (char_length((reference)::text) <= 120)))),
+    CONSTRAINT client_payments_reference_format CHECK (((payment_reference)::text ~ '^PAY-[0-9]{5,}$'::text)),
+    CONSTRAINT client_payments_route CHECK (COALESCE(((((route)::text = 'agency'::text) AND (supplier_id IS NULL)) OR (((route)::text = 'supplier'::text) AND (supplier_id IS NOT NULL))), false)),
+    CONSTRAINT client_payments_supplier_reference CHECK (((supplier_reference IS NULL) OR ((btrim((supplier_reference)::text) <> ''::text) AND (char_length((supplier_reference)::text) <= 120))))
 );
 
 
@@ -1633,8 +1709,8 @@ CREATE TABLE public.cost_lines (
     CONSTRAINT cost_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
     CONSTRAINT cost_lines_group_scope CHECK ((((scope)::text = 'inventory_group'::text) = (inventory_group_id IS NOT NULL))),
     CONSTRAINT cost_lines_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT cost_lines_scope CHECK (((scope)::text = ANY ((ARRAY['arrangement'::character varying, 'inventory_group'::character varying, 'unit_shells'::character varying, 'client_booking'::character varying])::text[]))),
-    CONSTRAINT cost_lines_stage CHECK (((stage)::text = ANY ((ARRAY['estimated'::character varying, 'committed'::character varying])::text[])))
+    CONSTRAINT cost_lines_scope CHECK (((scope)::text = ANY (ARRAY[('arrangement'::character varying)::text, ('inventory_group'::character varying)::text, ('unit_shells'::character varying)::text, ('client_booking'::character varying)::text]))),
+    CONSTRAINT cost_lines_stage CHECK (((stage)::text = ANY (ARRAY[('estimated'::character varying)::text, ('committed'::character varying)::text])))
 );
 
 
@@ -1651,7 +1727,7 @@ CREATE TABLE public.departure_decisions (
     decided_by_id uuid NOT NULL,
     decided_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT departure_decisions_decision CHECK (((decision)::text = ANY ((ARRAY['proceed'::character varying, 'postpone'::character varying, 'cancel'::character varying])::text[]))),
+    CONSTRAINT departure_decisions_decision CHECK (((decision)::text = ANY (ARRAY[('proceed'::character varying)::text, ('postpone'::character varying)::text, ('cancel'::character varying)::text]))),
     CONSTRAINT departure_decisions_note CHECK (((note IS NULL) OR ((btrim(note) <> ''::text) AND (char_length(note) <= 2000)))),
     CONSTRAINT departure_decisions_note_required CHECK ((((decision)::text = 'proceed'::text) OR (note IS NOT NULL)))
 );
@@ -1696,7 +1772,7 @@ CREATE TABLE public.departures (
     completion_status character varying DEFAULT 'active'::character varying NOT NULL,
     hold_duration_days integer,
     installment_buffer_days integer,
-    CONSTRAINT departures_completion_status CHECK (((completion_status)::text = ANY ((ARRAY['active'::character varying, 'departed'::character varying, 'cancelled'::character varying, 'superseded'::character varying])::text[]))),
+    CONSTRAINT departures_completion_status CHECK (((completion_status)::text = ANY (ARRAY[('active'::character varying)::text, ('departed'::character varying)::text, ('cancelled'::character varying)::text, ('superseded'::character varying)::text]))),
     CONSTRAINT departures_date_order CHECK (((starts_on IS NULL) OR (starts_on <= ends_on))),
     CONSTRAINT departures_dates_paired CHECK (((starts_on IS NULL) = (ends_on IS NULL))),
     CONSTRAINT departures_departed_at_pair CHECK ((((completion_status)::text = 'departed'::text) = (departed_at IS NOT NULL))),
@@ -1706,10 +1782,10 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT departures_name CHECK (((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
-    CONSTRAINT departures_operating_decision CHECK (((operating_decision)::text = ANY ((ARRAY['undecided'::character varying, 'proceed'::character varying, 'postpone'::character varying, 'cancel'::character varying])::text[]))),
+    CONSTRAINT departures_operating_decision CHECK (((operating_decision)::text = ANY (ARRAY[('undecided'::character varying)::text, ('proceed'::character varying)::text, ('postpone'::character varying)::text, ('cancel'::character varying)::text]))),
     CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
-    CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY ((ARRAY['draft'::character varying, 'ready_to_sell'::character varying])::text[])))
+    CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY (ARRAY[('draft'::character varying)::text, ('ready_to_sell'::character varying)::text])))
 );
 
 
@@ -1739,6 +1815,52 @@ CREATE TABLE public.expected_commissions (
 
 
 --
+-- Name: installment_proposals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.installment_proposals (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    "position" integer NOT NULL,
+    description character varying NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    due_kind character varying NOT NULL,
+    due_on date,
+    adjusted boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT installment_proposals_amount CHECK (((amount_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT installment_proposals_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 120))),
+    CONSTRAINT installment_proposals_due CHECK (COALESCE(((((due_kind)::text = 'at_confirmation'::text) AND (due_on IS NULL)) OR (((due_kind)::text = 'on_date'::text) AND (due_on IS NOT NULL))), false)),
+    CONSTRAINT installment_proposals_position CHECK (("position" >= 1))
+);
+
+
+--
+-- Name: installments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.installments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_charge_id uuid NOT NULL,
+    "position" integer NOT NULL,
+    description character varying NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    due_on date NOT NULL,
+    route character varying DEFAULT 'agency'::character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT installments_amount CHECK (((amount_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT installments_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 300))),
+    CONSTRAINT installments_position CHECK (("position" >= 1)),
+    CONSTRAINT installments_route CHECK (((route)::text = ANY ((ARRAY['agency'::character varying, 'supplier'::character varying])::text[])))
+);
+
+
+--
 -- Name: inventory_allocations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1762,7 +1884,7 @@ CREATE TABLE public.inventory_allocations (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT inventory_allocations_quantity CHECK ((quantity >= 1)),
     CONSTRAINT inventory_allocations_replaces_other CHECK (((replaces_allocation_id IS NULL) OR (replaces_allocation_id <> id))),
-    CONSTRAINT inventory_allocations_state CHECK (((state)::text = ANY ((ARRAY['held'::character varying, 'reserved'::character varying, 'released'::character varying])::text[]))),
+    CONSTRAINT inventory_allocations_state CHECK (((state)::text = ANY (ARRAY[('held'::character varying)::text, ('reserved'::character varying)::text, ('released'::character varying)::text]))),
     CONSTRAINT inventory_allocations_state_timestamps CHECK (((((state)::text <> 'held'::text) OR ((hold_expires_at IS NOT NULL) AND (reserved_at IS NULL) AND (released_at IS NULL))) AND (((state)::text <> 'reserved'::text) OR ((reserved_at IS NOT NULL) AND (released_at IS NULL))) AND (((state)::text <> 'released'::text) OR (released_at IS NOT NULL))))
 );
 
@@ -1791,16 +1913,16 @@ CREATE TABLE public.inventory_groups (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     required_adults_per_unit integer,
-    CONSTRAINT inventory_groups_availability_promise CHECK (((availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_availability_promise CHECK (((availability_promise)::text = ANY (ARRAY[('firm_block'::character varying)::text, ('releasable_block'::character varying)::text, ('courtesy_option'::character varying)::text, ('on_request'::character varying)::text, ('rate_only'::character varying)::text]))),
     CONSTRAINT inventory_groups_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
     CONSTRAINT inventory_groups_dates CHECK ((((starts_on IS NULL) = (ends_on IS NULL)) AND ((starts_on IS NULL) OR (starts_on <= ends_on)))),
     CONSTRAINT inventory_groups_end_time_needs_date CHECK (((ends_at_time IS NULL) OR (ends_on IS NOT NULL))),
     CONSTRAINT inventory_groups_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 120))),
     CONSTRAINT inventory_groups_positions CHECK (((positions_per_unit IS NULL) OR ((positions_per_unit >= 1) AND ((representation)::text = 'unit_shells'::text)))),
-    CONSTRAINT inventory_groups_quantity_only_when_numeric CHECK (((quantity IS NULL) OR ((quantity >= 1) AND ((representation)::text <> 'none'::text) AND ((availability_promise)::text <> ALL ((ARRAY['on_request'::character varying, 'rate_only'::character varying])::text[]))))),
-    CONSTRAINT inventory_groups_representation CHECK (((representation)::text = ANY ((ARRAY['unit_shells'::character varying, 'capacity_pool'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_quantity_only_when_numeric CHECK (((quantity IS NULL) OR ((quantity >= 1) AND ((representation)::text <> 'none'::text) AND ((availability_promise)::text <> ALL (ARRAY[('on_request'::character varying)::text, ('rate_only'::character varying)::text]))))),
+    CONSTRAINT inventory_groups_representation CHECK (((representation)::text = ANY (ARRAY[('unit_shells'::character varying)::text, ('capacity_pool'::character varying)::text, ('none'::character varying)::text]))),
     CONSTRAINT inventory_groups_required_adults CHECK (((required_adults_per_unit IS NULL) OR ((required_adults_per_unit >= 1) AND ((positions_per_unit IS NULL) OR (required_adults_per_unit <= positions_per_unit))))),
-    CONSTRAINT inventory_groups_service_category CHECK (((service_category)::text = ANY ((ARRAY['hotel'::character varying, 'all_inclusive_resort'::character varying, 'cruise'::character varying, 'air'::character varying, 'rail'::character varying, 'transportation'::character varying, 'activity'::character varying, 'meal'::character varying, 'insurance'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_service_category CHECK (((service_category)::text = ANY (ARRAY[('hotel'::character varying)::text, ('all_inclusive_resort'::character varying)::text, ('cruise'::character varying)::text, ('air'::character varying)::text, ('rail'::character varying)::text, ('transportation'::character varying)::text, ('activity'::character varying)::text, ('meal'::character varying)::text, ('insurance'::character varying)::text]))),
     CONSTRAINT inventory_groups_start_time_needs_date CHECK (((starts_at_time IS NULL) OR (starts_on IS NOT NULL)))
 );
 
@@ -1824,9 +1946,9 @@ CREATE TABLE public.offering_choices (
     CONSTRAINT offering_choices_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
     CONSTRAINT offering_choices_multiple_only_add_ons CHECK ((((pattern)::text <> 'optional_multiple'::text) OR ((role)::text = 'add_on'::text))),
     CONSTRAINT offering_choices_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 120))),
-    CONSTRAINT offering_choices_pattern CHECK (((pattern)::text = ANY ((ARRAY['required_single'::character varying, 'optional_single'::character varying, 'optional_multiple'::character varying])::text[]))),
-    CONSTRAINT offering_choices_role CHECK (((role)::text = ANY ((ARRAY['included'::character varying, 'add_on'::character varying])::text[]))),
-    CONSTRAINT offering_choices_scope CHECK (((scope)::text = ANY ((ARRAY['per_traveler'::character varying, 'per_unit'::character varying, 'per_trip'::character varying])::text[])))
+    CONSTRAINT offering_choices_pattern CHECK (((pattern)::text = ANY (ARRAY[('required_single'::character varying)::text, ('optional_single'::character varying)::text, ('optional_multiple'::character varying)::text]))),
+    CONSTRAINT offering_choices_role CHECK (((role)::text = ANY (ARRAY[('included'::character varying)::text, ('add_on'::character varying)::text]))),
+    CONSTRAINT offering_choices_scope CHECK (((scope)::text = ANY (ARRAY[('per_traveler'::character varying)::text, ('per_unit'::character varying)::text, ('per_trip'::character varying)::text])))
 );
 
 
@@ -1868,7 +1990,7 @@ CREATE TABLE public.offering_prices (
     CONSTRAINT offering_prices_amount CHECK ((amount_minor_units >= 0)),
     CONSTRAINT offering_prices_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT offering_prices_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT offering_prices_occupancy_position CHECK (((occupancy_position)::text = ANY ((ARRAY['any'::character varying, 'single'::character varying, 'guest_1'::character varying, 'guest_2'::character varying, 'guest_3'::character varying, 'guest_4'::character varying, 'guest_5'::character varying, 'guest_6'::character varying, 'guest_7'::character varying, 'guest_8'::character varying, 'guest_9'::character varying])::text[])))
+    CONSTRAINT offering_prices_occupancy_position CHECK (((occupancy_position)::text = ANY (ARRAY[('any'::character varying)::text, ('single'::character varying)::text, ('guest_1'::character varying)::text, ('guest_2'::character varying)::text, ('guest_3'::character varying)::text, ('guest_4'::character varying)::text, ('guest_5'::character varying)::text, ('guest_6'::character varying)::text, ('guest_7'::character varying)::text, ('guest_8'::character varying)::text, ('guest_9'::character varying)::text])))
 );
 
 
@@ -1935,6 +2057,30 @@ CREATE TABLE public.payee_accounts (
 
 
 --
+-- Name: receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.receipts (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    receipt_number character varying NOT NULL,
+    client_payment_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    payer_name character varying NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    paid_on date NOT NULL,
+    payment_method character varying NOT NULL,
+    reference character varying,
+    applied jsonb DEFAULT '[]'::jsonb NOT NULL,
+    issued_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT receipts_amount CHECK (((amount_minor_units > 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT receipts_applied CHECK ((jsonb_typeof(applied) = 'array'::text)),
+    CONSTRAINT receipts_number_format CHECK (((receipt_number)::text ~ '^RCP-[0-9]{5,}$'::text))
+);
+
+
+--
 -- Name: reference_sequences; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1945,8 +2091,8 @@ CREATE TABLE public.reference_sequences (
     next_value bigint DEFAULT 1 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY ((ARRAY['client'::character varying, 'supplier'::character varying, 'departure'::character varying, 'trip'::character varying, 'client_payment'::character varying, 'arrangement'::character varying, 'supplier_payment'::character varying, 'confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying])::text[]))),
-    CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (((namespace)::text <> ALL ((ARRAY['client'::character varying, 'supplier'::character varying])::text[])) OR (next_value <= 1000000))))
+    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY (ARRAY[('client'::character varying)::text, ('supplier'::character varying)::text, ('departure'::character varying)::text, ('trip'::character varying)::text, ('client_payment'::character varying)::text, ('arrangement'::character varying)::text, ('supplier_payment'::character varying)::text, ('confirmation'::character varying)::text, ('invoice'::character varying)::text, ('receipt'::character varying)::text]))),
+    CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (((namespace)::text <> ALL (ARRAY[('client'::character varying)::text, ('supplier'::character varying)::text])) OR (next_value <= 1000000))))
 );
 
 
@@ -1965,7 +2111,7 @@ CREATE TABLE public.resellers (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT resellers_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT resellers_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
-    CONSTRAINT resellers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'booking_paused'::character varying, 'suspended'::character varying, 'ended'::character varying])::text[])))
+    CONSTRAINT resellers_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('booking_paused'::character varying)::text, ('suspended'::character varying)::text, ('ended'::character varying)::text])))
 );
 
 
@@ -1998,7 +2144,7 @@ CREATE TABLE public.schedule_lines (
     CONSTRAINT schedule_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
     CONSTRAINT schedule_lines_due_rule CHECK (COALESCE(((((due_rule)::text = 'fixed_date'::text) AND (due_on IS NOT NULL) AND (trigger_type IS NULL) AND (days_after IS NULL)) OR (((due_rule)::text = 'event'::text) AND (due_on IS NULL) AND (trigger_type IS NOT NULL) AND (days_after IS NULL)) OR (((due_rule)::text = 'event_plus_days'::text) AND (due_on IS NULL) AND (trigger_type IS NOT NULL) AND (days_after >= 1)) OR (((due_rule)::text = 'earlier_of'::text) AND (due_on IS NOT NULL) AND (trigger_type IS NOT NULL) AND (days_after IS NULL))), false)),
     CONSTRAINT schedule_lines_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT schedule_lines_trigger_type CHECK (((trigger_type IS NULL) OR ((trigger_type)::text = ANY ((ARRAY['arrangement_confirmed'::character varying, 'names_submitted'::character varying, 'client_booking_confirmed'::character varying, 'rooming_list_submitted'::character varying, 'final_count_submitted'::character varying, 'tickets_issued'::character varying, 'supplier_invoice_received'::character varying, 'service_date'::character varying, 'other'::character varying])::text[]))))
+    CONSTRAINT schedule_lines_trigger_type CHECK (((trigger_type IS NULL) OR ((trigger_type)::text = ANY (ARRAY[('arrangement_confirmed'::character varying)::text, ('names_submitted'::character varying)::text, ('client_booking_confirmed'::character varying)::text, ('rooming_list_submitted'::character varying)::text, ('final_count_submitted'::character varying)::text, ('tickets_issued'::character varying)::text, ('supplier_invoice_received'::character varying)::text, ('service_date'::character varying)::text, ('other'::character varying)::text]))))
 );
 
 
@@ -2077,18 +2223,18 @@ CREATE TABLE public.supplier_arrangements (
     rate_commission_base character varying,
     rate_commission_minor_units bigint,
     CONSTRAINT supplier_arrangements_cancelled_at_pair CHECK ((((status)::text = 'cancelled'::text) = (cancelled_at IS NOT NULL))),
-    CONSTRAINT supplier_arrangements_confirmed_complete CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'cancelled'::character varying])::text[])) OR ((group_reference IS NOT NULL) AND (payee_account_id IS NOT NULL) AND (confirmed_on IS NOT NULL) AND (confirmed_at IS NOT NULL)))),
+    CONSTRAINT supplier_arrangements_confirmed_complete CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('cancelled'::character varying)::text])) OR ((group_reference IS NOT NULL) AND (payee_account_id IS NOT NULL) AND (confirmed_on IS NOT NULL) AND (confirmed_at IS NOT NULL)))),
     CONSTRAINT supplier_arrangements_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
-    CONSTRAINT supplier_arrangements_default_promise CHECK (((default_availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[]))),
+    CONSTRAINT supplier_arrangements_default_promise CHECK (((default_availability_promise)::text = ANY (ARRAY[('firm_block'::character varying)::text, ('releasable_block'::character varying)::text, ('courtesy_option'::character varying)::text, ('on_request'::character varying)::text, ('rate_only'::character varying)::text]))),
     CONSTRAINT supplier_arrangements_group_reference CHECK (((group_reference IS NULL) OR ((btrim((group_reference)::text) <> ''::text) AND (char_length((group_reference)::text) <= 80)))),
     CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_arrangements_obligation_shape CHECK (((obligation_shape IS NULL) OR ((obligation_shape)::text = ANY ((ARRAY['per_unit_used'::character varying, 'committed_quantity'::character varying, 'fixed_resource_charge'::character varying, 'minimum_pickup'::character varying, 'mixed'::character varying])::text[])))),
+    CONSTRAINT supplier_arrangements_obligation_shape CHECK (((obligation_shape IS NULL) OR ((obligation_shape)::text = ANY (ARRAY[('per_unit_used'::character varying)::text, ('committed_quantity'::character varying)::text, ('fixed_resource_charge'::character varying)::text, ('minimum_pickup'::character varying)::text, ('mixed'::character varying)::text])))),
     CONSTRAINT supplier_arrangements_rate_amounts CHECK (((COALESCE(rate_non_commissionable_fees_minor_units, (0)::bigint) >= 0) AND (COALESCE(rate_taxes_minor_units, (0)::bigint) >= 0) AND (COALESCE(rate_commission_minor_units, (0)::bigint) >= 0))),
-    CONSTRAINT supplier_arrangements_rate_commission CHECK (COALESCE((((rate_commission_method IS NULL) AND (rate_commission_rate IS NULL) AND (rate_commission_base IS NULL) AND (rate_commission_minor_units IS NULL)) OR (((rate_commission_method)::text = 'percent'::text) AND (rate_commission_rate >= (0)::numeric) AND (rate_commission_rate <= (100)::numeric) AND ((rate_commission_base)::text = ANY ((ARRAY['base_fare'::character varying, 'base_fare_less_discount'::character varying])::text[])) AND (rate_commission_minor_units IS NULL)) OR (((rate_commission_method)::text = 'amount'::text) AND (rate_commission_minor_units IS NOT NULL) AND (rate_commission_rate IS NULL) AND (rate_commission_base IS NULL))), false)),
-    CONSTRAINT supplier_arrangements_rate_pattern CHECK (((rate_pattern IS NULL) OR ((rate_pattern)::text = ANY ((ARRAY['cruise_bands'::character varying, 'per_guest'::character varying, 'per_room'::character varying, 'custom'::character varying])::text[])))),
+    CONSTRAINT supplier_arrangements_rate_commission CHECK (COALESCE((((rate_commission_method IS NULL) AND (rate_commission_rate IS NULL) AND (rate_commission_base IS NULL) AND (rate_commission_minor_units IS NULL)) OR (((rate_commission_method)::text = 'percent'::text) AND (rate_commission_rate >= (0)::numeric) AND (rate_commission_rate <= (100)::numeric) AND ((rate_commission_base)::text = ANY (ARRAY[('base_fare'::character varying)::text, ('base_fare_less_discount'::character varying)::text])) AND (rate_commission_minor_units IS NULL)) OR (((rate_commission_method)::text = 'amount'::text) AND (rate_commission_minor_units IS NOT NULL) AND (rate_commission_rate IS NULL) AND (rate_commission_base IS NULL))), false)),
+    CONSTRAINT supplier_arrangements_rate_pattern CHECK (((rate_pattern IS NULL) OR ((rate_pattern)::text = ANY (ARRAY[('cruise_bands'::character varying)::text, ('per_guest'::character varying)::text, ('per_room'::character varying)::text, ('custom'::character varying)::text])))),
     CONSTRAINT supplier_arrangements_reference_format CHECK (((arrangement_reference)::text ~ '^ARR-[0-9]{4,}$'::text)),
-    CONSTRAINT supplier_arrangements_reservation_scope CHECK (((reservation_scope)::text = ANY ((ARRAY['arrangement'::character varying, 'per_unit'::character varying, 'none'::character varying])::text[]))),
-    CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'confirmed'::character varying, 'closed'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT supplier_arrangements_reservation_scope CHECK (((reservation_scope)::text = ANY (ARRAY[('arrangement'::character varying)::text, ('per_unit'::character varying)::text, ('none'::character varying)::text]))),
+    CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('confirmed'::character varying)::text, ('closed'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
@@ -2214,7 +2360,7 @@ CREATE TABLE public.supplier_deadlines (
     CONSTRAINT supplier_deadlines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
     CONSTRAINT supplier_deadlines_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_deadlines_time_zone CHECK ((btrim((time_zone)::text) <> ''::text)),
-    CONSTRAINT supplier_deadlines_type CHECK (((deadline_type)::text = ANY ((ARRAY['option_release'::character varying, 'deposit_payment'::character varying, 'names_submission'::character varying, 'rooming_list'::character varying, 'ticketing'::character varying, 'final_count'::character varying, 'cancellation_tier_cutoff'::character varying, 'other'::character varying])::text[])))
+    CONSTRAINT supplier_deadlines_type CHECK (((deadline_type)::text = ANY (ARRAY[('option_release'::character varying)::text, ('deposit_payment'::character varying)::text, ('names_submission'::character varying)::text, ('rooming_list'::character varying)::text, ('ticketing'::character varying)::text, ('final_count'::character varying)::text, ('cancellation_tier_cutoff'::character varying)::text, ('other'::character varying)::text])))
 );
 
 
@@ -2386,7 +2532,7 @@ CREATE TABLE public.supplier_rate_lines (
     supplier_rate_band_id uuid,
     overridden_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     CONSTRAINT supplier_rate_lines_amounts_non_negative CHECK (((base_fare_minor_units >= 0) AND (non_commissionable_fees_minor_units >= 0) AND (taxes_minor_units >= 0) AND (discount_minor_units >= 0) AND ((commission_minor_units IS NULL) OR (commission_minor_units >= 0)))),
-    CONSTRAINT supplier_rate_lines_commission_base CHECK (((commission_base)::text = ANY ((ARRAY['base_fare'::character varying, 'base_fare_less_discount'::character varying])::text[]))),
+    CONSTRAINT supplier_rate_lines_commission_base CHECK (((commission_base)::text = ANY (ARRAY[('base_fare'::character varying)::text, ('base_fare_less_discount'::character varying)::text]))),
     CONSTRAINT supplier_rate_lines_commission_rate CHECK (((commission_rate IS NULL) OR ((commission_rate >= (0)::numeric) AND (commission_rate <= (100)::numeric)))),
     CONSTRAINT supplier_rate_lines_commission_rate_or_amount CHECK (((commission_rate IS NULL) OR (commission_minor_units IS NULL))),
     CONSTRAINT supplier_rate_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
@@ -2408,7 +2554,7 @@ CREATE TABLE public.supplier_reservation_events (
     occurred_on date NOT NULL,
     recorded_by_id uuid NOT NULL,
     recorded_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT supplier_reservation_events_type CHECK (((event_type)::text = ANY ((ARRAY['requested'::character varying, 'confirmed'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT supplier_reservation_events_type CHECK (((event_type)::text = ANY (ARRAY[('requested'::character varying)::text, ('confirmed'::character varying)::text, ('declined'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
@@ -2449,8 +2595,8 @@ CREATE TABLE public.supplier_reservations (
     CONSTRAINT supplier_reservations_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_reservations_note CHECK (((response_note IS NULL) OR ((btrim(response_note) <> ''::text) AND (char_length(response_note) <= 2000)))),
     CONSTRAINT supplier_reservations_reference CHECK (((supplier_reference IS NULL) OR ((btrim((supplier_reference)::text) <> ''::text) AND (char_length((supplier_reference)::text) <= 120)))),
-    CONSTRAINT supplier_reservations_response CHECK (COALESCE(((((status)::text = 'requested'::text) AND (responded_on IS NULL) AND (responded_by_id IS NULL) AND (responded_at IS NULL)) OR (((status)::text = 'confirmed'::text) AND (supplier_reference IS NOT NULL) AND (responded_on IS NOT NULL) AND (responded_by_id IS NOT NULL) AND (responded_at IS NOT NULL)) OR ((status)::text = ANY ((ARRAY['declined'::character varying, 'cancelled'::character varying])::text[]))), false)),
-    CONSTRAINT supplier_reservations_status CHECK (((status)::text = ANY ((ARRAY['requested'::character varying, 'confirmed'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT supplier_reservations_response CHECK (COALESCE(((((status)::text = 'requested'::text) AND (responded_on IS NULL) AND (responded_by_id IS NULL) AND (responded_at IS NULL)) OR (((status)::text = 'confirmed'::text) AND (supplier_reference IS NOT NULL) AND (responded_on IS NOT NULL) AND (responded_by_id IS NOT NULL) AND (responded_at IS NOT NULL)) OR ((status)::text = ANY (ARRAY[('declined'::character varying)::text, ('cancelled'::character varying)::text]))), false)),
+    CONSTRAINT supplier_reservations_status CHECK (((status)::text = ANY (ARRAY[('requested'::character varying)::text, ('confirmed'::character varying)::text, ('declined'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
@@ -2546,9 +2692,9 @@ CREATE TABLE public.tasks (
     CONSTRAINT tasks_action CHECK (((btrim((action)::text) <> ''::text) AND (char_length((action)::text) <= 250))),
     CONSTRAINT tasks_completed_with_note CHECK (((((status)::text = 'completed'::text) = (completed_at IS NOT NULL)) AND (((status)::text <> 'completed'::text) OR (btrim(COALESCE(completion_note, ''::text)) <> ''::text)))),
     CONSTRAINT tasks_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT tasks_source CHECK (((source)::text = ANY ((ARRAY['supplier_deadline'::character varying, 'schedule_line'::character varying, 'amount_due'::character varying, 'manual'::character varying])::text[]))),
+    CONSTRAINT tasks_source CHECK (((source)::text = ANY (ARRAY[('supplier_deadline'::character varying)::text, ('schedule_line'::character varying)::text, ('amount_due'::character varying)::text, ('manual'::character varying)::text]))),
     CONSTRAINT tasks_source_record CHECK (((((source)::text = 'supplier_deadline'::text) = (supplier_deadline_id IS NOT NULL)) AND (((source)::text = 'schedule_line'::text) = (schedule_line_id IS NOT NULL)) AND (((source)::text = 'amount_due'::text) = (amount_due_id IS NOT NULL)))),
-    CONSTRAINT tasks_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'waived'::character varying])::text[]))),
+    CONSTRAINT tasks_status CHECK (((status)::text = ANY (ARRAY[('open'::character varying)::text, ('in_progress'::character varying)::text, ('completed'::character varying)::text, ('waived'::character varying)::text]))),
     CONSTRAINT tasks_waived_with_reason CHECK (((((status)::text = 'waived'::text) = (waived_at IS NOT NULL)) AND (((status)::text <> 'waived'::text) OR (btrim(COALESCE(waiver_reason, ''::text)) <> ''::text))))
 );
 
@@ -2565,7 +2711,7 @@ CREATE TABLE public.traveler_links (
     relationship character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT traveler_links_relationship CHECK (((relationship)::text = ANY ((ARRAY['self'::character varying, 'family_member'::character varying, 'employee_or_member'::character varying, 'other'::character varying])::text[])))
+    CONSTRAINT traveler_links_relationship CHECK (((relationship)::text = ANY (ARRAY[('self'::character varying)::text, ('family_member'::character varying)::text, ('employee_or_member'::character varying)::text, ('other'::character varying)::text])))
 );
 
 
@@ -2586,7 +2732,7 @@ CREATE TABLE public.traveler_types (
     CONSTRAINT traveler_types_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT traveler_types_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 60))),
     CONSTRAINT traveler_types_position_nonnegative CHECK (("position" >= 0)),
-    CONSTRAINT traveler_types_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT traveler_types_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -2611,7 +2757,7 @@ CREATE TABLE public.travelers (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT travelers_contacts CHECK ((((email_address IS NULL) OR (((email_address)::text = lower(btrim((email_address)::text))) AND ((email_address)::text ~~ '%_@_%'::text) AND (char_length((email_address)::text) <= 254))) AND ((phone IS NULL) OR ((btrim((phone)::text) <> ''::text) AND (char_length((phone)::text) <= 40))))),
     CONSTRAINT travelers_date_of_birth CHECK (((date_of_birth IS NULL) OR (date_of_birth >= '1900-01-01'::date))),
-    CONSTRAINT travelers_gender CHECK (((gender IS NULL) OR ((gender)::text = ANY ((ARRAY['female'::character varying, 'male'::character varying, 'unspecified'::character varying])::text[])))),
+    CONSTRAINT travelers_gender CHECK (((gender IS NULL) OR ((gender)::text = ANY (ARRAY[('female'::character varying)::text, ('male'::character varying)::text, ('unspecified'::character varying)::text])))),
     CONSTRAINT travelers_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT travelers_name_lengths CHECK ((((given_names IS NULL) OR ((btrim((given_names)::text) <> ''::text) AND (char_length((given_names)::text) <= 80))) AND ((middle_name IS NULL) OR ((btrim((middle_name)::text) <> ''::text) AND (char_length((middle_name)::text) <= 80))) AND ((surname IS NULL) OR ((btrim((surname)::text) <> ''::text) AND (char_length((surname)::text) <= 80))) AND ((suffix IS NULL) OR ((btrim((suffix)::text) <> ''::text) AND (char_length((suffix)::text) <= 20))) AND ((preferred_name IS NULL) OR ((btrim((preferred_name)::text) <> ''::text) AND (char_length((preferred_name)::text) <= 80))))),
     CONSTRAINT travelers_some_name CHECK ((num_nonnulls(given_names, surname, preferred_name) >= 1))
@@ -2650,7 +2796,7 @@ CREATE TABLE public.trigger_events (
     CONSTRAINT trigger_events_count CHECK (((count IS NULL) OR (count >= 0))),
     CONSTRAINT trigger_events_recorded_by CHECK (((recorded_by_id IS NULL) <> (recorded_by_identifier IS NULL))),
     CONSTRAINT trigger_events_reference CHECK (((reference IS NULL) OR ((btrim((reference)::text) <> ''::text) AND (char_length((reference)::text) <= 120)))),
-    CONSTRAINT trigger_events_type CHECK (((event_type)::text = ANY ((ARRAY['arrangement_confirmed'::character varying, 'names_submitted'::character varying, 'client_booking_confirmed'::character varying, 'rooming_list_submitted'::character varying, 'final_count_submitted'::character varying, 'tickets_issued'::character varying, 'supplier_invoice_received'::character varying, 'service_date'::character varying, 'other'::character varying])::text[])))
+    CONSTRAINT trigger_events_type CHECK (((event_type)::text = ANY (ARRAY[('arrangement_confirmed'::character varying)::text, ('names_submitted'::character varying)::text, ('client_booking_confirmed'::character varying)::text, ('rooming_list_submitted'::character varying)::text, ('final_count_submitted'::character varying)::text, ('tickets_issued'::character varying)::text, ('supplier_invoice_received'::character varying)::text, ('service_date'::character varying)::text, ('other'::character varying)::text])))
 );
 
 
@@ -2686,7 +2832,7 @@ CREATE TABLE public.user_permissions (
     user_type character varying DEFAULT 'staff'::character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT user_permissions_permission_valid CHECK (((permission)::text = ANY ((ARRAY['departure_management'::character varying, 'supplier_arrangements'::character varying, 'financial_records'::character varying, 'passport_access'::character varying, 'reseller_relationships'::character varying])::text[]))),
+    CONSTRAINT user_permissions_permission_valid CHECK (((permission)::text = ANY (ARRAY[('departure_management'::character varying)::text, ('supplier_arrangements'::character varying)::text, ('financial_records'::character varying)::text, ('passport_access'::character varying)::text, ('reseller_relationships'::character varying)::text]))),
     CONSTRAINT user_permissions_staff_only CHECK (((user_type)::text = 'staff'::text))
 );
 
@@ -2932,11 +3078,35 @@ ALTER TABLE ONLY public.client_organizations
 
 
 --
+-- Name: client_payment_applications client_payment_applications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_applications
+    ADD CONSTRAINT client_payment_applications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_payment_reversals client_payment_reversals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_reversals
+    ADD CONSTRAINT client_payment_reversals_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: client_payment_schedule_lines client_payment_schedule_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.client_payment_schedule_lines
     ADD CONSTRAINT client_payment_schedule_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_payments client_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payments
+    ADD CONSTRAINT client_payments_pkey PRIMARY KEY (id);
 
 
 --
@@ -3044,6 +3214,22 @@ ALTER TABLE ONLY public.expected_commissions
 
 
 --
+-- Name: installment_proposals installment_proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.installment_proposals
+    ADD CONSTRAINT installment_proposals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: installments installments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.installments
+    ADD CONSTRAINT installments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: inventory_allocations inventory_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3105,6 +3291,14 @@ ALTER TABLE ONLY public.offices
 
 ALTER TABLE ONLY public.payee_accounts
     ADD CONSTRAINT payee_accounts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: receipts receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.receipts
+    ADD CONSTRAINT receipts_pkey PRIMARY KEY (id);
 
 
 --
@@ -3507,6 +3701,13 @@ CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_even
 --
 
 CREATE INDEX index_booking_acceptances_on_booking_and_recorded_at ON public.booking_acceptances USING btree (client_booking_id, recorded_at);
+
+
+--
+-- Name: index_booking_acceptances_on_client_payment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_booking_acceptances_on_client_payment ON public.booking_acceptances USING btree (client_payment_id);
 
 
 --
@@ -3923,6 +4124,27 @@ CREATE INDEX index_client_organizations_on_name_search_vector ON public.client_o
 
 
 --
+-- Name: index_client_payment_applications_on_installment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_payment_applications_on_installment ON public.client_payment_applications USING btree (installment_id);
+
+
+--
+-- Name: index_client_payment_applications_on_payment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_payment_applications_on_payment ON public.client_payment_applications USING btree (client_payment_id);
+
+
+--
+-- Name: index_client_payment_reversals_one_per_payment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_payment_reversals_one_per_payment ON public.client_payment_reversals USING btree (client_payment_id);
+
+
+--
 -- Name: index_client_payment_schedule_lines_on_version_and_position; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3941,6 +4163,27 @@ CREATE UNIQUE INDEX index_client_payment_schedule_lines_one_acceptance ON public
 --
 
 CREATE UNIQUE INDEX index_client_payment_schedule_lines_one_balance ON public.client_payment_schedule_lines USING btree (client_terms_version_id) WHERE ((basis)::text = 'balance'::text);
+
+
+--
+-- Name: index_client_payments_on_agency_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_payments_on_agency_and_reference ON public.client_payments USING btree (agency_id, payment_reference);
+
+
+--
+-- Name: index_client_payments_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_payments_on_id_and_agency_id ON public.client_payments USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_payments_on_trip; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_payments_on_trip ON public.client_payments USING btree (client_trip_id, paid_on);
 
 
 --
@@ -4308,6 +4551,27 @@ CREATE UNIQUE INDEX index_expected_commissions_one_per_service ON public.expecte
 
 
 --
+-- Name: index_installment_proposals_on_booking_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_installment_proposals_on_booking_and_position ON public.installment_proposals USING btree (client_booking_id, "position");
+
+
+--
+-- Name: index_installments_on_charge_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_installments_on_charge_and_position ON public.installments USING btree (client_charge_id, "position");
+
+
+--
+-- Name: index_installments_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_installments_on_id_and_agency_id ON public.installments USING btree (id, agency_id);
+
+
+--
 -- Name: index_inventory_allocations_on_booking_and_state; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4459,6 +4723,20 @@ CREATE UNIQUE INDEX index_payee_accounts_on_id_and_supplier_id ON public.payee_a
 --
 
 CREATE UNIQUE INDEX index_payee_accounts_on_supplier_and_name ON public.payee_accounts USING btree (supplier_id, name);
+
+
+--
+-- Name: index_receipts_on_agency_and_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_receipts_on_agency_and_number ON public.receipts USING btree (agency_id, receipt_number);
+
+
+--
+-- Name: index_receipts_one_per_payment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_receipts_one_per_payment ON public.receipts USING btree (client_payment_id);
 
 
 --
@@ -5442,10 +5720,31 @@ CREATE TRIGGER client_organizations_reject_agency_id_change BEFORE UPDATE ON pub
 
 
 --
+-- Name: client_payment_applications client_payment_applications_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_payment_applications_reject_mutation BEFORE DELETE OR UPDATE ON public.client_payment_applications FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
+
+
+--
+-- Name: client_payment_reversals client_payment_reversals_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_payment_reversals_reject_mutation BEFORE DELETE OR UPDATE ON public.client_payment_reversals FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
+
+
+--
 -- Name: client_payment_schedule_lines client_payment_schedule_lines_reject_locked_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER client_payment_schedule_lines_reject_locked_change BEFORE INSERT OR DELETE OR UPDATE ON public.client_payment_schedule_lines FOR EACH ROW EXECUTE FUNCTION public.reject_locked_client_terms_change();
+
+
+--
+-- Name: client_payments client_payments_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_payments_reject_mutation BEFORE DELETE OR UPDATE ON public.client_payments FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
 
 
 --
@@ -5512,6 +5811,13 @@ CREATE TRIGGER departures_reject_identity_change BEFORE UPDATE ON public.departu
 
 
 --
+-- Name: installments installments_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER installments_reject_mutation BEFORE DELETE OR UPDATE ON public.installments FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
+
+
+--
 -- Name: inventory_allocations inventory_allocations_check; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5530,6 +5836,13 @@ CREATE TRIGGER offering_options_reject_other_departure BEFORE INSERT OR UPDATE O
 --
 
 CREATE TRIGGER offices_reject_identity_change BEFORE UPDATE ON public.offices FOR EACH ROW EXECUTE FUNCTION public.reject_office_identity_change();
+
+
+--
+-- Name: receipts receipts_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER receipts_reject_mutation BEFORE DELETE OR UPDATE ON public.receipts FOR EACH ROW EXECUTE FUNCTION public.reject_client_money_mutation();
 
 
 --
@@ -5879,6 +6192,14 @@ ALTER TABLE ONLY public.booking_acceptances
 
 ALTER TABLE ONLY public.booking_acceptances
     ADD CONSTRAINT fk_booking_acceptances_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: booking_acceptances fk_booking_acceptances_payment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_acceptances
+    ADD CONSTRAINT fk_booking_acceptances_payment_same_agency FOREIGN KEY (client_payment_id, agency_id) REFERENCES public.client_payments(id, agency_id);
 
 
 --
@@ -6258,6 +6579,62 @@ ALTER TABLE ONLY public.client_charges
 
 
 --
+-- Name: client_payment_applications fk_client_payment_applications_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_applications
+    ADD CONSTRAINT fk_client_payment_applications_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_payment_applications fk_client_payment_applications_installment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_applications
+    ADD CONSTRAINT fk_client_payment_applications_installment_same_agency FOREIGN KEY (installment_id, agency_id) REFERENCES public.installments(id, agency_id);
+
+
+--
+-- Name: client_payment_applications fk_client_payment_applications_payment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_applications
+    ADD CONSTRAINT fk_client_payment_applications_payment_same_agency FOREIGN KEY (client_payment_id, agency_id) REFERENCES public.client_payments(id, agency_id);
+
+
+--
+-- Name: client_payment_applications fk_client_payment_applications_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_applications
+    ADD CONSTRAINT fk_client_payment_applications_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: client_payment_reversals fk_client_payment_reversals_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_reversals
+    ADD CONSTRAINT fk_client_payment_reversals_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_payment_reversals fk_client_payment_reversals_payment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_reversals
+    ADD CONSTRAINT fk_client_payment_reversals_payment_same_agency FOREIGN KEY (client_payment_id, agency_id) REFERENCES public.client_payments(id, agency_id);
+
+
+--
+-- Name: client_payment_reversals fk_client_payment_reversals_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payment_reversals
+    ADD CONSTRAINT fk_client_payment_reversals_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
 -- Name: client_payment_schedule_lines fk_client_payment_schedule_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6271,6 +6648,46 @@ ALTER TABLE ONLY public.client_payment_schedule_lines
 
 ALTER TABLE ONLY public.client_payment_schedule_lines
     ADD CONSTRAINT fk_client_payment_schedule_lines_version_same_agency FOREIGN KEY (client_terms_version_id, agency_id) REFERENCES public.client_terms_versions(id, agency_id);
+
+
+--
+-- Name: client_payments fk_client_payments_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payments
+    ADD CONSTRAINT fk_client_payments_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_payments fk_client_payments_payer_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payments
+    ADD CONSTRAINT fk_client_payments_payer_same_agency FOREIGN KEY (payer_client_id, agency_id) REFERENCES public.clients(id, agency_id);
+
+
+--
+-- Name: client_payments fk_client_payments_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payments
+    ADD CONSTRAINT fk_client_payments_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: client_payments fk_client_payments_supplier_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payments
+    ADD CONSTRAINT fk_client_payments_supplier_same_agency FOREIGN KEY (supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: client_payments fk_client_payments_trip_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_payments
+    ADD CONSTRAINT fk_client_payments_trip_same_agency FOREIGN KEY (client_trip_id, agency_id) REFERENCES public.client_trips(id, agency_id);
 
 
 --
@@ -6479,6 +6896,38 @@ ALTER TABLE ONLY public.expected_commissions
 
 ALTER TABLE ONLY public.expected_commissions
     ADD CONSTRAINT fk_expected_commissions_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
+
+
+--
+-- Name: installment_proposals fk_installment_proposals_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.installment_proposals
+    ADD CONSTRAINT fk_installment_proposals_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: installment_proposals fk_installment_proposals_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.installment_proposals
+    ADD CONSTRAINT fk_installment_proposals_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: installments fk_installments_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.installments
+    ADD CONSTRAINT fk_installments_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: installments fk_installments_charge_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.installments
+    ADD CONSTRAINT fk_installments_charge_same_agency FOREIGN KEY (client_charge_id, agency_id) REFERENCES public.client_charges(id, agency_id);
 
 
 --
@@ -6895,6 +7344,30 @@ ALTER TABLE ONLY public.client_person_phone_numbers
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT fk_rails_fda020f2ca FOREIGN KEY (agency_user_id) REFERENCES public.agency_users(id);
+
+
+--
+-- Name: receipts fk_receipts_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.receipts
+    ADD CONSTRAINT fk_receipts_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: receipts fk_receipts_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.receipts
+    ADD CONSTRAINT fk_receipts_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: receipts fk_receipts_payment_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.receipts
+    ADD CONSTRAINT fk_receipts_payment_same_agency FOREIGN KEY (client_payment_id, agency_id) REFERENCES public.client_payments(id, agency_id);
 
 
 --
@@ -7448,6 +7921,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261108120000'),
 ('20261108100000'),
 ('20261107160000'),
 ('20261107150000'),

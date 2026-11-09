@@ -5,8 +5,7 @@ class BookingAcceptancesController < ApplicationController
   include TripAccess
 
   FIELD_LABELS = [ [ :accepted_by, "Accepted by" ], [ :acceptance_method, "Method" ], [ :accepted_on, "Date accepted" ],
-                   [ :note, "Note" ], [ :evidence_reference, "Evidence" ], [ :payment_amount, "Payment amount" ],
-                   [ :payment_on, "Payment date" ], [ :payment_reference, "Payment reference" ] ].freeze
+                   [ :note, "Note" ], [ :evidence_reference, "Evidence" ], [ :client_payment_id, "Payment" ] ].freeze
 
   before_action :set_booking
 
@@ -25,9 +24,8 @@ class BookingAcceptancesController < ApplicationController
       attributes: acceptance_params, evidence: params.dig(:booking_acceptance, :evidence)).call
     redirect_to booking_step_path(@booking, "acceptance"), notice: "Acceptance recorded."
   rescue AgencyCommand::Error => error
-    @acceptance = @booking.acceptances.new(acceptance_params.slice("accepted_by", "acceptance_method", "note", "evidence_reference", "payment_reference"))
+    @acceptance = @booking.acceptances.new(acceptance_params.slice("accepted_by", "acceptance_method", "note", "evidence_reference", "client_payment_id"))
     @acceptance.accepted_on = acceptance_params["accepted_on"]
-    @payment = acceptance_params.slice("payment_on", "payment_amount")
     render_form_error(error, @acceptance, :new, FIELD_LABELS)
   end
 

@@ -15,6 +15,7 @@ class DepartureBookingsController < ApplicationController
         choice_selections: [ { supplier_reservation_units: :supplier_reservation }, { option: [ :choice, { inventory_group: :supplier_arrangement } ] } ],
         client_trip: { client: %i[client_person client_organization] })
       .order("client_trips.trip_reference", :sequence)
+    @money = Current.agency.client_trips.where(departure: @departure).includes(:departure, TripMoney::PRELOAD).map { |trip| TripMoney.new(trip) } if Current.agency_user.permitted?(:view_client_money)
   end
 
   def new

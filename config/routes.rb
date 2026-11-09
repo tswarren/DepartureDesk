@@ -41,13 +41,20 @@ Rails.application.routes.draw do
   resources :traveler_links, only: %i[new create destroy]
   resources :client_trips, path: "trips", only: %i[show new create edit update] do
     resources :bookings, only: :create, controller: "client_bookings"
+    # S-28, S-29: the trip's client money (CMN-06, CMN-18, CMN-21, CMN-23, CMN-27).
+    resources :payments, only: %i[new create], controller: "client_payments" do
+      resource :reversal, only: %i[new create], controller: "client_payment_reversals"
+    end
+    resource :credit_application, only: :create, controller: "client_credit_applications"
   end
   # S-26: the booking workspace (BKG-05 to BKG-11, BKG-14 to BKG-16, BKG-45, CLT-13, CLT-15, INV-17 to INV-23).
+  resources :receipts, only: :show
   resources :client_bookings, path: "bookings", only: :show do
     resources :travelers, only: %i[create update destroy], controller: "booking_travelers" do
       resource :move, only: :create, controller: "booking_traveler_moves"
     end
     resource :traveler_batch, only: :create, controller: "booking_traveler_batches"
+    resource :installment_proposals, only: :update, controller: "installment_proposals"
     resources :traveler_additions, only: :create, controller: "booking_traveler_additions"
     resource :selection_range, only: :create, controller: "choice_selection_ranges"
     resources :supplier_reservations, only: :create, controller: "booking_supplier_reservations"

@@ -1,8 +1,10 @@
 # Records the client's acceptance of a draft booking's current price and
 # terms (BKG-39, BKG-41; S-27). It keeps the accepted total and a
 # fingerprint of the price lines, so any later change makes it stale. A
-# designated payment counts only when the terms name one; until build step
-# 8 its date, amount and reference are notes (D-94). Email or signed
+# designated payment counts only when the terms name one, and names the
+# recorded client payment on the booking's trip (BKG-41, D-94 (3)). The
+# fingerprint covers the proposed installments too, refreshed first so it
+# matches what the client is shown (step 8 plan, question 1). Email or signed
 # acceptance keeps evidence: an optional file (ADR 0019 amendment) or a
 # note of where it is kept.
 #
@@ -14,7 +16,7 @@ class RecordBookingAcceptance < AgencyCommand
   include BookingCommandSupport
   include UploadedFileCheck
 
-  FIELDS = %w[accepted_by acceptance_method accepted_on note evidence_reference payment_on payment_amount payment_reference].freeze
+  FIELDS = %w[accepted_by acceptance_method accepted_on note evidence_reference client_payment_id].freeze
 
   def initialize(agency:, actor:, booking:, attributes:, evidence: nil)
     @agency = agency
@@ -43,13 +45,14 @@ class RecordBookingAcceptance < AgencyCommand
       end
 
       lock_terms!(terms)
+      refresh_installment_proposals!(booking)
       acceptance = booking.acceptances.new(
         agency: @agency, client_terms_version: terms, accepted_by: @attributes["accepted_by"], acceptance_method: method,
         accepted_on: accepted_on, accepted_total_minor_units: booking.total_minor_units, currency: booking.currency,
         lines_fingerprint: BookingAcceptance.fingerprint(booking), note: @attributes["note"],
         evidence_reference: (@attributes["evidence_reference"] if method.in?(%w[email signed])),
         evidence_sha256: (sha256 if method.in?(%w[email signed])),
-        recorded_by: @actor, recorded_at: Clock.current.now, **payment_attributes(method, booking.currency)
+        recorded_by: @actor, recorded_at: Clock.current.now, client_payment: designated_payment(method, booking)
       )
       check_evidence!(acceptance)
       # Attached before the insert: the acceptance is append-only, so nothing may update it afterward.
@@ -78,24 +81,15 @@ class RecordBookingAcceptance < AgencyCommand
     raise Error.new("Date accepted must be a date, such as 2027-01-12.", code: :invalid)
   end
 
-  def payment_attributes(method, currency)
-    return {} unless method == "designated_payment"
+  # BKG-41: the recorded client payment on this booking's trip that counts as acceptance.
+  def designated_payment(method, booking)
+    return nil unless method == "designated_payment"
 
-    amount = begin
-      MoneyInput.minor_units(@attributes["payment_amount"], currency)
-    rescue MoneyInput::Invalid
-      nil
-    end
-    raise Error.new("Payment amount must be an amount in #{currency}.", code: :invalid) if amount.nil? || amount <= 0
-    raise Error.new("Payment reference is required.", code: :invalid) if @attributes["payment_reference"].blank?
+    payment = booking.client_trip.client_payments.find_by(id: @attributes["client_payment_id"]) or
+      raise Error.new("Payment must be chosen: record the client's payment on the trip first, then choose it here.", code: :invalid)
+    raise Error.new("That payment was reversed and can't count as acceptance.", code: :invalid) if payment.reversed?
 
-    { payment_on: payment_on, payment_amount_minor_units: amount, payment_reference: @attributes["payment_reference"] }
-  end
-
-  def payment_on
-    Date.iso8601(@attributes["payment_on"].to_s)
-  rescue Date::Error
-    raise Error.new("Payment date must be a date, such as 2027-01-12.", code: :invalid)
+    payment
   end
 
   def check_evidence!(acceptance)

@@ -1,0 +1,23 @@
+<%# Amounts to apply to each open installment (CMN-21). %>
+<%# locals: (installments:, values:, currency:) -%>
+<div class="dd-table-wrap">
+  <table class="dd-table dd-stacked-table">
+    <caption class="dd-visually-hidden">Amounts to apply to open installments</caption>
+    <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col" class="num">Open</th><th scope="col">Apply</th></tr></thead>
+    <tbody>
+      <% installments.each do |installment| %>
+        <% label = "#{installment.client_charge.client_booking.booking_reference} #{installment.description}" %>
+        <tr>
+          <th scope="row"><%= label %></th>
+          <td><span class="dd-cabin-field-label dd-visually-hidden">Due </span><%= installment.due_on.to_fs(:long) %></td>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Open </span><%= booking_money(installment.open_minor_units, currency) %></td>
+          <td>
+            <%= label_tag "apply_#{installment.id}", "Apply to #{label}", class: "dd-visually-hidden" %>
+            <%= text_field_tag "applications[#{installment.id}]", values[installment.id], id: "apply_#{installment.id}", inputmode: "decimal", autocomplete: "off",
+                  class: "dd-field dd-field--numeric dd-field--narrow", data: { payment_allocation_target: "row", open: MoneyInput.display(installment.open_minor_units, currency).delete(",") } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

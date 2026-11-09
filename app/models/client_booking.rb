@@ -18,6 +18,7 @@ class ClientBooking < ApplicationRecord
   has_one :client_charge, dependent: :restrict_with_exception
   has_many :cost_lines, dependent: :restrict_with_exception
   has_many :expected_commissions, dependent: :restrict_with_exception
+  has_many :installment_proposals, -> { order(:position) }, inverse_of: :client_booking, dependent: :delete_all
   has_many :supplier_reservations, -> { order(:requested_at) }, inverse_of: :client_booking, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft", prefix: :status
