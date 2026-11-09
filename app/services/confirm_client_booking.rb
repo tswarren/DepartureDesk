@@ -9,7 +9,8 @@
 # 1. Held allocations become Reserved, and each traveler's name as booked
 #    is snapshotted (CLT-13).
 # 2. The client charge and its lines are made from the price lines, with
-#    the accepted terms (BKG-25, CMN-01 to CMN-03, D-94).
+#    the accepted terms (BKG-25, CMN-01 to CMN-03, D-94), and its
+#    installments from the accepted proposals (CMN-08, CMN-12).
 # 3. For each unit drawn from a rate table, a committed cost line scoped
 #    to the booking is proposed at the actual occupancy, unless its shells
 #    are already covered by a commitment for unsold space, and an expected
@@ -50,11 +51,13 @@ class ConfirmClientBooking < AgencyCommand
       reserved = reserve!(booking, now)
       booking.booking_travelers.each { |row| row.update!(name_as_booked: row.traveler.legal_name) }
       charge = create_charge!(booking, acceptance, now)
+      installments = create_installments!(charge, booking.installment_proposals.to_a, now.in_time_zone(@agency.default_timezone).to_date, now)
       costs, commissions = propose_supplier_cost!(booking, reserved)
       events = record_confirmed_events!(booking, reserved)
       booking.update!(status: "confirmed", confirmed_at: now)
       audit_booking!(booking, "client_booking.confirmed",
         "client_charge_id" => charge.id, "charge_total_minor_units" => charge.total_minor_units, "booking_acceptance_id" => acceptance.id,
+        "installment_ids" => installments.map(&:id),
         "reserved_allocation_ids" => reserved.map(&:id), "cost_line_ids" => costs.map(&:id),
         "expected_commission_ids" => commissions.map(&:id), "trigger_event_ids" => events.map(&:id))
       Result.new(status: :updated, record: booking)

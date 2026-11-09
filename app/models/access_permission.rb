@@ -45,7 +45,10 @@ module AccessPermission
     # INV-33 to INV-37: every staff user sees a service's supplier status;
     # starting a request and recording the answer is arrangement work.
     view_supplier_reservations: :baseline,
-    manage_supplier_reservations: "supplier_arrangements"
+    manage_supplier_reservations: "supplier_arrangements",
+    # CMN-19: every staff user sees client money; only Financial records records it.
+    view_client_money: :baseline,
+    manage_client_money: "financial_records"
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

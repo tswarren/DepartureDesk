@@ -47,8 +47,12 @@ class BookingConfirmationTest < ActiveSupport::TestCase
       "The recorded acceptance no longer covers the current price and terms; record the client's acceptance again."
   end
 
-  test "a payment counts as acceptance only when the terms say so (BKG-41, D5)" do
-    payment = { accepted_by: "Sofia Bennett", acceptance_method: "designated_payment", payment_on: "2027-01-12", payment_amount: "500", payment_reference: "Wire 4471" }
+  test "a payment counts as acceptance only when the terms say so, and names the recorded payment (BKG-41, D5, D-94 (3))" do
+    trip = @booking.client_trip
+    wire = RecordClientPayment.new(agency: @agency, actor: @admin, trip:, attributes: {
+      payer_client_id: trip.client_id, paid_on: "2027-01-12", amount: "500", route: "agency", payment_method: "bank_transfer", reference: "Wire 4471"
+    }).call.record
+    payment = { accepted_by: "Sofia Bennett", acceptance_method: "designated_payment", client_payment_id: wire.id }
     refused = assert_raises(AgencyCommand::Error) { RecordBookingAcceptance.new(agency: @agency, actor: @staff, booking: @booking, attributes: payment).call }
     assert_match(/counts only when the client terms say so/, refused.message)
 
@@ -56,9 +60,17 @@ class BookingConfirmationTest < ActiveSupport::TestCase
     SaveClientScheduleLine.new(agency: @agency, actor: @admin, departure: @alpha.departure, terms_version: @alpha.client_terms, line: deposit,
       attributes: deposit.attributes.slice("description", "basis", "service_category", "due_rule").merge("amount" => "500", "counts_as_acceptance" => "1"),
       lock_version: deposit.lock_version).call
+    missing = assert_raises(AgencyCommand::Error) do
+      RecordBookingAcceptance.new(agency: @agency, actor: @staff, booking: @booking, attributes: payment.merge(client_payment_id: nil)).call
+    end
+    assert_match(/record the client's payment on the trip first/, missing.message)
     acceptance = RecordBookingAcceptance.new(agency: @agency, actor: @staff, booking: @booking, attributes: payment).call.record
-    assert_equal [ 50_000, "Wire 4471" ], acceptance.values_at(:payment_amount_minor_units, :payment_reference)
-    assert_raises(ActiveRecord::StatementInvalid) { BookingAcceptance.transaction(requires_new: true) { BookingAcceptance.where(id: acceptance.id).update_all(note: "x") } }
+    assert_equal wire, acceptance.client_payment
+    assert_raises(ActiveRecord::StatementInvalid) { BookingAcceptance.transaction(requires_new: true) { BookingAcceptance.where(id: acceptance.id).update_all(client_payment_id: nil) } }
+
+    ReverseClientPayment.new(agency: @agency, actor: @admin, payment: wire, reason: "Recalled by the bank").call
+    reversed = assert_raises(AgencyCommand::Error) { RecordBookingAcceptance.new(agency: @agency, actor: @staff, booking: @booking, attributes: payment).call }
+    assert_match(/reversed/, reversed.message)
   end
 
   test "email acceptance needs evidence; phone needs a note" do
