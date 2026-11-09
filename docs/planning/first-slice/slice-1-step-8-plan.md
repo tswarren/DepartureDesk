@@ -1,6 +1,6 @@
 # Slice 1 step 8: Installments, payments, receipts and supplier payments
 
-**Status:** Accepted 2026-11-08, with D-96 and D-97 logged. 8a (client money, D9) built 2026-11-08 and merged; 8b (supplier money, D10) built 2026-11-09. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 8 and the decision log entries it cites.
+**Status:** Accepted 2026-11-08, with D-96 and D-97 logged. 8a (client money, D9) and 8b (supplier money, D10) built and merged. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 8 and the decision log entries it cites.
 
 Charter build step 8 covers:
 - installments, including those for bookings already confirmed;

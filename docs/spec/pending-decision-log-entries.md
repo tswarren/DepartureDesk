@@ -47,6 +47,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-95 | Settle the Alpha hotel rooming: two Garden Queen rooms for BK-101; Child 0–4 uses no hotel place | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-96 | Amend the charter for step 8: client payment reversal (CMN-27), an arrangement balance basis for schedule lines, D9 and D10's payments, commission confirmation only, two PRs | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-97 | Settle Agreement A's unsold cabins: released Jul 15, 2027, deposits kept; final payment $23,850 | [Charter](../planning/first-slice/first-slice-charter.md) |
+| D-98 | Amend the charter: a UX consolidation pass between steps 8 and 9, changing no rule, record, permission or case; several PRs | [UX consolidation audit](../planning/first-slice/ux-consolidation-audit.md) |
 
 ## Blocking decisions
 
