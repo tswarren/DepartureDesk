@@ -1,4 +1,4 @@
-<%# Amounts due (SMN-05): open until payments arrive in build step 8. %>
+<%# Amounts due (SMN-05), each Unpaid, Part paid or Paid from the supplier payments applied to it (SMN-19). %>
 <%# locals: (amounts:, show_supplier:) -%>
 <div class="dd-table-wrap">
   <table class="dd-table dd-stacked-table">
@@ -10,6 +10,7 @@
         <th scope="col">Amount due</th>
         <th scope="col">Source</th>
         <th scope="col" class="num">Amount</th>
+        <th scope="col" class="num">Paid</th>
         <th scope="col">Status</th>
       </tr>
     </thead>
@@ -21,7 +22,8 @@
           <th scope="row"><%= amount.description %></th>
           <td><%= stacked_label("Source") %><%= amount_due_source(amount) %></td>
           <td class="num"><%= stacked_label("Amount") %><%= money(amount.amount_minor_units, amount.currency) %></td>
-          <td><%= stacked_label("Status") %><%= status_badge("Open", modifier: "warning") %></td>
+          <td class="num"><%= stacked_label("Paid") %><%= money(amount.paid_minor_units, amount.currency) %></td>
+          <td><%= stacked_label("Status") %><%= status_badge(AmountDue::PAID_LABELS.fetch(amount.paid_status), modifier: { "paid" => "success", "part_paid" => "info", "unpaid" => "warning" }.fetch(amount.paid_status)) %></td>
         </tr>
       <% end %>
     </tbody>

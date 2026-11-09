@@ -48,7 +48,11 @@ module AccessPermission
     manage_supplier_reservations: "supplier_arrangements",
     # CMN-19: every staff user sees client money; only Financial records records it.
     view_client_money: :baseline,
-    manage_client_money: "financial_records"
+    manage_client_money: "financial_records",
+    # SMN-18: only Financial records records supplier payments.
+    manage_supplier_payments: "financial_records",
+    # SMN-33: recording the supplier's confirmation of a commission.
+    confirm_commission: %w[supplier_arrangements financial_records]
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

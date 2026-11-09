@@ -76,7 +76,7 @@ class SaveScheduleLine < AgencyCommand
     raise Error.new("Choose the cost line the percentage applies to.", code: :invalid) if kind == "percentage_of_cost_line" && cost_line.nil?
 
     line.assign_attributes(
-      description: @attributes.fetch("description", line.description), amount_kind: kind, due_rule: rule, cost_line:,
+      description: @attributes.fetch("description", line.description), amount_kind: kind, due_rule: rule, cost_line: (cost_line unless kind == "balance"),
       supplier_deadline: find_in!(arrangement.deadlines, "supplier_deadline_id", "Supplier deadline"),
       inventory_group: find_in!(arrangement.inventory_groups, "inventory_group_id", "Inventory group"),
       amount_minor_units: kind == "fixed" ? parse_money!("amount", "Amount", currency, required: true) : nil,

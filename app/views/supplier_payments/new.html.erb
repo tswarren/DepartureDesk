@@ -1,0 +1,67 @@
+<% content_for :title, "Pay #{@supplier.display_name_for_directory} · DepartureDesk" %>
+<% currency = @departure.supplier_arrangements.live.find_by(supplier: @supplier)&.currency %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Supplier money", departure_supplier_money_path(@departure) ], [ "Record a payment", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier money · <%= @departure.name %></p>
+    <h1 class="dd-page-title">Record a payment to <%= @supplier.display_name_for_directory %></h1>
+    <p class="dd-page-description">A payment the agency made. It settles amounts due; it never changes cost or capacity.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The payment wasn't recorded</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_supplier_payments_path(@departure), scope: :supplier_payment, class: "dd-form", data: { controller: "unsaved-changes payment-allocation" } do |form| %>
+      <%= hidden_field_tag :supplier_id, @supplier.id, id: nil %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :amount, "Amount (#{currency})", class: "dd-label" %>
+          <%= form.text_field :amount, value: @values["amount"], inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow",
+                data: { payment_allocation_target: "amount", action: "input->payment-allocation#allocate" } %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :paid_on, "Date paid", class: "dd-label" %>
+          <%= form.date_field :paid_on, value: @values["paid_on"], class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :payment_method, "How it was paid", class: "dd-label" %>
+          <%= form.select :payment_method, SupplierPayment::METHOD_LABELS.invert, { selected: @values["payment_method"] }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :payee_account_id, "Paid to (optional)", class: "dd-label" %>
+          <%= form.select :payee_account_id, @supplier.payee_accounts.map { |account| [ "#{account.name} (#{account.currency})", account.id ] }, { include_blank: "No payee account", selected: @values["payee_account_id"] }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :bank_reference, "Bank or card reference (optional)", class: "dd-label" %>
+          <%= form.text_field :bank_reference, value: @values["bank_reference"], maxlength: SupplierPayment::REFERENCE_LIMIT, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :invoice_reference, "Supplier's invoice reference (optional)", class: "dd-label" %>
+          <%= form.text_field :invoice_reference, value: @values["invoice_reference"], maxlength: SupplierPayment::REFERENCE_LIMIT, class: "dd-field" %>
+        </div>
+      </div>
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Apply it to</legend>
+        <% if @open.empty? %>
+          <p class="dd-field-hint">Nothing is open for <%= @supplier.display_name_for_directory %>, so the payment stays unapplied until an amount falls due.</p>
+        <% else %>
+          <p class="dd-field-hint">Filled in oldest amount first as you type; change any amount. What isn't applied stays unapplied.</p>
+          <%= render "supplier_payments/application_fields", amounts: @open, values: @applied || {}, currency: %>
+        <% end %>
+      </fieldset>
+      <div class="dd-form-actions">
+        <%= form.submit "Record payment", class: "dd-button", name: nil %>
+        <%= link_to "Cancel", departure_supplier_money_path(@departure, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

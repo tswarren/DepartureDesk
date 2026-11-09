@@ -32,7 +32,7 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_postal_addresses
       supplier_websites
       suppliers
-    ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline|reservation)/).sort
+    ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|rate_band|deadline|reservation|payment)/).sort
   end
 
   test "name shapes are enforced by Active Record and direct SQL" do

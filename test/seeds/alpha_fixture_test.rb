@@ -73,8 +73,9 @@ class AlphaFixtureTest < ActiveSupport::TestCase
   test "records the Agreement A deadlines, each with a task for the default task owner (step 3b)" do
     alpha = AlphaFixture.load!(agency: @agency, actor: @actor)
     deadlines = SupplierDeadline.where(supplier_arrangement: alpha.arrangements.values).order(:resolved_at)
-    assert_equal 6, deadlines.size
+    assert_equal 7, deadlines.size, "Agreement A's four, including the Jul 15, 2027 release (D-97), the hotel's and the excursion's"
     assert deadlines.all?(&:actionable)
+    assert_equal Date.new(2027, 7, 15), deadlines.find_by!(deadline_type: "option_release").due_on
     assert deadlines.all? { |deadline| deadline.task&.owner == @actor && deadline.task.open? }
     final_count = deadlines.find_by!(deadline_type: "final_count")
     assert_equal Time.find_zone("America/New_York").local(2027, 10, 22, 23, 59), final_count.resolved_at
@@ -87,7 +88,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     cruise, hotel, excursion = alpha.arrangements.values_at(:cruise, :hotel, :excursion)
 
     assert_empty cruise.cost_lines
-    assert_equal [ "per_unit_count", "per_shell" ], cruise.schedule_lines.map(&:amount_kind)
+    assert_equal [ "per_unit_count", "per_shell", "balance" ], cruise.schedule_lines.map(&:amount_kind), "the final payment is the arrangement's balance (D-96)"
     assert cruise.schedule_lines.all?(&:supplier_deadline), "each deposit pays its deadline, so it has no second task"
     assert_equal [ 58_000, 70_000, 29_000, 17_500 ].sort, hotel.cost_lines.map(&:amount_minor_units).sort
     assert hotel.cost_lines.all?(&:stage_committed?)
@@ -96,7 +97,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal [ 100_000 ], excursion.cost_lines.map(&:amount_minor_units)
     assert_equal excursion.inventory_groups.sole.unit_shells.map(&:id), excursion.cost_lines.sole.unit_shell_ids
     assert_empty AmountDue.where(supplier_arrangement: alpha.arrangements.values), "nothing is due before Nov 1, 2026"
-    assert_equal 6, @agency.tasks.count, "schedule lines that pay a deadline add no task"
+    assert_equal 7, @agency.tasks.count, "schedule lines that pay a deadline add no task"
   end
 
   test "loads the Alpha Omega package, whose prices give the roster's cruise subtotals, and its client terms (step 5, D-93)" do
@@ -227,7 +228,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal 3, @agency.supplier_arrangements.count
     assert_equal 3, PayeeAccount.where(agency: @agency).count
     assert_equal 32 + 8 + 1, UnitShell.where(agency: @agency).count
-    assert_equal 6, @agency.tasks.count
+    assert_equal 7, @agency.tasks.count
     assert_equal 1, @agency.departures.sole.offerings.count
     assert_equal 1, ClientTermsVersion.where(agency: @agency).count
   end

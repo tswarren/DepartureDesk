@@ -39,6 +39,7 @@ export default class extends Controller {
         const cost = select && select.selectedOptions[0] ? select.selectedOptions[0].text : ""
         return percentage && cost && `${percentage}% of ${cost}`
       }
+      case "balance": return "The balance of what's committed, less what earlier payments made due"
       default: return null
     }
   }

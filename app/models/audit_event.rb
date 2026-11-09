@@ -59,6 +59,10 @@ class AuditEvent < ApplicationRecord
     client_payment.recorded
     client_payment.applied
     client_payment.reversed
+    supplier_payment.recorded
+    supplier_payment.applied
+    supplier_payment.reversed
+    client_booking.commission_confirmed
     supplier_reservation.requested
     supplier_reservation.confirmed
     departure.client_terms_locked
@@ -162,7 +166,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation ClientPayment].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation ClientPayment SupplierPayment].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true
