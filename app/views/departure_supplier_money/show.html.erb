@@ -6,7 +6,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departure</p>
     <h1 class="dd-page-title"><%= @departure.name %></h1>
-    <p class="dd-page-description">What this departure owes its suppliers: committed cost, by arrangement or by booking, and every amount due. Payments arrive in a later step.</p>
+    <p class="dd-page-description">What this departure owes its suppliers: committed cost, by arrangement or by booking, every amount due, and the payments that settle them.</p>
   </div>
 </header>
 
@@ -131,3 +131,5 @@
     <%= render "supplier_money/amounts_table", amounts: @amounts_due, show_supplier: true %>
   <% end %>
 </article>
+
+<%= render "supplier_payments/panel", departure: @departure, amounts: @amounts_due.to_a, payments: @supplier_payments.to_a %>

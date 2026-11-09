@@ -1,0 +1,38 @@
+<% content_for :title, "Reverse #{@payment.payment_reference} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Supplier money", departure_supplier_money_path(@departure) ], [ "Reverse #{@payment.payment_reference}", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier money · <%= @departure.name %></p>
+    <h1 class="dd-page-title">Reverse <%= @payment.payment_reference %></h1>
+    <p class="dd-page-description"><%= Money.new(@payment.amount_minor_units, @payment.currency).format %> to <%= @payment.supplier.display_name_for_directory %> on <%= @payment.paid_on.to_fs(:long) %>. The amounts it paid open again; both records are kept.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">The payment wasn't reversed</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_supplier_payment_reversal_path(@departure, @payment), class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= label_tag :reason, "Why it's reversed", class: "dd-label" %>
+        <%= text_area_tag :reason, params[:reason], rows: 2, maxlength: SupplierPaymentReversal::REASON_LIMIT, required: true, class: "dd-field", aria: { describedby: "reason_hint" } %>
+        <p class="dd-field-hint" id="reason_hint">For example: Wire returned by the bank.</p>
+      </div>
+      <div class="dd-field-group">
+        <%= label_tag :reversed_on, "Date (optional)", class: "dd-label" %>
+        <%= date_field_tag :reversed_on, params[:reversed_on], class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Reverse payment", class: "dd-button dd-button--danger", name: nil %>
+        <%= link_to "Cancel", departure_supplier_money_path(@departure, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

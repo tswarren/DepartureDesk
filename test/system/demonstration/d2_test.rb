@@ -30,7 +30,7 @@ class DemonstrationD2Test < ApplicationSystemTestCase
     within("#amounts-due tr", text: "Initial deposit, $50 per stateroom") do
       assert_text "November 01, 2026"
       assert_text "$1,600.00"
-      assert_text "Open"
+      assert_text "Unpaid"
     end
     assert_equal 32, shells.count { |shell| shell.status == "available" }, "an amount falling due changes no capacity"
     assert_empty @cruise.cost_lines, "a deposit is never a cost (SMN-03)"

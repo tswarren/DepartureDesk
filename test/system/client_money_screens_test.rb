@@ -1,6 +1,6 @@
 require "application_system_test_case"
 
-# Step 8a screens S-28, S-29, the reversal form and receipts, at desktop width and 375px.
+# Step 8 screens S-28 to S-31, the reversal forms and receipts, at desktop width and 375px.
 class ClientMoneyScreensTest < ApplicationSystemTestCase
   setup do
     set_clock Time.utc(2027, 1, 10, 15)
@@ -17,7 +17,10 @@ class ClientMoneyScreensTest < ApplicationSystemTestCase
     trip = @alpha.bookings.fetch("BK-101").client_trip
     payment = trip.client_payments.sole
     paths = [ client_trip_path(trip), new_client_trip_payment_path(trip), new_client_trip_payment_reversal_path(trip, payment), receipt_path(payment.receipt),
-              client_booking_path(@alpha.bookings.fetch("BK-101"), step: "price"), departure_bookings_path(@alpha.departure) ]
+              client_booking_path(@alpha.bookings.fetch("BK-101"), step: "price"), departure_bookings_path(@alpha.departure),
+              departure_supplier_money_path(@alpha.departure), client_booking_path(@alpha.bookings.fetch("BK-101"), step: "confirm"),
+              new_departure_supplier_payment_path(@alpha.departure, supplier_id: @alpha.arrangements.fetch(:cruise).supplier_id),
+              new_departure_supplier_payment_reversal_path(@alpha.departure, @alpha.departure.supplier_payments.sole) ]
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     [ 1400, 375 ].each do |width|
       resize_window(width)

@@ -13,7 +13,8 @@ class DepartureSupplierMoneyController < ApplicationController
   def show
     @view = params[:view].presence_in(VIEWS) || "arrangement"
     @arrangements = @departure.supplier_arrangements.live.includes(:supplier).to_a
-    @amounts_due = AmountDue.where(supplier_arrangement: @arrangements).includes(supplier_arrangement: :supplier).by_due
+    @amounts_due = AmountDue.where(supplier_arrangement: @arrangements).includes(:schedule_line, :payment_applications, supplier_arrangement: :supplier).by_due
+    @supplier_payments = @departure.supplier_payments.includes(:supplier, :payee_account, :reversal, :recorded_by, applications: :amount_due)
     @cost_lines = CostLine.where(supplier_arrangement: @arrangements)
       .includes(:inventory_group, :base_cost_line, { unit_shells: :inventory_group }, { supplier_arrangement: :supplier },
         client_booking: { client_trip: { client: %i[client_person client_organization] } })

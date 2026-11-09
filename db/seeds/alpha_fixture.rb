@@ -136,7 +136,10 @@ module AlphaFixture
     client_terms = client_terms!(agency, actor, departure)
     trips = bookings == :none ? {} : roster!(agency, actor, departure)
     roster_bookings = bookings.in?(%i[held confirmed paid]) ? roster_bookings!(agency, actor, trips, confirm: bookings.in?(%i[confirmed paid])) : {}
-    roster_payments!(agency, actor, roster_bookings, arrangements) if bookings == :paid
+    if bookings == :paid
+      roster_payments!(agency, actor, roster_bookings, arrangements)
+      supplier_payment!(agency, actor, departure, arrangements.fetch(:cruise))
+    end
     Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings)
   end
 
@@ -527,6 +530,23 @@ module AlphaFixture
     end
   end
   private_class_method :roster_payments!
+
+  # D-96 (3), D10: staff pay Alpha what is due by Feb 3, 2027: the $1,600
+  # initial deposit and $450 for each of the three confirmed cabins.
+  SUPPLIER_PAYMENT = { on: Time.utc(2027, 2, 3, 15), amount: "2950", payment_method: "bank_transfer", bank_reference: "Wire 0203" }.freeze
+
+  def self.supplier_payment!(agency, actor, departure, arrangement)
+    return if departure.supplier_payments.exists?
+
+    Clock.use(Clock.fixed(SUPPLIER_PAYMENT.fetch(:on))) do
+      due = arrangement.amounts_due.reload.by_due.map { |amount| { amount_due_id: amount.id, amount: MoneyInput.display(amount.amount_minor_units, CURRENCY).delete(",") } }
+      created!(RecordSupplierPayment.new(agency:, actor:, departure:, supplier: arrangement.supplier, applications: due, attributes: {
+        payee_account_id: arrangement.payee_account_id, paid_on: SUPPLIER_PAYMENT.fetch(:on).to_date.iso8601, amount: SUPPLIER_PAYMENT.fetch(:amount),
+        payment_method: SUPPLIER_PAYMENT.fetch(:payment_method), bank_reference: SUPPLIER_PAYMENT.fetch(:bank_reference)
+      }).call, "the Alpha payment")
+    end
+  end
+  private_class_method :supplier_payment!
 
   # A booking on each roster trip, with its travelers, choices and a hold
   # placed at the current clock; with confirm:, each is held, accepted and
