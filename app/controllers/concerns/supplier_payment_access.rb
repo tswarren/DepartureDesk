@@ -20,6 +20,6 @@ module SupplierPaymentAccess
   end
 
   def money_tab(notice: nil, alert: nil)
-    redirect_to departure_supplier_money_path(@departure, anchor: "supplier-payments"), notice:, alert:
+    redirect_to departure_money_path(@departure, anchor: "supplier-payments"), notice:, alert:
   end
 end

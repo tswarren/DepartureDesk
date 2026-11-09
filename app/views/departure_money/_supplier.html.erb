@@ -1,21 +1,8 @@
-<% content_for :title, "Supplier money · #{@departure.name} · DepartureDesk" %>
-
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Supplier money", nil ] ] %>
-
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Departure</p>
-    <h1 class="dd-page-title"><%= @departure.name %></h1>
-    <p class="dd-page-description">What this departure owes its suppliers: committed cost, by arrangement or by booking, every amount due, and the payments that settle them.</p>
-  </div>
-</header>
-
-<%= render "departures/tabs", departure: @departure, current: :supplier_money %>
-
+<%# The Money tab's supplier section (SMN-05, SMN-18, SMN-52): committed cost by arrangement or by booking, amounts due and payments. %>
 <% currency = @departure.operating_currency %>
 <% committed = @cost_lines.select(&:stage_committed?) %>
 <article class="dd-panel" id="exposure">
-  <header class="dd-panel-header"><h2 class="dd-panel-title">Committed cost</h2></header>
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Supplier cost committed</h2></header>
   <div class="dd-panel-body dd-stack">
     <% if currency %>
       <dl class="dd-definition-list">
@@ -26,7 +13,7 @@
       </dl>
       <nav class="dd-segmented" aria-label="Break committed cost down">
         <% [ [ "arrangement", "By arrangement" ], [ "booking", "By booking" ] ].each do |view, label| %>
-          <%= link_to label, departure_supplier_money_path(@departure, view:, anchor: "breakdown"), class: "dd-segmented-option dd-segmented-link", aria: { current: ("page" if view == @view) } %>
+          <%= link_to label, departure_money_path(@departure, view:, anchor: "breakdown"), class: "dd-segmented-option dd-segmented-link", aria: { current: ("page" if view == @view) } %>
         <% end %>
       </nav>
     <% else %>
@@ -124,7 +111,7 @@
 <% end %>
 
 <article class="dd-panel" id="amounts-due">
-  <header class="dd-panel-header"><h2 class="dd-panel-title">Amounts due</h2></header>
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Amounts due to suppliers</h2></header>
   <% if @amounts_due.empty? %>
     <div class="dd-panel-body"><p class="dd-empty-copy">Nothing has fallen due yet.</p></div>
   <% else %>

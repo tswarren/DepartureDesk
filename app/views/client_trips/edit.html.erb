@@ -1,6 +1,6 @@
 <% content_for :title, "Edit #{@trip.trip_reference} · DepartureDesk" %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @trip.client.source.display_name, client_profile_path_for(@trip.client) ], [ @trip.trip_reference, client_trip_path(@trip) ], [ "Edit", nil ] ] %>
+<%= render "shared/breadcrumbs", trail: trip_trail(@trip) + [ [ "Edit", nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">

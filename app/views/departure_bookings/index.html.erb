@@ -69,21 +69,3 @@
     <% end %>
   </div>
 </article>
-
-<% if @money&.any? %>
-  <% currency = @departure.operating_currency %>
-  <article class="dd-panel" id="client-money">
-    <header class="dd-panel-header"><h2 class="dd-panel-title">Client money</h2></header>
-    <div class="dd-panel-body dd-stack">
-      <dl class="dd-definition-list">
-        <div><dt>Still due from clients</dt><dd class="dd-type-mono"><%= booking_money(@money.sum(&:receivable_minor_units), currency) %></dd></div>
-        <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(@money.sum(&:agency_cash_minor_units), currency) %></dd></div>
-        <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= booking_money(@money.sum(&:supplier_route_minor_units), currency) %></dd></div>
-        <div><dt>Credit not yet applied</dt><dd class="dd-type-mono"><%= booking_money(@money.sum(&:credit_minor_units), currency) %></dd></div>
-        <div><dt>Held by suppliers for the agency</dt><dd class="dd-type-mono"><%= booking_money(@money.sum(&:supplier_held_minor_units), currency) %></dd></div>
-      </dl>
-      <p class="dd-field-hint">Only money paid to the agency is agency cash and gets a receipt. Each trip's payments are on the trip.</p>
-    </div>
-  </article>
-<% end %>
-

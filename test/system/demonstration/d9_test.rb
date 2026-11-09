@@ -46,7 +46,7 @@ class DemonstrationD9Test < ApplicationSystemTestCase
     assert alpha_payment.supplier_route?
     assert_nil alpha_payment.receipt, "the Alpha payment has no receipt"
 
-    visit departure_bookings_path(@alpha.departure)
+    visit departure_money_path(@alpha.departure)
     within("#client-money") do
       assert_selector "div", text: /Paid to the agency\s*\$1,000\.00/
       assert_selector "div", text: /Paid to suppliers\s*\$500\.00/

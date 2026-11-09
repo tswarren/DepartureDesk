@@ -194,7 +194,9 @@ Rails.application.routes.draw do
     # S-25: the Departure roster (BKG-06).
     resources :bookings, only: %i[index new create], controller: "departure_bookings"
     resources :tasks, only: :index, controller: "departure_tasks"
-    resource :supplier_money, only: :show, controller: "departure_supplier_money"
+    # The Money tab: client and supplier money, kept apart (UX audit decision 2).
+    resource :money, only: :show, controller: "departure_money"
+    get :supplier_money, to: redirect { |params, request| "/departures/#{params[:departure_id]}/money#{"?#{request.query_string}" if request.query_string.present?}" }
     # S-30, S-31: supplier payments (SMN-18, SMN-19, SMN-22, SMN-23).
     resources :supplier_payments, only: %i[new create] do
       resource :reversal, only: %i[new create], controller: "supplier_payment_reversals"

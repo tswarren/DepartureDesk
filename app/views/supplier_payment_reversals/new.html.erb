@@ -1,6 +1,6 @@
 <% content_for :title, "Reverse #{@payment.payment_reference} · DepartureDesk" %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Supplier money", departure_supplier_money_path(@departure) ], [ "Reverse #{@payment.payment_reference}", nil ] ] %>
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Money", departure_money_path(@departure) ], [ "Reverse #{@payment.payment_reference}", nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -26,7 +26,7 @@
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Reverse payment", class: "dd-button dd-button--danger", name: nil %>
-        <%= link_to "Cancel", departure_supplier_money_path(@departure, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_money_path(@departure, anchor: "supplier-payments"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

@@ -71,6 +71,8 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - The form saves a Draft with dates, currency or time zone missing; the name is required. It has optional hold-duration and installment-buffer overrides whose hints show the agency default, and asks before leaving unsaved changes.
 - The overview (S-07) has breadcrumbs, a header with reference, dates and label, a Departure tab bar (Overview only until later steps add tabs), the three statuses with what blocks Ready to sell, details, the operating decision with its history, and the team panel (S-09). A Departed Departure shows no edit or status actions.
 - Ready to sell, Return to Draft and Mark departed are focused pages. Return to Draft takes an optional note.
+- The Departure tabs run in the order the work does: Overview, Suppliers, Inventory, Package, Client terms, Bookings, Money, Tasks. The Money tab has a client section and a supplier section, each shown only to staff who may see it, kept apart and never netted. The old Supplier money address redirects there.
+- A trip on a Departure, and each of its bookings, is reached through Departures › reference › Bookings › trip (`trip_trail`, `booking_trail`), and the sidebar marks Departures. A trip without a Departure is reached through its client.
 
 ## Client offers (draft)
 

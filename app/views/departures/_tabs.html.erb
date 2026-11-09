@@ -1,16 +1,17 @@
-<%# The Departure area tabs (screen inventory: tabs are pages). Each later step adds its tab. %>
+<%# The Departure area tabs, in the order the work runs (UX consolidation audit A1): set up suppliers, inventory, package and terms, then book, take money, and follow tasks. %>
 <%# locals: (departure:, current:) -%>
+<% user = Current.agency_user %>
 <nav class="dd-subnav" aria-label="Departure sections">
   <%= link_to "Overview", departure_path(departure), aria: { current: ("page" if current == :overview) } %>
-  <% if Current.agency_user.permitted?(:view_bookings) %>
-    <%= link_to "Bookings", departure_bookings_path(departure), aria: { current: ("page" if current == :bookings) } %>
-  <% end %>
+  <%= link_to "Suppliers", departure_arrangements_path(departure), aria: { current: ("page" if current == :suppliers) } %>
+  <%= link_to "Inventory", departure_inventory_path(departure), aria: { current: ("page" if current == :inventory) } %>
   <%= link_to "Package", departure_offerings_path(departure), aria: { current: ("page" if current == :package) } %>
   <%= link_to "Client terms", departure_client_terms_path(departure), aria: { current: ("page" if current == :client_terms) } %>
-  <%= link_to "Inventory", departure_inventory_path(departure), aria: { current: ("page" if current == :inventory) } %>
-  <%= link_to "Suppliers", departure_arrangements_path(departure), aria: { current: ("page" if current == :suppliers) } %>
-  <% if Current.agency_user.permitted?(:view_supplier_costs) %>
-    <%= link_to "Supplier money", departure_supplier_money_path(departure), aria: { current: ("page" if current == :supplier_money) } %>
+  <% if user.permitted?(:view_bookings) %>
+    <%= link_to "Bookings", departure_bookings_path(departure), aria: { current: ("page" if current == :bookings) } %>
+  <% end %>
+  <% if user.permitted?(:view_client_money) || user.permitted?(:view_supplier_costs) %>
+    <%= link_to "Money", departure_money_path(departure), aria: { current: ("page" if current == :money) } %>
   <% end %>
   <%= link_to "Tasks", departure_tasks_path(departure), aria: { current: ("page" if current == :tasks) } %>
 </nav>

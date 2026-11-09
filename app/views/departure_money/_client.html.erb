@@ -1,0 +1,46 @@
+<%# The Money tab's client section (CMN-06, CMN-29, SMN-27): the Departure's totals, then each trip's. Payments are recorded on the trip. %>
+<%# locals: (departure:, trips:) -%>
+<% currency = departure.operating_currency %>
+<article class="dd-panel" id="client-money" aria-labelledby="client-money-heading">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="client-money-heading">Client money</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <% if trips.none? { |money| money.bookings.any? } %>
+      <p class="dd-empty-copy">No confirmed booking yet. A booking's charge and installments are made when it is confirmed.</p>
+    <% else %>
+      <dl class="dd-definition-list">
+        <div><dt>Still due from clients</dt><dd class="dd-type-mono"><%= booking_money(trips.sum(&:receivable_minor_units), currency) %></dd></div>
+        <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(trips.sum(&:agency_cash_minor_units), currency) %></dd></div>
+        <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= booking_money(trips.sum(&:supplier_route_minor_units), currency) %></dd></div>
+        <div><dt>Credit not yet applied</dt><dd class="dd-type-mono"><%= booking_money(trips.sum(&:credit_minor_units), currency) %></dd></div>
+        <div><dt>Held by suppliers for the agency</dt><dd class="dd-type-mono"><%= booking_money(trips.sum(&:supplier_held_minor_units), currency) %></dd></div>
+      </dl>
+      <p class="dd-field-hint">Only money paid to the agency is agency cash and gets a receipt. Payments are recorded on each trip.</p>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Client money by trip</caption>
+          <thead>
+            <tr>
+              <th scope="col">Trip</th>
+              <th scope="col" class="num">Charged</th>
+              <th scope="col" class="num">Paid</th>
+              <th scope="col" class="num">Still due</th>
+              <th scope="col">Next due</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% trips.select { |money| money.bookings.any? }.each do |money| %>
+              <% next_due = money.open_installments.first %>
+              <tr>
+                <th scope="row"><%= link_to money.trip.trip_reference, client_trip_path(money.trip, anchor: "money"), class: "dd-type-mono" %><span class="dd-cell-subtext"><%= money.trip.client.source.display_name %></span></th>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Charged </span><%= booking_money(money.bookings.sum { |booking| booking.client_charge.total_minor_units }, currency) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Paid </span><%= booking_money(money.agency_cash_minor_units + money.supplier_route_minor_units, currency) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Still due </span><%= booking_money(money.receivable_minor_units, currency) %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Next due </span><%= next_due ? "#{booking_money(next_due.open_minor_units, currency)} on #{next_due.due_on.to_fs(:long)}" : "Nothing open" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>

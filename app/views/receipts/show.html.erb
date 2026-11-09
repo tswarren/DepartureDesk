@@ -1,7 +1,7 @@
 <% content_for :title, "#{@receipt.receipt_number} · DepartureDesk" %>
 <% trip = @payment.client_trip %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @receipt.departure.display_reference, departure_path(@receipt.departure) ], [ trip.trip_reference, client_trip_path(trip, anchor: "money") ], [ @receipt.receipt_number, nil ] ] %>
+<%= render "shared/breadcrumbs", trail: trip_trail(trip) + [ [ @receipt.receipt_number, nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
