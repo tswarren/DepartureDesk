@@ -1,4 +1,6 @@
-# Sets or removes one client price on an option (BKG-21).
+# Sets or removes one client price on an option (BKG-21). The choice's
+# price grid is the main way to set prices (UX audit A4); a refused price
+# re-renders the option page with what was typed (C1).
 class OfferingPricesController < ApplicationController
   include PackageAccess
 
@@ -13,9 +15,11 @@ class OfferingPricesController < ApplicationController
       attributes: form_params(:offering_price, %i[occupancy_position traveler_type_id amount])).call
     redirect_to edit_departure_offering_choice_option_path(@departure, @offering, option.choice, option, anchor: "prices"), notice: "Price saved."
   rescue AgencyCommand::Error => error
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    redirect_to edit_departure_offering_choice_option_path(@departure, @offering, option.choice, option, anchor: "prices"), alert: error.message
+    @choice = option.choice
+    @option = @choice.options.includes(prices: :traveler_type).find(option.id)
+    @price = OfferingPrice.new(form_params(:offering_price, %i[occupancy_position traveler_type_id amount]))
+    render_form_error(error, @price, "offering_options/edit",
+      [ [ :occupancy_position, "Choose an occupancy" ], [ :traveler_type_id, "Choose one of the agency's traveler types" ], [ :amount, "Amount" ] ])
   end
 
   def destroy

@@ -1,4 +1,4 @@
-<%# S-22: a client's linked travelers (CLT-09 to CLT-11) and its Client Trips (CLT-02). %>
+<%# S-22: a client's linked travelers (CLT-09 to CLT-11) and its Client Trips (CLT-02), each with its Departure and bookings (UX audit A5). %>
 <%# locals: (client:) -%>
 <% links = client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, link.traveler.display_name.to_s ] } %>
 <% manage_directory = Current.agency_user.permitted?(:manage_client_directory) %>
@@ -51,7 +51,7 @@
 </article>
 
 <% if Current.agency_user.permitted?(:view_bookings) %>
-  <% trips = client.client_trips.includes(:departure).order(created_at: :desc) %>
+  <% trips = client.client_trips.includes(:departure, :client_bookings).order(created_at: :desc) %>
   <article class="dd-panel" id="trips">
     <header class="dd-panel-header dd-section-header">
       <h2 class="dd-panel-title">Trips</h2>
@@ -64,17 +64,24 @@
         <p class="dd-empty-copy">No trips. A trip holds this client's bookings, and the client owes its balance.</p>
       <% else %>
         <div class="dd-table-wrap">
-          <table class="dd-table">
+          <table class="dd-table dd-stacked-table">
             <caption class="dd-visually-hidden">Trips for <%= client.source.display_name %></caption>
             <thead>
-              <tr><th scope="col">Trip</th><th scope="col">Departure</th><th scope="col">Status</th></tr>
+              <tr><th scope="col">Trip</th><th scope="col">Departure</th><th scope="col">Bookings</th><th scope="col">Status</th></tr>
             </thead>
             <tbody>
               <% trips.each do |trip| %>
                 <tr>
                   <th scope="row"><%= link_to trip.trip_reference, client_trip_path(trip), class: "dd-type-mono" %></th>
-                  <td><%= trip.departure ? "#{trip.departure.departure_reference} · #{trip.departure.name}" : "None" %></td>
-                  <td><%= status_badge(trip.status_label, modifier: "neutral") %></td>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Departure </span><%= trip.departure ? link_to("#{trip.departure.departure_reference} · #{trip.departure.name}", departure_path(trip.departure)) : "None" %></td>
+                  <td>
+                    <span class="dd-cabin-field-label dd-visually-hidden">Bookings </span>
+                    <% if trip.client_bookings.empty? %>None<% end %>
+                    <% trip.client_bookings.sort_by(&:created_at).each do |booking| %>
+                      <span class="dd-cell-line"><%= link_to booking.booking_reference, client_booking_path(booking), class: "dd-type-mono" %> <%= booking.status_label %></span>
+                    <% end %>
+                  </td>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Status </span><%= status_badge(trip.status_label, modifier: "neutral") %></td>
                 </tr>
               <% end %>
             </tbody>

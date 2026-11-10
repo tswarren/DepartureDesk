@@ -13,6 +13,9 @@ class OfferingPrice < ApplicationRecord
 
   attr_readonly :agency_id, :offering_option_id, :currency
 
+  # The amount as typed on the one-price form, kept when it is refused.
+  attribute :amount, :string
+
   validates :occupancy_position, inclusion: { in: POSITIONS }
   validates :amount_minor_units, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :currency, format: { with: Agency::CURRENCY_FORMAT }

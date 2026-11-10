@@ -78,6 +78,22 @@ class TasksControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody", count: 0
   end
 
+  test "My tasks groups tasks by the week they fall due, overdue first" do
+    { "Soon" => "2026-11-12", "Later" => "2026-11-18", "Deposit" => "2027-01-15" }.each do |description, due_on|
+      SaveSupplierDeadline.new(agency: @agency, actor: @admin, departure: @departure, arrangement: @arrangement,
+        attributes: { deadline_type: "deposit_payment", description:, due_on: }).call
+    end
+    sign_in_as @admin
+    get tasks_path
+    assert_equal [ "This week", "Next week", "Week of Jan 11, 2027" ], css_select("section h2").map { |heading| heading.text.strip }
+    assert_select "section[aria-labelledby=tasks-this-week] tbody th a", text: "Route Cruises: Soon"
+
+    set_clock Time.utc(2026, 11, 13, 15)
+    get tasks_path
+    assert_equal [ "Overdue", "Next week", "Week of Jan 11, 2027" ], css_select("section h2").map { |heading| heading.text.strip }
+    assert_select "section[aria-labelledby=tasks-overdue] tbody th a", text: "Route Cruises: Soon"
+  end
+
   test "baseline staff see the Departure's tasks but cannot reassign; Departure management can" do
     task = record_task!
     sign_in_as agency_users(:harbor_baseline_staff)

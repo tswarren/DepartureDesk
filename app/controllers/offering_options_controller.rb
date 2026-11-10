@@ -1,4 +1,5 @@
-# An option's form, and on its edit page, its client prices (BKG-21).
+# An option's form, and on its edit page, its client prices (BKG-21), set
+# in the choice's price grid or one at a time (UX audit A4).
 class OfferingOptionsController < ApplicationController
   include PackageAccess
 
@@ -23,6 +24,7 @@ class OfferingOptionsController < ApplicationController
   end
 
   def edit
+    @price = OfferingPrice.new
   end
 
   def update
@@ -30,6 +32,7 @@ class OfferingOptionsController < ApplicationController
       attributes: option_params, lock_version: params.dig(:offering_option, :lock_version)).call
     redirect_to edit_departure_offering_choice_option_path(@departure, @offering, @choice, @option), notice: "Option updated."
   rescue AgencyCommand::Error => error
+    @price = OfferingPrice.new
     render_form_error(error, @option, :edit, [ [ :label, "Label" ], [ :inventory_group_id, "Choose an inventory group" ] ])
   end
 

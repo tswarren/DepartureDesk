@@ -15,7 +15,7 @@
     <%= form_with model: @tier, url: departure_client_cancellation_tier_path(@departure, @tier), method: :patch, scope: :cancellation_tier, class: "dd-form" do |form| %>
       <%= render "shared/form_errors", object: form.object %>
       <%= form.hidden_field :lock_version %>
-      <%= render "shared/cancellation_tier_form", form:, values: @values, currency: @departure.operating_currency %>
+      <%= render "shared/cancellation_tier_form", form:, values: @values, currency: @departure.operating_currency, starts_on: @departure.starts_on %>
       <div class="dd-form-actions">
         <%= form.submit "Save", class: "dd-button" %>
         <%= link_to "Cancel", departure_client_terms_path(@departure), class: "dd-button dd-button--quiet" %>

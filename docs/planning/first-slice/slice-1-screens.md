@@ -51,8 +51,8 @@ Inventory is one Departure-level page that shows every group the Alpha fixture n
 | S-17 | Departure inventory | Page | 5 | Staff | Groups by category with availability promise; shells as a grid with derived status; positions used and left; children 0–4 listed without positions | D4, D6 | INV-01 to INV-05, INV-07, INV-38, INV-39 |
 | S-18 | Inventory group detail | Page | 5 | Staff | Shells or pool, capacity rule by traveler type, option cutoff, allocations against it, and the inventory event history. The supply change form sums the change up in a sentence, including any shortfall against what bookings hold; a refused change or capacity rule keeps what was typed and shows the error on the page |  | INV-09, INV-12, INV-16, INV-26 |
 | S-19 | Supplier reservations | Page | 11 | Staff | Requests per arrangement or standalone; status Requested, Confirmed, Declined, Cancelled; record the supplier's reference; Awaiting supplier on the booking | D8 | INV-33 to INV-37 |
-| S-20 | Offering editor | Page | 7 | Staff | Package components, included or add-on; choices with scope and pattern (cabin as required single per unit); options drawing on groups; prices by traveler type and occupancy position |  | BKG-13 to BKG-16, BKG-21 |
-| S-21 | Client terms | Page | 7 | Staff | Terms version wording, cancellation tiers, payment schedule with per-cabin deposit; start by copying another Departure's terms; locked once a booking accepts it |  | BKG-28, BKG-31, CMN-09, D-76, D-77 |
+| S-20 | Offering editor | Page | 7 | Staff | Package components, included or add-on; choices with scope and pattern (cabin as required single per unit); options drawing on groups; prices by traveler type and occupancy position, set in each choice's price grid, with one price at a time secondary on the option page (UX consolidation pass, A4) |  | BKG-13 to BKG-16, BKG-21 |
+| S-21 | Client terms | Page | 7 | Staff | Terms version wording, cancellation tiers, payment schedule with per-cabin deposit; start by copying another Departure's terms; locked once a booking accepts it; the schedule line and tier forms say the line in a sentence as it is filled in (UX consolidation pass, C2) |  | BKG-28, BKG-31, CMN-09, D-76, D-77 |
 
 ## Clients, trips and bookings
 
@@ -60,7 +60,7 @@ The booking workspace is the heaviest screen in the slice. It keeps booking stat
 
 | ID | Screen | Kind | Step | Who | Shows and does | D-cases | Rules |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| S-22 | Client directory and profile | Page | 8 | Staff | Existing person and organization clients, plus linked travelers with relationship; Created by reseller filter (D-78) |  | CLT-01, CLT-09 to CLT-11, CLT-25 |
+| S-22 | Client directory and profile | Page | 8 | Staff | Existing person and organization clients, plus linked travelers with relationship; trips listed with their Departure and bookings; Created by reseller filter (D-78) |  | CLT-01, CLT-09 to CLT-11, CLT-25 |
 | S-23 | Traveler form | Dialog | 8 | Staff | Names, preferred name, date of birth, supplier-required gender or sex, contact points; no passport fields |  | CLT-05, CLT-06 |
 | S-24 | Client Trip | Page | 8 | Staff | The trip's summary (UX consolidation pass, decision 7): responsible client, reference, Departure and derived status; each booking in brief (status, space, supplier status, services, acceptance, total and still due) with its travelers listed under it; what's next (drafts to finish, services awaiting a supplier, the next amount due); money (S-28) and documents (S-35). Printable from the browser (decision 8) |  | CLT-02, BKG-03 |
 | S-25 | Departure roster | Page | 10 | Staff | Every booking on the Departure: owner (agency or reseller), status, cabin, travelers, subtotal, balance; Hold expired shown with its time (D-80); totals row | D4 | BKG-06, ACC-18 |
@@ -78,7 +78,7 @@ Client money and supplier money are separate sections of the Departure's Money t
 | S-30 | Supplier money | Money tab section | 13 | Fin | Amounts due by supplier and arrangement, due date, supplier invoice reference, derived paid status | D2, D10 | SMN-05, SMN-06, SMN-22 |
 | S-31 | Record supplier payment | Dialog | 13 | Fin | Payee account, date, amount, method, reference; applied to amounts due; reversal instead of edit | D10 | SMN-18, SMN-19, SMN-23 |
 | S-32 | Expected commission | Panel | 13 | Fin | Per booking service and supplier: amount and status Expected, Confirmed, Received, Offset, Reversed | D14 | SMN-32, SMN-33 |
-| S-33 | My tasks | Page | 4 | Staff | The user's open tasks by due instant, overdue derived; complete or waive with a note | D12 | OPS-01 to OPS-05 |
+| S-33 | My tasks | Page | 4 | Staff | The user's open tasks by due instant, grouped Overdue, This week, Next week, then by week (UX consolidation pass); overdue derived; complete or waive with a note | D12 | OPS-01 to OPS-05 |
 | S-34 | Departure tasks | Panel | 4 | Staff | Every task on the Departure with source, owner and status; reassign | D12 | OPS-02, OPS-03 |
 | S-35 | Documents | Panel | 15 | Staff | Issue confirmation, invoice and receipt as PDFs; version list; record manual delivery; no dates of birth on output | D13 | DOC-01, DOC-03, DOC-11, DOC-21, DOC-24 |
 | S-36 | Closeout | Page | 15 | Fin | Mark Departed; reconciliation checklist with blockers; Reconciled label and reopen with a reason, keeping earlier snapshots (D-86); projected and actual margin in USD; seller of record | D14 | DEP-42 to DEP-44, DEP-46, FIN-01, FIN-17, FIN-18, FIN-20 |

@@ -37,12 +37,16 @@ class PackageAndTermsControllerTest < ActionDispatch::IntegrationTest
 
     get edit_departure_offering_choice_option_path(@departure, @offering, choice, option)
     assert_select "p", text: /Still needed: any position/
+    assert_select "#prices header a[href='#{edit_departure_offering_choice_prices_path(@departure, @offering, choice)}']", text: "Set Transfer prices"
+    assert_select "#prices details:not([open]) summary", text: "Set one price here instead"
     post departure_offering_prices_path(@departure, @offering), params: { offering_price: { offering_option_id: option.id, occupancy_position: "any", amount: "45" } }
     assert_equal [ 4_500 ], option.prices.pluck(:amount_minor_units)
 
     post departure_offering_prices_path(@departure, @offering), params: { offering_price: { offering_option_id: option.id, occupancy_position: "any", amount: "4.555" } }
-    follow_redirect!
-    assert_select ".dd-alert--danger", text: /must be an amount in USD/
+    assert_response :unprocessable_entity
+    assert_select "#prices details[open] #form-error-summary a[href='#offering_price_amount']", text: /must be an amount in USD/
+    assert_select "#offering_price_amount[value='4.555'][aria-invalid=true]"
+    assert_select "#offering_price_amount_error"
 
     delete departure_offering_price_path(@departure, @offering, option.prices.sole)
     assert_empty option.prices.reload
@@ -86,6 +90,27 @@ class PackageAndTermsControllerTest < ActionDispatch::IntegrationTest
     patch departure_client_terms_path(@departure), params: { client_terms_version: { overrides_cancellation_tiers: "false", lock_version: terms.reload.lock_version } }
     assert_not terms.reload.overrides_cancellation_tiers?
     assert_empty terms.own_cancellation_tiers
+  end
+
+  test "a refused wording re-renders the terms with what was typed (C1)" do
+    sign_in_as @admin
+    terms = @alpha.client_terms
+    long = "x" * (ClientTermsVersion::WORDING_LIMIT + 1)
+    patch departure_client_terms_path(@departure), params: { client_terms_version: { departure_wording: long, lock_version: terms.lock_version } }
+    assert_response :unprocessable_entity
+    assert_select "#wording #form-error-summary a[href='#client_terms_version_departure_wording']"
+    assert_select "#client_terms_version_departure_wording[aria-invalid=true]", text: long
+    assert_select "#client_terms_version_departure_wording_error"
+  end
+
+  test "the schedule line and tier forms say the line in a sentence (C2)" do
+    sign_in_as @admin
+    get new_departure_client_schedule_line_path(@departure)
+    assert_select "[data-controller=client-schedule-summary][data-client-schedule-summary-starts-on-value='#{@departure.starts_on.iso8601}'] aside", text: /In plain words/
+    get new_departure_client_cancellation_tier_path(@departure)
+    assert_select "[data-controller=cancellation-tier-summary] aside", text: /In plain words/
+    get new_administration_cancellation_tier_path
+    assert_select "[data-controller=cancellation-tier-summary][data-cancellation-tier-summary-starts-on-value=''] aside", text: /In plain words/
   end
 
   test "terms start from the agency's or copy another Departure's" do

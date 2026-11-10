@@ -45,4 +45,21 @@ module TasksHelper
   def task_owner_options
     Current.agency.agency_users.agency_staff.where(status: "active").order(:first_name, :last_name).map { |user| [ user.display_name, user.id ] }
   end
+
+  # The tasks grouped by the week they fall due, each week starting Monday
+  # in its own due time zone (UX audit S-33): Overdue first, then This week,
+  # Next week and Week of a date. Order within a group is kept.
+  def tasks_by_due_week(tasks, now: Clock.current.now)
+    tasks.group_by do |task|
+      next "Overdue" if task.overdue?(now)
+
+      zone = ActiveSupport::TimeZone[task.due_time_zone] || Time.zone
+      today = now.in_time_zone(zone).to_date
+      week = task.due_at.in_time_zone(zone).to_date.beginning_of_week
+      if week <= today.beginning_of_week then "This week"
+      elsif week == today.next_week.beginning_of_week then "Next week"
+      else "Week of #{week.strftime("%b %-d, %Y")}"
+      end
+    end
+  end
 end

@@ -20,7 +20,8 @@ class ClientsDirectoryTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match "CL-000002", response.body
     assert_select "dl.dd-definition-list"
-    assert_select "table.dd-table--channels", 3
+    assert_select "article.dd-panel", text: /Email addresses\s+Add\s+None yet\./
+    assert_select "p.dd-empty-copy", text: "None yet.", count: 3
   end
 
   test "post clients with organization creates an organization client" do

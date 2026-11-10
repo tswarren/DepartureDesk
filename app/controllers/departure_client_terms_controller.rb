@@ -1,6 +1,7 @@
 # S-21: the Departure's client terms. Starting them copies the agency
 # wording, or another Departure's terms (D-76); the update edits the
-# Departure wording and whether it overrides the agency tiers.
+# Departure wording and whether it overrides the agency tiers. A refused
+# wording re-renders the page with what was typed (UX audit C1).
 class DepartureClientTermsController < ApplicationController
   include PackageAccess
 
@@ -29,7 +30,10 @@ class DepartureClientTermsController < ApplicationController
     redirect_to departure_client_terms_path(@departure), notice: "Client terms updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
+    # The tiers switch is one button with nothing typed, so it redirects.
+    return redirect_to(departure_client_terms_path(@departure), alert: error.message) unless params.dig(:client_terms_version, :departure_wording)
 
-    redirect_to departure_client_terms_path(@departure), alert: error.message
+    @terms_version.departure_wording = params.dig(:client_terms_version, :departure_wording)
+    render_form_error(error, @terms_version, :show, attribute: :departure_wording)
   end
 end

@@ -16,21 +16,23 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with url: suppliers_path, method: :get, class: "dd-form" do |form| %>
-      <div class="dd-field-group">
-        <%= form.label :q, "Search", class: "dd-label" %>
-        <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
-      </div>
-      <div class="dd-field-group">
-        <%= form.label :kind, "Kind", class: "dd-label" %>
-        <%= form.select :kind, [ [ "All", "all" ], [ "Organizations", "organization" ], [ "Individuals", "individual" ] ], { selected: @kind }, class: "dd-field" %>
-      </div>
-      <div class="dd-field-group">
-        <%= form.label :category, "Category", class: "dd-label" %>
-        <%= form.select :category, [ [ "All", "all" ] ] + SupplierCategory::CODES.map { |code| [ SupplierCategory::LABELS.fetch(code), code ] }, { selected: @category }, class: "dd-field" %>
-      </div>
-      <div class="dd-field-group">
-        <%= form.label :status, "Status", class: "dd-label" %>
-        <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
+      <div class="dd-filter-grid">
+        <div class="dd-field-group">
+          <%= form.label :q, "Search", class: "dd-label" %>
+          <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :kind, "Kind", class: "dd-label" %>
+          <%= form.select :kind, [ [ "All", "all" ], [ "Organizations", "organization" ], [ "Individuals", "individual" ] ], { selected: @kind }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :category, "Category", class: "dd-label" %>
+          <%= form.select :category, [ [ "All", "all" ] ] + SupplierCategory::CODES.map { |code| [ SupplierCategory::LABELS.fetch(code), code ] }, { selected: @category }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :status, "Status", class: "dd-label" %>
+          <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
+        </div>
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Apply", class: "dd-button" %>
@@ -41,15 +43,19 @@
 </article>
 
 <% if @search %>
-  <p><%= @search.truncated ? "Showing the first 50 results matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "result")} matched." %></p>
-  <article class="dd-panel">
+  <article class="dd-panel dd-results" aria-labelledby="results-heading">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title" id="results-heading"><%= @search.truncated ? "Showing the first 50 results matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "result")} matched." %></h2>
+    </header>
+    <div class="dd-table-wrap">
     <table class="dd-table">
+      <caption class="dd-visually-hidden">Suppliers</caption>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Context</th>
-          <th>Reference</th>
-          <th>Status</th>
+          <th scope="col">Name</th>
+          <th scope="col">Context</th>
+          <th scope="col">Reference</th>
+          <th scope="col">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -63,5 +69,6 @@
         <% end %>
       </tbody>
     </table>
+    </div>
   </article>
 <% end %>

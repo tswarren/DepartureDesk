@@ -18,17 +18,19 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <%= form_with url: clients_path, method: :get, class: "dd-form" do |form| %>
-      <div class="dd-field-group">
-        <%= form.label :q, "Search", class: "dd-label" %>
-        <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
-      </div>
-      <div class="dd-field-group">
-        <%= form.label :kind, "Record type", class: "dd-label" %>
-        <%= form.select :kind, [ [ "All", "all" ], [ "People", "people" ], [ "Organizations", "organizations" ] ], { selected: @kind }, class: "dd-field" %>
-      </div>
-      <div class="dd-field-group">
-        <%= form.label :status, "Status", class: "dd-label" %>
-        <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
+      <div class="dd-filter-grid">
+        <div class="dd-field-group">
+          <%= form.label :q, "Search", class: "dd-label" %>
+          <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :kind, "Record type", class: "dd-label" %>
+          <%= form.select :kind, [ [ "All", "all" ], [ "People", "people" ], [ "Organizations", "organizations" ] ], { selected: @kind }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :status, "Status", class: "dd-label" %>
+          <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
+        </div>
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Apply", class: "dd-button" %>
@@ -39,16 +41,20 @@
 </article>
 
 <% if @search %>
-  <p><%= @search.truncated ? "Showing the first 50 records matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "record")} matched." %></p>
-  <article class="dd-panel">
+  <article class="dd-panel dd-results" aria-labelledby="results-heading">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title" id="results-heading"><%= @search.truncated ? "Showing the first 50 records matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "record")} matched." %></h2>
+    </header>
+    <div class="dd-table-wrap">
     <table class="dd-table">
+      <caption class="dd-visually-hidden">Clients</caption>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Record type</th>
-          <th>Client reference</th>
-          <th>Source status</th>
-          <th>Client status</th>
+          <th scope="col">Name</th>
+          <th scope="col">Record type</th>
+          <th scope="col">Client reference</th>
+          <th scope="col">Source status</th>
+          <th scope="col">Client status</th>
         </tr>
       </thead>
       <tbody>
@@ -69,5 +75,6 @@
         <% end %>
       </tbody>
     </table>
+    </div>
   </article>
 <% end %>

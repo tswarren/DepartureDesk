@@ -1029,6 +1029,15 @@
     box-shadow: none;
   }
 
+  /* Page blocks one after another on a page keep a gap (UX audit B3). */
+  :where(.dd-panel, .dd-grid, .dd-booking-steps, .dd-step-next, .dd-stack) + :where(.dd-panel, .dd-grid, .dd-booking-steps, .dd-step-next) {
+    margin-top: 1rem;
+  }
+  .dd-stack > :where(.dd-panel, .dd-grid, .dd-booking-steps, .dd-step-next),
+  .dd-grid > :where(.dd-panel, .dd-grid, .dd-booking-steps, .dd-step-next) {
+    margin-top: 0;
+  }
+
   .dd-panel-header {
     display: flex;
     min-height: 0;
@@ -1949,6 +1958,7 @@
 
   .dd-definition-list {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
     gap: 1rem;
     margin: 0;
     padding: 0;

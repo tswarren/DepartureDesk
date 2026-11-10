@@ -14,7 +14,7 @@
   <div class="dd-panel-body">
     <%= form_with model: @line, url: departure_client_schedule_lines_path(@departure), scope: :client_payment_schedule_line, class: "dd-form" do |form| %>
       <%= render "shared/form_errors", object: form.object %>
-      <%= render "form", form:, values: @values, currency: @departure.operating_currency %>
+      <%= render "form", form:, values: @values, currency: @departure.operating_currency, starts_on: @departure.starts_on %>
       <div class="dd-form-actions">
         <%= form.submit "Save", class: "dd-button" %>
         <%= link_to "Cancel", departure_client_terms_path(@departure), class: "dd-button dd-button--quiet" %>

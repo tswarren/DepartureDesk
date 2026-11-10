@@ -1,4 +1,7 @@
-<%# locals: (form:, values:, currency:) -%>
+<%# locals: (form:, values:, currency:, starts_on: nil) -%>
+<%# A cancellation tier (BKG-31), summed up in a sentence as it is filled in (UX audit C2). %>
+<div class="dd-stack" data-controller="cancellation-tier-summary" data-cancellation-tier-summary-currency-value="<%= currency %>"
+     data-cancellation-tier-summary-starts-on-value="<%= starts_on&.iso8601 %>" data-action="input->cancellation-tier-summary#update change->cancellation-tier-summary#update">
 <div class="dd-field-group">
   <%= form.label :min_days_before_departure, "From how many days before departure", class: "dd-label" %>
   <%= form.number_field :min_days_before_departure, value: values["min_days_before_departure"], min: 0, step: 1,
@@ -29,3 +32,8 @@
     </div>
   </div>
 </fieldset>
+<aside class="dd-payment-summary" aria-labelledby="tier-summary-heading">
+  <h2 class="dd-payment-summary-title" id="tier-summary-heading">In plain words</h2>
+  <p data-cancellation-tier-summary-target="output" aria-live="polite"></p>
+</aside>
+</div>
