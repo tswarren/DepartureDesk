@@ -1,0 +1,4 @@
+<%= render "supplier_arrangements/header", departure: @departure, arrangement: @arrangement, current: :documents, title: "Documents" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
+
+<%= render "arrangement_documents/panel", departure: @departure, arrangement: @arrangement, manage:, upload_error: @upload_error %>

@@ -1,0 +1,42 @@
+<%# The arrangement's header and section tabs, shared by its overview and sub-pages (UX consolidation audit B1, decision 3). current names the open section; title is the section's name on a sub-page. %>
+<%# locals: (departure:, arrangement:, current:, title: nil) -%>
+<% user = Current.agency_user %>
+<% manage = user.permitted?(:manage_arrangements) && !departure.departed? %>
+<% view_costs = user.permitted?(:view_supplier_costs) %>
+<% content_for :title, [ title, arrangement.arrangement_reference, "DepartureDesk" ].compact.join(" · ") %>
+<% overview = departure_arrangement_path(departure, arrangement) %>
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ departure.display_reference, departure_path(departure) ], [ "Suppliers", departure_arrangements_path(departure) ],
+      [ arrangement.arrangement_reference, (overview if title) ], *([ [ title, nil ] ] if title) ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Arrangement · <%= departure.name %></p>
+    <h1 class="dd-page-title"><%= arrangement.supplier.display_name_for_directory %></h1>
+    <p class="dd-page-description"><span class="dd-type-mono"><%= arrangement.arrangement_reference %></span> · <%= arrangement_status_badge(arrangement) %></p>
+  </div>
+  <% if manage && arrangement.draft? %>
+    <div class="dd-page-actions">
+      <%= link_to "Confirm arrangement", departure_arrangement_confirmation_path(departure, arrangement), class: "dd-button" %>
+      <%= link_to "Edit arrangement", edit_departure_arrangement_path(departure, arrangement), class: "dd-button dd-button--secondary" %>
+      <%= button_to "Discard", departure_arrangement_discard_path(departure, arrangement), params: { lock_version: arrangement.lock_version },
+            class: "dd-button dd-button--quiet", form: { data: { turbo_confirm: "Discard this draft arrangement? It becomes Cancelled with no supplier or financial effect." } } %>
+    </div>
+  <% end %>
+</header>
+
+<%= render "departures/tabs", departure:, current: :suppliers %>
+
+<nav class="dd-subnav" aria-label="Arrangement sections">
+  <%= link_to "Overview", overview, aria: { current: ("page" if current == :overview) } %>
+  <%= link_to "Inventory", departure_arrangement_inventory_path(departure, arrangement), aria: { current: ("page" if current == :inventory) } %>
+  <% if view_costs %>
+    <%= link_to "Rates and cost", departure_arrangement_costs_path(departure, arrangement), aria: { current: ("page" if current == :costs) } %>
+  <% end %>
+  <%= link_to view_costs ? "Payments and deadlines" : "Deadlines", departure_arrangement_payments_path(departure, arrangement), aria: { current: ("page" if current == :payments) } %>
+  <% if user.permitted?(:view_supplier_reservations) %>
+    <%= link_to "Reservations", departure_arrangement_reservations_path(departure, arrangement), aria: { current: ("page" if current == :reservations) } %>
+  <% end %>
+  <% if view_costs %>
+    <%= link_to "Documents", departure_arrangement_documents_path(departure, arrangement), aria: { current: ("page" if current == :documents) } %>
+  <% end %>
+</nav>

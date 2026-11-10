@@ -11,7 +11,7 @@ class DepartureInventoryNightGridTest < ActionDispatch::IntegrationTest
     assert_select "table.dd-night-grid a[aria-label='Nov 4 Harbor Double: 0 of 1 left']"
     assert_select "table.dd-night-grid td", text: /0 of 1 left\s+1 held or reserved/
     assert_select "table.dd-night-grid a[aria-label='Nov 4 Garden Queen: 0 of 2 left']"
-    get departure_arrangement_path(alpha.departure, alpha.arrangements.fetch(:hotel))
+    get departure_arrangement_inventory_path(alpha.departure, alpha.arrangements.fetch(:hotel))
     assert_select "#inventory table.dd-night-grid a[aria-label='Nov 4 Harbor Double: 0 of 1 left']"
   end
 end

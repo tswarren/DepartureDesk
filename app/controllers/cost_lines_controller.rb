@@ -49,7 +49,7 @@ class CostLinesController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "supplier-cost"), alert: error.message
+    redirect_to departure_arrangement_costs_path(@departure, @arrangement, anchor: "supplier-cost"), alert: error.message
   end
 
   private

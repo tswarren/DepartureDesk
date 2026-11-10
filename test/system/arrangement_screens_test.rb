@@ -24,6 +24,11 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       departure_arrangement_confirmation_path(departure, cruise),
       edit_departure_arrangement_rates_path(departure, cruise),
       departure_arrangement_path(departure, hotel),
+      departure_arrangement_inventory_path(departure, hotel),
+      departure_arrangement_costs_path(departure, hotel),
+      departure_arrangement_payments_path(departure, hotel),
+      departure_arrangement_reservations_path(departure, hotel),
+      departure_arrangement_documents_path(departure, hotel),
       departure_inventory_path(departure),
       departure_arrangement_group_path(departure, hotel, hotel.inventory_groups.find_by!(label: "Nov 5 Harbor Double")),
       departure_arrangement_group_path(departure, @alpha.arrangements.fetch(:excursion), @alpha.arrangements.fetch(:excursion).inventory_groups.sole),
@@ -59,7 +64,7 @@ class ArrangementScreensTest < ApplicationSystemTestCase
   test "at 375px the rate grid stacks each group with its bands" do
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     resize_window(375)
-    visit departure_arrangement_path(@alpha.departure, @alpha.arrangements.fetch(:cruise))
+    visit departure_arrangement_costs_path(@alpha.departure, @alpha.arrangements.fetch(:cruise))
     wait_for_turbo
     within("#rate-table") do
       row = find("tbody tr", text: "S01", match: :first)

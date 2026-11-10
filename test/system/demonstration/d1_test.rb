@@ -22,10 +22,13 @@ class DemonstrationD1Test < ApplicationSystemTestCase
     visit departure_path(@alpha.departure)
     click_link_and_expect "Suppliers", heading: "Alpha Omega", path: departure_arrangements_path(@alpha.departure), css: "nav[aria-label='Departure sections'] a"
     click_link_and_expect cruise.arrangement_reference, heading: "Alpha Cruises"
+    click_link_and_expect "Rates and cost", heading: "Alpha Cruises", path: departure_arrangement_costs_path(@alpha.departure, cruise), css: "nav[aria-label='Arrangement sections'] a"
     within("#rate-table") { assert_text "I01" }
     click_link_and_expect "Confirm arrangement", heading: "Confirm arrangement", css: ".dd-page-actions a"
     fill_in_html_date "Date the supplier confirmed", "2026-10-01"
-    click_button_and_expect "Confirm arrangement", text: "Frozen when the arrangement was confirmed."
+    click_button_and_expect "Confirm arrangement", text: "Arrangement confirmed."
+    click_link "Rates and cost"
+    assert_text "Frozen when the arrangement was confirmed."
 
     cruise.reload
     assert cruise.confirmed?

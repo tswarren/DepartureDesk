@@ -11,7 +11,7 @@ class SupplierRatesController < ApplicationController
   def update
     SaveSupplierRates.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement,
       defaults: rate_params.fetch("defaults", {}), cells: rate_params.fetch("cells", {})).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "rate-table"), notice: "Supplier rates saved."
+    redirect_to departure_arrangement_costs_path(@departure, @arrangement, anchor: "rate-table"), notice: "Supplier rates saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 

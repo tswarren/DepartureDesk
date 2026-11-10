@@ -130,4 +130,17 @@ module ArrangementsHelper
     Current.agency.suppliers.where(status: "active").where.not(id: taken).order(:display_name)
       .map { |supplier| [ supplier.display_name_for_directory, supplier.id ] }
   end
+
+  # The capacity form's field attributes after a refused change (UX audit C1):
+  # the field the message names is marked invalid and points at it.
+  def capacity_field_aria(change, field_id, describedby: nil)
+    invalid = change && change[:field] == field_id
+    { invalid: (true if invalid), describedby: [ describedby, ("#{field_id}_error" if invalid) ].compact.join(" ").presence }.compact
+  end
+
+  def capacity_field_error(change, field_id)
+    return unless change && change[:field] == field_id
+
+    tag.p(change[:message], class: "dd-field-error", id: "#{field_id}_error")
+  end
 end

@@ -1,3 +1,5 @@
+# Who uses capacity on a group (INV-39). A refused change re-renders the
+# group with the message above the table (UX consolidation audit C1).
 class CapacityRulesController < ApplicationController
   include ArrangementAccess
 
@@ -16,6 +18,8 @@ class CapacityRulesController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_group_path(@departure, @arrangement, params[:group_id], anchor: "capacity-rules"), alert: error.message
+    @group = @arrangement.inventory_groups.find(params[:group_id])
+    @capacity_rule_error = error.message
+    render "inventory_groups/show", status: :unprocessable_entity
   end
 end

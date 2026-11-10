@@ -16,7 +16,7 @@ class InventoryGroupsControllerTest < ActionDispatch::IntegrationTest
       quantity: "1", positions_per_unit: "10", starts_on: "2027-11-05", starts_at_time: "14:00", ends_on: "2027-11-05", ends_at_time: "18:30", time_zone: "America/New_York"
     } }
     group = @arrangement.inventory_groups.sole
-    assert_redirected_to departure_arrangement_path(@departure, @arrangement, anchor: "inventory")
+    assert_redirected_to departure_arrangement_inventory_path(@departure, @arrangement)
     assert_equal 10, group.positions_per_unit
 
     get departure_arrangement_group_path(@departure, @arrangement, group)

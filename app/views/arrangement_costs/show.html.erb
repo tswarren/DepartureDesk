@@ -1,0 +1,7 @@
+<%= render "supplier_arrangements/header", departure: @departure, arrangement: @arrangement, current: :costs, title: "Rates and cost" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
+
+<div class="dd-stack">
+  <%= render "supplier_rate_lines/panel", departure: @departure, arrangement: @arrangement, manage: %>
+  <%= render "supplier_money/cost", departure: @departure, arrangement: @arrangement, manage: %>
+</div>

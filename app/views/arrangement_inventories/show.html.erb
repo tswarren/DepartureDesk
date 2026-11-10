@@ -1,0 +1,4 @@
+<%= render "supplier_arrangements/header", departure: @departure, arrangement: @arrangement, current: :inventory, title: "Inventory" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
+
+<%= render "inventory_groups/panel", departure: @departure, arrangement: @arrangement, manage: %>

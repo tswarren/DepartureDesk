@@ -14,7 +14,10 @@ module SupplierMoneyAccess
     params.require(scope).permit(*fields.map { |field| field == :unit_shell_ids ? { unit_shell_ids: [] } : field }).to_h
   end
 
+  # Cost lines land on Rates and cost; payments, events and amounts due on
+  # Payments and deadlines.
   def redirect_to_money(notice, anchor: "supplier-cost")
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor:), notice:
+    path = anchor == "supplier-cost" ? :departure_arrangement_costs_path : :departure_arrangement_payments_path
+    redirect_to public_send(path, @departure, @arrangement, anchor:), notice:
   end
 end

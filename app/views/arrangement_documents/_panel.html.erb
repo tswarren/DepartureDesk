@@ -1,5 +1,5 @@
 <%# Supplier documents (SUP-06, S-12, ADR 0019 amendment). Shown only with view_supplier_costs (ACC-31). %>
-<%# locals: (departure:, arrangement:, manage:) -%>
+<%# locals: (departure:, arrangement:, manage:, upload_error: nil) -%>
 <article class="dd-panel" id="documents">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Supplier documents</h2>
@@ -44,20 +44,22 @@
     <% end %>
     <% if manage && !arrangement.cancelled? %>
       <%= form_with url: departure_arrangement_documents_path(departure, arrangement), scope: :arrangement_document, multipart: true, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", message: upload_error, field: "arrangement_document_file", title: "The document wasn't added" %>
         <div class="dd-form-grid dd-form-grid--two-column">
           <div class="dd-field-group">
             <%= form.label :file, "Add a document", class: "dd-label" %>
-            <%= form.file_field :file, required: true, accept: ".pdf,.png,.jpg,.jpeg,.docx,.xlsx", aria: { describedby: "arrangement_document_file_hint" }, class: "dd-field" %>
+            <%= form.file_field :file, required: true, accept: ".pdf,.png,.jpg,.jpeg,.docx,.xlsx", aria: { describedby: [ "arrangement_document_file_hint", ("arrangement_document_file_error" if upload_error) ].compact.join(" "), invalid: (true if upload_error) }.compact, class: "dd-field" %>
             <p class="dd-field-hint" id="arrangement_document_file_hint">PDF, PNG, JPEG, Word or Excel, up to 20 MB. Files with macros are refused.</p>
+            <% if upload_error %><p class="dd-field-error" id="arrangement_document_file_error"><%= upload_error %></p><% end %>
           </div>
           <div class="dd-field-group">
             <%= form.label :kind, "Kind", class: "dd-label" %>
-            <%= form.select :kind, ArrangementDocument::KINDS.map { |kind| [ kind.humanize, kind ] }, {}, class: "dd-field" %>
+            <%= form.select :kind, ArrangementDocument::KINDS.map { |kind| [ kind.humanize, kind ] }, { selected: params.dig(:arrangement_document, :kind) }, class: "dd-field" %>
           </div>
         </div>
         <div class="dd-field-group">
           <%= form.label :description, "Description (optional)", class: "dd-label" %>
-          <%= form.text_field :description, maxlength: ArrangementDocument::DESCRIPTION_LIMIT, class: "dd-field" %>
+          <%= form.text_field :description, value: params.dig(:arrangement_document, :description), maxlength: ArrangementDocument::DESCRIPTION_LIMIT, class: "dd-field" %>
         </div>
         <div class="dd-form-actions">
           <%= form.submit "Upload", class: "dd-button dd-button--secondary" %>

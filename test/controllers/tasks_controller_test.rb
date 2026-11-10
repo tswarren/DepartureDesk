@@ -16,11 +16,11 @@ class TasksControllerTest < ActionDispatch::IntegrationTest
     post departure_arrangement_deadlines_path(@departure, @arrangement), params: { supplier_deadline: {
       deadline_type: "final_count", actionable: "", description: "Final count", due_on: "2027-10-22", due_at_time: "17:00", time_zone: "America/Los_Angeles"
     } }
-    assert_redirected_to departure_arrangement_path(@departure, @arrangement, anchor: "deadlines")
+    assert_redirected_to departure_arrangement_payments_path(@departure, @arrangement, anchor: "deadlines")
     deadline = @arrangement.deadlines.sole
     assert deadline.actionable
 
-    get departure_arrangement_path(@departure, @arrangement)
+    get departure_arrangement_payments_path(@departure, @arrangement)
     assert_select "#deadlines th[scope=row]", text: /Final count/
     assert_select "#deadlines td", text: /Oct 22, 2027, 5:00 PM America\/Los_Angeles/
     assert_select "#deadlines td", text: /Oct 22, 2027, 8:00 PM agency time/

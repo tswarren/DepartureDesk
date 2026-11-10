@@ -182,7 +182,7 @@
 
     <div class="dd-form-actions">
       <%= submit_tag "Save rates", class: "dd-button", name: nil %>
-      <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "rate-table"), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Cancel", departure_arrangement_costs_path(@departure, @arrangement, anchor: "rate-table"), class: "dd-button dd-button--quiet" %>
     </div>
   <% end %>
 <% end %>

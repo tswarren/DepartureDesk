@@ -12,7 +12,7 @@ class SupplierRatesControllerTest < ActionDispatch::IntegrationTest
 
   test "the arrangement shows the grid; the rate page edits it with shared values once" do
     sign_in_as @admin
-    get departure_arrangement_path(@departure, @cruise)
+    get departure_arrangement_costs_path(@departure, @cruise)
     assert_select "#rate-table th", text: "3rd and 4th guest"
     assert_select "#rate-table a", text: "Edit rates"
 
@@ -38,7 +38,7 @@ class SupplierRatesControllerTest < ActionDispatch::IntegrationTest
 
   test "Departure management sees the rates but can't edit them; baseline staff never see them" do
     sign_in_as agency_users(:harbor_staff)
-    get departure_arrangement_path(@departure, @cruise)
+    get departure_arrangement_costs_path(@departure, @cruise)
     assert_select "#rate-table"
     assert_select "#rate-table a", text: "Edit rates", count: 0
     get edit_departure_arrangement_rates_path(@departure, @cruise)
@@ -46,7 +46,9 @@ class SupplierRatesControllerTest < ActionDispatch::IntegrationTest
 
     sign_in_as agency_users(:harbor_baseline_staff)
     get departure_arrangement_path(@departure, @cruise)
-    assert_select "#rate-table", count: 0
+    assert_select "nav[aria-label='Arrangement sections'] a", text: "Rates and cost", count: 0
+    get departure_arrangement_costs_path(@departure, @cruise)
+    assert_redirected_to root_path
   end
 
   test "other agencies get not found" do

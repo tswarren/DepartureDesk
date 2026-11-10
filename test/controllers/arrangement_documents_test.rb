@@ -31,11 +31,13 @@ class ArrangementDocumentsTest < ActionDispatch::IntegrationTest
   test "a macro-enabled Office file, a renamed archive and a renamed script are refused" do
     sign_in_as @admin
     upload!("macro.docm", name: "innocent.docx")
-    assert_match(/macros/, flash[:alert])
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary a[href='#arrangement_document_file']", text: /macros/
+    assert_select "#arrangement_document_file_error", text: /macros/
     upload!("archive.zip", name: "agreement.docx")
-    assert_match(/PDF, PNG, JPEG, Word/, flash[:alert])
+    assert_select "#form-error-summary", text: /PDF, PNG, JPEG, Word/
     upload!("not_an_image.png")
-    assert_match(/PDF, PNG, JPEG, Word/, flash[:alert])
+    assert_select "#form-error-summary", text: /PDF, PNG, JPEG, Word/
     assert_empty @arrangement.documents
   end
 
@@ -61,7 +63,7 @@ class ArrangementDocumentsTest < ActionDispatch::IntegrationTest
     perform_enqueued_jobs do
       delete departure_arrangement_document_path(@departure, @arrangement, document)
     end
-    assert_redirected_to departure_arrangement_path(@departure, @arrangement, anchor: "documents")
+    assert_redirected_to departure_arrangement_documents_path(@departure, @arrangement)
     assert_empty @arrangement.documents.reload
     assert_not ActiveStorage::Blob.exists?(blob_id)
     event = AuditEvent.where(subject_id: @arrangement.id, action: "supplier_arrangement.document_removed").sole
@@ -76,7 +78,9 @@ class ArrangementDocumentsTest < ActionDispatch::IntegrationTest
 
     sign_in_as agency_users(:harbor_baseline_staff)
     get departure_arrangement_path(@departure, @arrangement)
-    assert_select "#documents", count: 0
+    assert_select "nav[aria-label='Arrangement sections'] a", text: "Documents", count: 0
+    get departure_arrangement_documents_path(@departure, @arrangement)
+    assert_redirected_to root_path
     get departure_arrangement_document_path(@departure, @arrangement, document)
     assert_redirected_to root_path
 

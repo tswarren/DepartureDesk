@@ -17,10 +17,10 @@ module SetupChecklistHelper
         detail: arrangement.payee_account && "#{arrangement.payee_account.name} (#{arrangement.payee_account.currency})", href: edit, required: true),
       ChecklistItem.new(label: "Inventory", done: groups.any? && group_blockers.empty?,
         detail: groups.empty? ? "Add at least one group." : (group_blockers.any? ? group_blockers.to_sentence : inventory_summary(groups)),
-        href: "#inventory", required: true)
+        href: departure_arrangement_inventory_path(departure, arrangement), required: true)
     ]
     rate_blockers = blockers.grep(/\ARemove the guest/)
-    items << ChecklistItem.new(label: "Rates beyond a unit's positions", done: false, detail: rate_blockers.to_sentence, href: "#rate-table", required: true) if rate_blockers.any?
+    items << ChecklistItem.new(label: "Rates beyond a unit's positions", done: false, detail: rate_blockers.to_sentence, href: departure_arrangement_costs_path(departure, arrangement), required: true) if rate_blockers.any?
     if view_costs
       gaps = SupplierRateGrid.new(arrangement).gaps.size
       rated = arrangement.rate_lines.any?
@@ -29,7 +29,7 @@ module SetupChecklistHelper
         href: edit_departure_arrangement_rates_path(departure, arrangement), required: false)
       payments = arrangement.schedule_lines.size
       items << ChecklistItem.new(label: "Payments", done: payments.positive?,
-        detail: payments.positive? ? "#{pluralize(payments, "payment")} set up." : "None yet, such as deposits the supplier asks for.", href: "#supplier-payments", required: false)
+        detail: payments.positive? ? "#{pluralize(payments, "payment")} set up." : "None yet, such as deposits the supplier asks for.", href: departure_arrangement_payments_path(departure, arrangement), required: false)
     end
     items
   end

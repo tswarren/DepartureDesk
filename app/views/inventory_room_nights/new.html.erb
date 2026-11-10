@@ -92,7 +92,7 @@
         <% end %>
         <div class="dd-form-actions">
           <%= form.submit "Add rooms", class: "dd-button", name: nil %>
-          <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), class: "dd-button dd-button--quiet" %>
+          <%= link_to "Cancel", departure_arrangement_inventory_path(@departure, @arrangement), class: "dd-button dd-button--quiet" %>
         </div>
       </div>
     </article>

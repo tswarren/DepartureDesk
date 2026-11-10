@@ -31,11 +31,12 @@
   </div>
 </article>
 
-<%= render "capacity", departure: @departure, arrangement: @arrangement, group: @group, manage: manage && @arrangement.confirmed? %>
+<%= render "inventory_groups/capacity", departure: @departure, arrangement: @arrangement, group: @group, manage: manage && @arrangement.confirmed?, change: @capacity_change %>
 
 <article class="dd-panel" id="capacity-rules">
   <header class="dd-panel-header"><h2 class="dd-panel-title">Who uses capacity</h2></header>
   <div class="dd-panel-body dd-stack">
+    <%= render "shared/form_errors", message: @capacity_rule_error, title: "The capacity rule wasn't changed" %>
     <p class="dd-page-description">Traveler types marked "No" take part and count in the headcount, but use no position (INV-39).</p>
     <div class="dd-table-wrap">
       <table class="dd-table">

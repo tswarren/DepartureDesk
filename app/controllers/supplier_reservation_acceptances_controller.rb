@@ -17,7 +17,7 @@ class SupplierReservationAcceptancesController < ApplicationController
   def create
     RecordSupplierReservationAcceptance.new(agency: Current.agency, actor: Current.agency_user, reservation: @reservation,
       attributes: acceptance_params, lock_version: params[:lock_version]).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "supplier-reservations"), notice: "The supplier's acceptance is recorded."
+    redirect_to departure_arrangement_reservations_path(@departure, @arrangement), notice: "The supplier's acceptance is recorded."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 

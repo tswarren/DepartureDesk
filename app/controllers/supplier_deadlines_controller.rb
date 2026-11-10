@@ -18,7 +18,7 @@ class SupplierDeadlinesController < ApplicationController
 
   def create
     result = SaveSupplierDeadline.new(agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement, attributes: deadline_params).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "deadlines"),
+    redirect_to departure_arrangement_payments_path(@departure, @arrangement, anchor: "deadlines"),
       notice: result.record.actionable ? "Deadline recorded, with a task." : "Deadline recorded as informational."
   rescue AgencyCommand::Error => error
     @deadline = @arrangement.deadlines.new(deadline_params.except(:actionable, :inventory_group_id))
@@ -33,7 +33,7 @@ class SupplierDeadlinesController < ApplicationController
       agency: Current.agency, actor: Current.agency_user, departure: @departure, arrangement: @arrangement, deadline: @deadline,
       attributes: deadline_params, lock_version: params.dig(:supplier_deadline, :lock_version)
     ).call
-    redirect_to departure_arrangement_path(@departure, @arrangement, anchor: "deadlines"), notice: "Deadline updated."
+    redirect_to departure_arrangement_payments_path(@departure, @arrangement, anchor: "deadlines"), notice: "Deadline updated."
   rescue AgencyCommand::Error => error
     @deadline.assign_attributes(deadline_params.except(:actionable, :inventory_group_id))
     render_form_error(error, @deadline, :edit, ERROR_FIELDS)

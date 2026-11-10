@@ -1,0 +1,12 @@
+<%= render "supplier_arrangements/header", departure: @departure, arrangement: @arrangement, current: :reservations, title: "Reservations" %>
+
+<% if @arrangement.draft? %>
+  <article class="dd-panel" id="supplier-reservations">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Supplier reservations</h2></header>
+    <div class="dd-panel-body">
+      <p class="dd-empty-copy">Supplier reservations start once the arrangement is confirmed and a booking draws on it.</p>
+    </div>
+  </article>
+<% else %>
+  <%= render "supplier_reservations/panel", departure: @departure, arrangement: @arrangement %>
+<% end %>

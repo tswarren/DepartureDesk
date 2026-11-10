@@ -31,7 +31,7 @@ class InventoryRoomNightsTest < ActionDispatch::IntegrationTest
       "2027-11-05|Garden Queen" => { kind: "tracked", count: "4" }, "2027-11-05|Harbor Double" => { kind: "tracked", count: "4" }
     }
     post departure_arrangement_room_nights_path(@departure, @arrangement), params: setup_params.merge(cells:)
-    assert_redirected_to departure_arrangement_path(@departure, @arrangement, anchor: "inventory")
+    assert_redirected_to departure_arrangement_inventory_path(@departure, @arrangement)
     groups = @arrangement.inventory_groups.reload.index_by(&:label)
     assert_equal [ "Nov 3 Garden Queen", "Nov 4 Garden Queen", "Nov 4 Harbor Double", "Nov 5 Garden Queen", "Nov 5 Harbor Double" ], groups.keys.sort
     assert_equal [ "capacity_pool", "on_request", nil ], groups.fetch("Nov 3 Garden Queen").values_at(:representation, :availability_promise, :quantity)
