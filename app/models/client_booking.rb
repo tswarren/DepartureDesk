@@ -21,13 +21,28 @@ class ClientBooking < ApplicationRecord
   has_many :installment_proposals, -> { order(:position) }, inverse_of: :client_booking, dependent: :delete_all
   has_many :supplier_reservations, -> { order(:requested_at) }, inverse_of: :client_booking, dependent: :restrict_with_exception
 
+  # ACC-18, FIN-05: the creator, the owner (who handles it now) and the seller
+  # of record are separate facts. Owner and seller are each the agency or one
+  # of its resellers.
+  PARTY_KINDS = %w[agency reseller].freeze
+  belongs_to :owner_reseller, class_name: "Reseller", optional: true, inverse_of: :owned_bookings
+  belongs_to :seller_reseller, class_name: "Reseller", optional: true
+
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft", prefix: :status
+  enum :owner_kind, PARTY_KINDS.index_by(&:itself), validate: true, default: "agency", prefix: :owner
+  enum :seller_kind, PARTY_KINDS.index_by(&:itself), validate: true, default: "agency", prefix: :seller
 
   attr_readonly :agency_id, :client_trip_id, :offering_id, :sequence, :booking_reference
+
+  validate :party_resellers_match_kinds
 
   delegate :departure, to: :client_trip
 
   def status_label = STATUS_LABELS.fetch(status)
+
+  def owner_label = owner_reseller&.name || "Agency"
+
+  def seller_label = seller_reseller&.name || "Agency"
 
   # Allocations that consume capacity at the instant: Reserved, or Held
   # with an expiry still ahead (D-88). A lapsed hold stops counting at read
@@ -57,5 +72,17 @@ class ClientBooking < ApplicationRecord
   def current_acceptance
     acceptance = latest_acceptance
     acceptance if acceptance&.covers?(self)
+  end
+
+  private
+
+  def party_resellers_match_kinds
+    { owner: owner_reseller, seller: seller_reseller }.each do |party, reseller|
+      if public_send(:"#{party}_reseller?") ^ reseller.present?
+        errors.add(:"#{party}_reseller", party == :owner ? "is required exactly when a reseller owns the booking" : "is required exactly when a reseller is the seller of record")
+      elsif reseller && reseller.agency_id != agency_id
+        errors.add(:"#{party}_reseller", "must belong to the same agency")
+      end
+    end
   end
 end

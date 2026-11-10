@@ -26,7 +26,8 @@ class CreateOrganizationClient < AgencyCommand
         id: decision&.dig("client_id") || client_id,
         client_organization: organization,
         client_reference: issue_client_reference!(@agency),
-        status: "active"
+        status: "active",
+        created_by: @actor
       )
       audit!(agency: @agency, action: "client_organization.created", subject: organization, actor: @actor, details: { "client_organization_id" => organization.id })
       audit!(agency: @agency, action: "client.created", subject: client, actor: @actor, details: { "client_id" => client.id, "client_organization_id" => organization.id })

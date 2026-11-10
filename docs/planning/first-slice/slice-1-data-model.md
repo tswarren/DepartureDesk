@@ -23,7 +23,7 @@ The foundation is kept, with four adaptations: permissions replace roles, office
 | Reseller | New | Name, status (active, booking paused, suspended, ended), direct-contact setting | ACC-13, ACC-16, DOC-08 |
 | Audit event | Reuse | Actor, agency, subject, action, changed fields | ACC-23, ACC-24 |
 | Reference sequence | Adapt | Add namespaces for trips, payments, arrangements, supplier payments and documents; booking references derive from the trip | REF-02 to REF-07 |
-| Client, client person, client organization, contact points | Adapt | Add created by, so staff can review reseller-created profiles (D-78) | CLT-01, CLT-21, CLT-27 |
+| Client, client person, client organization, contact points | Adapt | Add created by to the client, so staff can review reseller-created profiles (D-78); its person or organization and contact points are created in the same command, so the client's creator stands for them (step 9 plan question 7). Nullable, because shipped rows have no recorded creator | CLT-01, CLT-21, CLT-27 |
 | Supplier, supplier contact, supplier category | Reuse | Unchanged | SUP-01 |
 
 ## Departure, suppliers and inventory

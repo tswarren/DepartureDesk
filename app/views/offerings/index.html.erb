@@ -46,6 +46,7 @@
           <ul class="dd-error-list"><% blockers.each do |blocker| %><li><%= blocker %></li><% end %></ul>
         </div>
       <% end %>
+      <%= render "offerings/channels", departure: @departure, offering:, resellers: @resellers %>
       <% if offering.choices.empty? %>
         <p class="dd-empty-copy">No choices yet. Start with what every booking includes, such as the cabin.</p>
       <% end %>

@@ -26,6 +26,8 @@ class AuditEvent < ApplicationRecord
     agency_user.default_office_changed
     agency_user.password_changed
     agency_user.password_reset
+    reseller.authorized
+    reseller.updated
     session.office_selected
     client_person.created
     client_person.updated
@@ -53,6 +55,8 @@ class AuditEvent < ApplicationRecord
     client_booking.discarded
     client_booking.acceptance_recorded
     client_booking.confirmed
+    client_booking.assigned
+    client_booking.seller_of_record_set
     client_booking.supplier_cost_overridden
     client_booking.installments_created
     client_booking.installments_adjusted
@@ -162,11 +166,13 @@ class AuditEvent < ApplicationRecord
     departure.default_task_owner_changed
     departure.ready_to_sell
     departure.returned_to_draft
+    departure.offering_published
+    departure.offering_withdrawn
     departure.departed
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation ClientPayment SupplierPayment].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation ClientPayment SupplierPayment Reseller].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

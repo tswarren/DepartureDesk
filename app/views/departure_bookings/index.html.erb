@@ -46,7 +46,7 @@
                 <th scope="row"><%= link_to booking.booking_reference, client_booking_path(booking), class: "dd-type-mono" %></th>
                 <td><span class="dd-cabin-field-label dd-visually-hidden">Client </span><%= booking.client_trip.client.source.display_name %></td>
                 <td><span class="dd-cabin-field-label dd-visually-hidden">Status </span><%= booking_status_badge(booking) %></td>
-                <td><span class="dd-cabin-field-label dd-visually-hidden">Owner </span>Agency</td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Owner </span><%= booking.owner_label %></td>
                 <td><span class="dd-cabin-field-label dd-visually-hidden">Cabin </span><%= booking_cabins(booking) %></td>
                 <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Travelers </span><%= booking.booking_travelers.size %></td>
                 <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Subtotal </span><%= booking_money(booking.total_minor_units, booking.currency) %></td>

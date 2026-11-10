@@ -1,7 +1,8 @@
 # Returns a Ready to sell Departure to Draft (DEP-06). The reference, team,
 # decision and every other field stay. The note is optional; the spec's
-# guard is the permission only. Withdrawing published offers (DEP-08) is
-# added with publishing in step 9 (D-90).
+# guard is the permission only. Every open publication to a reseller channel
+# is withdrawn in the same transaction (DEP-08, D-90); bookings and holds keep
+# their state.
 class ReturnDepartureToDraft < AgencyCommand
   include DepartureCommandSupport
 
@@ -29,6 +30,7 @@ class ReturnDepartureToDraft < AgencyCommand
       ensure_current_lock_version!(departure)
       reason = normalized_reason
       departure.update!(sales_status: "draft")
+      withdrawn = WithdrawOffering.withdraw_all!(departure, @actor)
       audit!(
         agency: @agency,
         action: "departure.returned_to_draft",
@@ -37,7 +39,8 @@ class ReturnDepartureToDraft < AgencyCommand
         details: {
           "departure_id" => departure.id,
           "departure_reference" => departure.departure_reference,
-          "note" => reason
+          "note" => reason,
+          "withdrawn_publication_ids" => withdrawn.map(&:id)
         }
       )
       Result.new(status: :updated, record: departure)

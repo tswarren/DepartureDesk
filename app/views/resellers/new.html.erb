@@ -1,0 +1,17 @@
+<% content_for :title, "Authorize reseller · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Resellers", resellers_path ], [ "Authorize reseller", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Resellers</p>
+    <h1 class="dd-page-title">Authorize reseller</h1>
+    <p class="dd-page-description">A reseller sells this agency's published packages through its own channel. Authorizing it assigns it no booking.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= render "form", reseller: @reseller %>
+  </div>
+</article>

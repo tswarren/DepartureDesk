@@ -1,0 +1,16 @@
+<% content_for :title, "Edit #{@reseller.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Resellers", resellers_path ], [ @reseller.name_was || @reseller.name, reseller_path(@reseller) ], [ "Edit", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Resellers</p>
+    <h1 class="dd-page-title">Edit <%= @reseller.name_was || @reseller.name %></h1>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= render "form", reseller: @reseller %>
+  </div>
+</article>
