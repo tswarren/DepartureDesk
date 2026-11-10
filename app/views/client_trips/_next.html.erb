@@ -1,0 +1,29 @@
+<%# What's next on the trip (S-24; UX audit A6): drafts to finish, services awaiting a supplier, and the next amount due. %>
+<%# locals: (trip:, bookings:) -%>
+<% items = [] %>
+<% bookings.select(&:status_draft?).each do |booking| %>
+  <% items << safe_join([ "Finish and confirm ", link_to(booking.booking_reference, client_booking_path(booking), class: "dd-type-mono"), "." ]) %>
+<% end %>
+<% bookings.reject(&:status_draft?).each do |booking| %>
+  <% booking_services(booking).each do |selection| %>
+    <% status = supplier_status(selection, booking) %>
+    <% next unless status && (status.needs_request || status.label == "Awaiting supplier") %>
+    <% items << "#{status.needs_request ? "Request" : "The supplier's answer for"} #{selection.label} (#{booking.booking_reference})." %>
+  <% end %>
+<% end %>
+<% if Current.agency_user.permitted?(:view_client_money) %>
+  <% booking, due = bookings.select(&:client_charge).flat_map { |row| row.client_charge.installments.reject(&:paid?).map { |installment| [ row, installment ] } }.min_by { |_, installment| installment.due_on } %>
+  <% if due %>
+    <% items << "#{due.description} of #{booking_money(due.open_minor_units, booking.currency)} due #{due.due_on.to_fs(:long)} (#{booking.booking_reference})." %>
+  <% end %>
+<% end %>
+<article class="dd-panel" id="next">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">What's next</h2></header>
+  <div class="dd-panel-body">
+    <% if items.empty? %>
+      <p class="dd-empty-copy">Nothing is waiting on this trip.</p>
+    <% else %>
+      <ul class="dd-plain-list"><% items.each do |item| %><li><%= item %></li><% end %></ul>
+    <% end %>
+  </div>
+</article>

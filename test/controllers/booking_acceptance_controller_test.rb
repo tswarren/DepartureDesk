@@ -34,7 +34,7 @@ class BookingAcceptanceControllerTest < ActionDispatch::IntegrationTest
     post client_booking_confirmation_path(@booking)
     assert_redirected_to client_booking_path(@booking, step: "confirm", anchor: "confirm")
     assert @booking.reload.status_confirmed?
-    get client_booking_path(@booking)
+    get client_booking_path(@booking, step: "confirm")
     assert_select "#supplier-cost", count: 0, text: nil
     assert_select "#acceptance a", text: "nadia-acceptance.pdf"
   end
@@ -52,7 +52,7 @@ class BookingAcceptanceControllerTest < ActionDispatch::IntegrationTest
     commission = @booking.reload.expected_commissions.sole
 
     sign_in_as agency_users(:harbor_staff)
-    get client_booking_path(@booking)
+    get client_booking_path(@booking, step: "confirm")
     assert_select "#supplier-cost th", text: /Cabin 1: V01/
     assert_select "#supplier-cost input[type=submit][value=Override]", count: 0
     patch client_booking_commission_path(@booking, commission), params: { amount: "1" }

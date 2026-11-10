@@ -73,6 +73,8 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Ready to sell, Return to Draft and Mark departed are focused pages. Return to Draft takes an optional note.
 - The Departure tabs run in the order the work does: Overview, Suppliers, Inventory, Package, Client terms, Bookings, Money, Tasks. The Money tab has a client section and a supplier section, each shown only to staff who may see it, kept apart and never netted. The old Supplier money address redirects there.
 - A supplier arrangement opens on its overview, with a second row of section tabs under the Departure tabs: Overview, Inventory, Rates and cost, Payments and deadlines, Reservations, Documents, each its own page. A tab staff may not see is left out; without supplier cost access the payments tab is named Deadlines. The breadcrumb ends with the arrangement, then the section.
+- A booking's steps row starts with Summary, then the five numbered steps (Travelers, Rooms and options, Price and installments, Hold space, Accept and confirm), then Money once the booking has a client charge. A confirmed booking opens on its Summary; a draft opens on its first step not done. The Summary is read-only, and each of its sections links to the step that changes it.
+- A summary page (a booking's Summary, a Client Trip) has a Print button among its page actions. It prints the page from the browser, or saves it as a PDF, using the print styles; nothing is stored or issued.
 - A trip on a Departure, and each of its bookings, is reached through Departures › reference › Bookings › trip (`trip_trail`, `booking_trail`), and the sidebar marks Departures. A trip without a Departure is reached through its client.
 
 ## Client offers (draft)

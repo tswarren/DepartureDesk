@@ -19,12 +19,11 @@
         <% end %>
       </ul>
     <% end %>
-    <% if booking.status_confirmed? && Current.agency_user.permitted?(:view_client_money) %>
-      <h3 class="dd-section-title">Client money</h3>
-      <%= render "client_bookings/money_summary", booking:, step: "confirm" %>
-    <% end %>
     <% if booking.status_confirmed? %>
       <p class="dd-page-description">Confirmed <%= booking_time(booking.confirmed_at) %>; the client charge, <%= booking_money(booking.client_charge.total_minor_units, booking.currency) %>, was made from the accepted prices; its lines never change.</p>
+      <% if Current.agency_user.permitted?(:view_client_money) %>
+        <p><%= link_to "The booking's money: what is paid and still due", client_booking_path(booking, step: "money") %></p>
+      <% end %>
     <% elsif manage %>
       <%= button_to "Confirm booking", client_booking_confirmation_path(booking), class: "dd-button" %>
     <% end %>

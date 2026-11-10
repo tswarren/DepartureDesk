@@ -1018,6 +1018,10 @@
     grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
   }
 
+  .dd-grid--top {
+    align-items: start;
+  }
+
   .dd-panel {
     border: 1px solid var(--dd-border);
     border-radius: var(--dd-radius-md);
@@ -2406,8 +2410,8 @@
   .dd-segmented-option:has(input:checked) { border-color: var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 600; position: relative; }
   .dd-rate-methods { border: 0; margin: 0; padding: 0; }
   .dd-rate-inline, .dd-rate-shared { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; }
-  /* Booking steps (S-26): four links, the current one in navy. */
-  .dd-booking-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+  /* Booking steps (S-26): the Summary, five steps and Money, the current one in navy. */
+  .dd-booking-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.5rem; }
   .dd-booking-step { display: block; height: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border: 1px solid var(--dd-border); border-radius: var(--dd-radius-md); background: var(--dd-surface); color: var(--dd-text); text-decoration: none; font-size: 14px; }
   .dd-booking-step:hover { border-color: var(--dd-teal); }
   .dd-booking-step[aria-current="step"] { background: var(--dd-navy); border-color: var(--dd-navy); color: var(--dd-text-on-dark); }
@@ -2443,6 +2447,12 @@
   .dd-record-main { flex: 1 1 18rem; min-width: 0; }
   .dd-record-list .dd-record-detail { margin: 0.15rem 0 0; font-size: 13px; color: var(--dd-text-muted); }
   .dd-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; }
+  /* A record's figure, such as a booking's total, kept when printing. */
+  .dd-record-figure { display: flex; flex-direction: column; align-items: flex-end; text-align: right; white-space: nowrap; }
+  /* A trip's travelers under each booking (S-24). */
+  .dd-trip-travelers { margin-top: 0.5rem; display: grid; gap: 0.15rem; font-size: 14px; }
+  .dd-trip-travelers li { display: flex; flex-wrap: wrap; gap: 0 0.75rem; align-items: baseline; }
+  .dd-trip-travelers strong { font-weight: 500; }
   .dd-checklist { display: flex; flex-direction: column; }
   .dd-checklist-item { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.55rem 0; border-bottom: 1px solid var(--dd-border); }
   .dd-checklist-item:last-child { border-bottom: 0; }

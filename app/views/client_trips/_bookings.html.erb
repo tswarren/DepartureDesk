@@ -1,0 +1,48 @@
+<%# The trip's bookings in brief (S-24; UX audit A6): each with its status, services, space, supplier status, acceptance and balance, and its travelers listed under it. %>
+<%# locals: (trip:, bookings:) -%>
+<% money = Current.agency_user.permitted?(:view_client_money) %>
+<article class="dd-panel" id="bookings">
+  <header class="dd-panel-header dd-section-header">
+    <h2 class="dd-panel-title">Bookings and travelers</h2>
+    <% if Current.agency_user.permitted?(:manage_bookings) && trip.departure %>
+      <%= button_to "New booking", client_trip_bookings_path(trip), class: "dd-button dd-button--secondary" %>
+    <% end %>
+  </header>
+  <div class="dd-panel-body">
+    <% if bookings.empty? %>
+      <p class="dd-empty-copy"><%= trip.departure ? "No bookings yet. A new booking takes the Departure's package." : "Link the trip to a Departure to book its package." %></p>
+    <% else %>
+      <ul class="dd-record-list" aria-label="Bookings on <%= trip.trip_reference %>">
+        <% bookings.each do |booking| %>
+          <% services = booking_services(booking) %>
+          <% acceptance = booking.latest_acceptance %>
+          <li class="dd-record" id="booking-<%= booking.id %>">
+            <div class="dd-record-main">
+              <p>
+                <%= link_to booking.booking_reference, client_booking_path(booking), class: "dd-type-mono" %> · <%= booking.offering.name %>
+                <%= booking_status_badge(booking) %> <%= booking_hold_badge(booking) %> <%= booking_supplier_summary(booking) unless booking.choice_selections.empty? %>
+              </p>
+              <p class="dd-record-detail"><%= services.any? ? services.map(&:label).join(" · ") : "Nothing chosen yet" %></p>
+              <p class="dd-record-detail">
+                <%= acceptance ? "Accepted #{acceptance.accepted_on.to_fs(:long)}" : "Acceptance not recorded" %><%= " · confirmed #{booking.confirmed_at.in_time_zone(Current.agency.default_timezone).to_date.to_fs(:long)}" if booking.confirmed_at %>
+              </p>
+              <% if booking.booking_travelers.any? %>
+                <ul class="dd-plain-list dd-trip-travelers" aria-label="Travelers on <%= booking.booking_reference %>">
+                  <% booking.booking_travelers.each do |row| %>
+                    <li><strong><%= row.display_name %></strong> <span class="dd-cell-subtext"><%= row.traveler_type&.name || "Type not chosen" %></span></li>
+                  <% end %>
+                </ul>
+              <% else %>
+                <p class="dd-record-detail">No travelers yet.</p>
+              <% end %>
+            </div>
+            <span class="dd-record-figure dd-type-mono">
+              <%= booking_money(booking.total_minor_units, booking.currency) %>
+              <% if money && booking.client_charge %><span class="dd-cell-subtext"><%= booking_money(booking.client_charge.remainder_minor_units, booking.currency) %> still due</span><% end %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>

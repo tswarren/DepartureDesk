@@ -1,12 +1,13 @@
-<%# The four booking steps, each with where it stands (S-26). %>
+<%# The booking's Summary, its five steps, each with where it stands, and its Money once confirmed (S-26). %>
 <%# locals: (booking:, progress:, step:) -%>
 <nav class="dd-booking-steps" aria-label="Booking steps">
   <ol>
     <% progress.steps.each do |item| %>
+      <% note = item.key == "money" ? "#{booking_money(booking.client_charge.remainder_minor_units, booking.currency)} still due" : item.note %>
       <li>
         <%= link_to client_booking_path(booking, step: item.key), class: "dd-booking-step#{" dd-booking-step--done" if item.done}", aria: { current: ("step" if item.key == step) } do %>
-          <strong><%= item.number %> · <%= item.label %></strong>
-          <span class="dd-booking-step-note"><%= item.done && item.key != "confirm" ? "Done · #{item.note}" : item.note %></span>
+          <strong><%= item.number ? "#{item.number} · #{item.label}" : item.label %></strong>
+          <span class="dd-booking-step-note"><%= item.done && item.key != "confirm" ? "Done · #{note}" : note %></span>
         <% end %>
       </li>
     <% end %>

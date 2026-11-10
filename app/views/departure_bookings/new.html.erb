@@ -91,10 +91,10 @@
 <% end %>
 
 <article class="dd-panel" aria-labelledby="then-heading">
-  <header class="dd-panel-header"><h2 class="dd-panel-title" id="then-heading">Then the booking, in four steps</h2></header>
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="then-heading">Then the booking, in five steps</h2></header>
   <div class="dd-panel-body">
     <ol class="dd-booking-steps-preview">
-      <% BookingProgress::LABELS.each_value do |label| %><li><%= label %></li><% end %>
+      <% BookingProgress::NUMBERED.each do |key| %><li><%= BookingProgress::LABELS.fetch(key) %></li><% end %>
     </ol>
   </div>
 </article>
