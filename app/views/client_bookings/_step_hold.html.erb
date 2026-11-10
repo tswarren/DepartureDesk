@@ -1,0 +1,49 @@
+<%# Step 4: the hold on the booking's space (INV-17 to INV-23). %>
+<%# locals: (booking:, trip:, manage:) -%>
+<% hold_state, hold_at = booking.hold_state %>
+<article class="dd-panel" id="hold">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Space</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">
+      <% if booking.inventory_allocations.any?(&:state_reserved?) %>Reserved for this booking. The space stays reserved until the booking is cancelled.
+      <% elsif hold_state == :held %>Held until <%= booking_time(hold_at) %><%= " Extended once; it can't be extended again." if booking.hold_extended? %>
+      <% elsif hold_state == :expired %>The hold expired <%= booking_time(hold_at) %>, and its space was returned. Hold space again if any is left.
+      <% else %>Nothing is held. Hold space takes every service the booking has chosen, or none, and lasts <%= pluralize(trip.departure.effective_hold_duration_days, "day") %>.
+      <% end %>
+    </p>
+    <% allocations = booking.inventory_allocations.reject(&:state_released?).sort_by(&:held_at) %>
+    <% if allocations.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Held space</caption>
+          <thead>
+            <tr><th scope="col">Service</th><th scope="col">Space</th><th scope="col">State</th></tr>
+          </thead>
+          <tbody>
+            <% allocations.each do |allocation| %>
+              <tr>
+                <th scope="row"><%= allocation.choice_selection.label %></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= allocation.unit_shell ? (allocation.choice_selection.per_unit? ? allocation.unit_shell.label : "#{pluralize(allocation.quantity, "position")} in #{allocation.unit_shell.label}") : pluralize(allocation.quantity, "place") %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">State </span><%= allocation_state_label(allocation) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <% if manage %>
+      <div class="dd-inline-actions">
+        <%= button_to "Hold space", client_booking_hold_path(booking), method: :post, class: "dd-button" %>
+        <% if hold_state == :held && !booking.hold_extended? %>
+          <%= button_to "Extend hold", client_booking_hold_path(booking), method: :patch, class: "dd-button dd-button--secondary" %>
+        <% end %>
+        <% if hold_state == :held %>
+          <%= button_to "Release held space", client_booking_hold_path(booking), method: :delete, class: "dd-button dd-button--quiet",
+                form: { data: { turbo_confirm: "Release all of this booking's held space?" } } %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</article>

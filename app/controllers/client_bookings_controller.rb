@@ -10,11 +10,11 @@ class ClientBookingsController < ApplicationController
       .includes(:offering, :created_by, :client_terms_version, client_trip: [ :departure, { client: %i[client_person client_organization] } ],
         booking_travelers: %i[traveler traveler_type],
         choice_selections: [ :occupants, :inventory_allocations, { supplier_reservation_units: :supplier_reservation },
-                             { option: [ :choice, { inventory_group: { supplier_arrangement: :supplier } } ] } ],
+                             { option: [ :choice, { inventory_group: [ :capacity_rules, { supplier_arrangement: :supplier } ] } ] } ],
         inventory_allocations: %i[inventory_group unit_shell choice_selection],
         price_lines: [ :booking_traveler, { choice_selection: { option: :choice } } ],
         acceptances: [ :recorded_by, :client_terms_version, :client_payment, { evidence_attachment: :blob } ], cost_lines: :schedule_lines,
-        installment_proposals: [], client_charge: { installments: { applications: :client_payment } },
+        installment_proposals: [], client_charge: { installments: { applications: { client_payment: %i[payer receipt reversal] } } },
         expected_commissions: [ :overridden_by, :confirmed_by, { choice_selection: { option: :choice } } ])
       .find(@booking.id)
     @trip = @booking.client_trip
@@ -28,7 +28,7 @@ class ClientBookingsController < ApplicationController
     @found_travelers = @traveler_query.length >= 2 ? Current.agency.travelers.matching(@traveler_query, unlinked_from: @trip.client, limit: 10).to_a : []
     @blocked = flash[:blockers]
     @progress = BookingProgress.new(@booking, @blockers)
-    @step = params[:step].presence_in(BookingProgress::STEPS) || @progress.current
+    @step = params[:step].presence_in(@progress.available) || @progress.current
   end
 
   def create

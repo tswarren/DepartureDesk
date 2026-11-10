@@ -11,15 +11,16 @@
     <h1 class="dd-page-title"><span class="dd-type-mono"><%= @booking.booking_reference %></span></h1>
     <p class="dd-page-description"><%= client_name %> · <%= @booking.offering.name %> on <%= departure.name %></p>
   </div>
-  <% if Current.agency_user.permitted?(:manage_bookings) %>
-    <div class="dd-page-actions">
+  <div class="dd-page-actions">
+    <% if @step == "summary" %><%= render "shared/print_button" %><% end %>
+    <% if Current.agency_user.permitted?(:manage_bookings) %>
       <%= button_to "New booking on this trip", client_trip_bookings_path(@trip), class: "dd-button dd-button--secondary" %>
       <% if manage %>
         <%= button_to "Discard booking", client_booking_discard_path(@booking), class: "dd-button dd-button--quiet",
               form: { data: { turbo_confirm: "Discard #{@booking.booking_reference}? Its held space is released, and the reference is not reused." } } %>
       <% end %>
-    </div>
-  <% end %>
+    <% end %>
+  </div>
 </header>
 
 <% if @blocked.present? %>
@@ -48,7 +49,7 @@
 
 <%= render "client_bookings/steps", booking: @booking, progress: @progress, step: @step %>
 
-<% unless @booking.status_draft? || @step == "confirm" %>
+<% unless @booking.status_draft? || @step.in?(%w[summary confirm money]) %>
   <p class="dd-alert dd-alert--info" role="status">
     <% if @booking.status_confirmed? %>
       This booking is confirmed, so its travelers and services can't change here: a change to a confirmed booking is an amendment, which isn't built yet.
@@ -59,14 +60,21 @@
   </p>
 <% end %>
 
-<% if @step == "travelers" %>
+<% case @step %>
+<% when "summary" %>
+  <%= render "client_bookings/summary", booking: @booking, blockers: @blockers %>
+<% when "travelers" %>
   <%= render "client_bookings/step_travelers", booking: @booking, trip: @trip, manage:, linked_travelers: @linked_travelers, traveler_types: @traveler_types,
         traveler_query: @traveler_query, found_travelers: @found_travelers %>
-<% elsif @step == "rooms" %>
+<% when "rooms" %>
   <%= render "client_bookings/step_rooms", booking: @booking, manage:, choices: @choices %>
   <%= render "client_bookings/supplier_requests", booking: @booking, step: "rooms" if Current.agency_user.permitted?(:view_supplier_reservations) %>
-<% elsif @step == "price" %>
-  <%= render "client_bookings/step_price", booking: @booking, trip: @trip, manage: %>
+<% when "price" %>
+  <%= render "client_bookings/step_price", booking: @booking, manage: %>
+<% when "hold" %>
+  <%= render "client_bookings/step_hold", booking: @booking, trip: @trip, manage: %>
+<% when "money" %>
+  <%= render "client_bookings/step_money", booking: @booking %>
 <% else %>
   <%= render "client_bookings/supplier_requests", booking: @booking, step: "confirm" if Current.agency_user.permitted?(:view_supplier_reservations) %>
   <%= render "client_bookings/step_confirm", booking: @booking, manage:, blockers: @blockers %>

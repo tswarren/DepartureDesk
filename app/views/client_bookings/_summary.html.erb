@@ -1,0 +1,148 @@
+<%# The booking's Summary (S-26; UX audit A6, decisions 7 and 8): the whole booking, read-only, with each section linking to the step that changes it. Printable from the browser; nothing is stored. %>
+<%# locals: (booking:, blockers:) -%>
+<% currency = booking.currency %>
+<% services = booking_services(booking) %>
+<% lines_by_selection = booking.price_lines.group_by(&:choice_selection_id) %>
+<% charge = booking.client_charge %>
+<% money = Current.agency_user.permitted?(:view_client_money) %>
+<% next_due = charge&.installments&.reject(&:paid?)&.min_by(&:due_on) %>
+<div class="dd-grid dd-grid--main dd-grid--top">
+  <div class="dd-stack">
+    <article class="dd-panel" id="summary-travelers">
+      <header class="dd-panel-header dd-section-header">
+        <h2 class="dd-panel-title">Who is going</h2>
+        <%= link_to "Travelers", client_booking_path(booking, step: "travelers"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Travelers" } %>
+      </header>
+      <div class="dd-panel-body">
+        <% if booking.booking_travelers.empty? %>
+          <p class="dd-empty-copy">No travelers yet.</p>
+        <% else %>
+          <div class="dd-table-wrap">
+            <table class="dd-table dd-stacked-table">
+              <caption class="dd-visually-hidden">Travelers and where each is placed</caption>
+              <thead><tr><th scope="col">Traveler</th><th scope="col">Type</th><th scope="col">Placed in</th></tr></thead>
+              <tbody>
+                <% booking.booking_travelers.each do |row| %>
+                  <% placements = booking_traveler_placements(booking, row) %>
+                  <tr>
+                    <th scope="row"><%= row.display_name %><% if row.placeholder? %><span class="dd-cell-subtext">Not yet named</span><% end %></th>
+                    <td><span class="dd-cabin-field-label dd-visually-hidden">Type </span><%= row.traveler_type&.name || "Not chosen" %></td>
+                    <td><span class="dd-cabin-field-label dd-visually-hidden">Placed in </span><%= placements.any? ? safe_join(placements, tag.br) : "Not placed yet" %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </div>
+    </article>
+
+    <article class="dd-panel" id="summary-services">
+      <header class="dd-panel-header dd-section-header">
+        <h2 class="dd-panel-title">Services</h2>
+        <%= link_to "Rooms and options", client_booking_path(booking, step: "rooms"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Rooms and options" } %>
+      </header>
+      <div class="dd-panel-body">
+        <% if services.empty? %>
+          <p class="dd-empty-copy">Nothing chosen yet.</p>
+        <% else %>
+          <div class="dd-table-wrap">
+            <table class="dd-table dd-stacked-table">
+              <caption class="dd-visually-hidden">Services with their price, space and supplier status</caption>
+              <thead><tr><th scope="col">Service</th><th scope="col" class="num">Price</th><th scope="col">Space</th><th scope="col">Supplier</th></tr></thead>
+              <tbody>
+                <% services.each do |selection| %>
+                  <% status = supplier_status(selection, booking) %>
+                  <tr>
+                    <th scope="row"><%= selection.label %><span class="dd-cell-subtext"><%= selection.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></span></th>
+                    <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Price </span><%= booking_money((lines_by_selection[selection.id] || []).sum(&:amount_minor_units), currency) %></td>
+                    <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= booking_service_space(selection) %></td>
+                    <td>
+                      <span class="dd-cabin-field-label dd-visually-hidden">Supplier </span>
+                      <% if status.nil? %>—<% elsif status.modifier %><%= status_badge(status.label, modifier: status.modifier) %><% else %><%= status.label %><% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+              <tfoot><tr><th scope="row">Total</th><td class="num"><strong><%= booking_money(booking.total_minor_units, currency) %></strong></td><td colspan="2"></td></tr></tfoot>
+            </table>
+          </div>
+        <% end %>
+      </div>
+    </article>
+  </div>
+
+  <div class="dd-stack">
+    <article class="dd-panel" id="summary-acceptance">
+      <header class="dd-panel-header dd-section-header">
+        <h2 class="dd-panel-title">Acceptance</h2>
+        <%= link_to "Accept and confirm", client_booking_path(booking, step: "confirm"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Accept and confirm" } %>
+      </header>
+      <div class="dd-panel-body">
+        <% if (acceptance = booking.latest_acceptance) %>
+          <p>
+            Accepted by <%= acceptance.accepted_by %>, <%= acceptance.method_label.downcase %>, <%= acceptance.accepted_on.to_fs(:long) %>,
+            at <%= booking_money(acceptance.accepted_total_minor_units, acceptance.currency) %> under client terms version <%= acceptance.client_terms_version.version_number %>.
+          </p>
+          <% if booking.status_draft? && booking.current_acceptance.nil? %>
+            <p><%= status_badge("No longer covers the current price and terms", modifier: "warning") %></p>
+          <% end %>
+        <% else %>
+          <p class="dd-empty-copy">Not recorded yet.</p>
+        <% end %>
+      </div>
+    </article>
+
+    <% if money %>
+      <article class="dd-panel" id="summary-money">
+        <header class="dd-panel-header dd-section-header">
+          <h2 class="dd-panel-title">Money</h2>
+          <%= link_to charge ? "Money" : "Price and installments", client_booking_path(booking, step: charge ? "money" : "price"), class: "dd-row-action dd-row-action--text",
+                aria: { label: charge ? "More on Money" : "More on Price and installments" } %>
+        </header>
+        <div class="dd-panel-body dd-stack">
+          <% if charge %>
+            <dl class="dd-definition-list">
+              <div><dt>Charge</dt><dd class="dd-type-mono"><%= booking_money(charge.total_minor_units, currency) %></dd></div>
+              <div><dt>Paid</dt><dd class="dd-type-mono"><%= booking_money(charge.paid_minor_units("agency") + charge.paid_minor_units("supplier"), currency) %></dd></div>
+              <div><dt>Still due</dt><dd class="dd-type-mono"><%= booking_money(charge.remainder_minor_units, currency) %></dd><% if next_due %><dd class="dd-cell-subtext">Next: <%= next_due.due_on.to_fs(:long) %></dd><% end %></div>
+            </dl>
+            <% applied = booking_payments_applied(charge) %>
+            <% if applied.any? %>
+              <ul class="dd-plain-list">
+                <% applied.each do |payment, amounts| %>
+                  <li class="dd-field-hint"><span class="dd-type-mono"><%= payment.payment_reference %></span>, <%= amounts.map { |installment, amount| "#{booking_money(amount, currency)} to the #{installment.description.downcase}" }.to_sentence %><%= " · receipt #{payment.receipt.receipt_number}" if payment.receipt %></li>
+                <% end %>
+              </ul>
+            <% end %>
+          <% else %>
+            <p class="dd-page-description">No charge yet: it is made from the accepted prices when the booking is confirmed.</p>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+
+    <article class="dd-panel" id="summary-next">
+      <header class="dd-panel-header"><h2 class="dd-panel-title">What's next</h2></header>
+      <div class="dd-panel-body">
+        <% awaiting = services.select { |selection| supplier_status(selection, booking)&.label.in?([ "Awaiting supplier", "Requested", "Request from the supplier" ]) } %>
+        <% items = [] %>
+        <% if booking.status_draft? %>
+          <% blockers.each { |blocker| items << link_to(blocker.message, booking_section_path(booking, blocker.anchor)) } %>
+          <% items << link_to("Confirm the booking.", client_booking_path(booking, step: "confirm", anchor: "confirm")) if blockers.empty? %>
+        <% end %>
+        <% awaiting.each do |selection| %>
+          <% items << (supplier_status(selection, booking).needs_request ? "Request #{selection.label} from the supplier." : "The supplier's answer for #{selection.label}.") %>
+        <% end %>
+        <% if money && next_due %>
+          <% items << "#{next_due.description} of #{booking_money(next_due.open_minor_units, currency)} due #{next_due.due_on.to_fs(:long)}." %>
+        <% end %>
+        <% if items.empty? %>
+          <p class="dd-empty-copy">Nothing is waiting on this booking.</p>
+        <% else %>
+          <ul class="dd-plain-list"><% items.each do |item| %><li><%= item %></li><% end %></ul>
+        <% end %>
+      </div>
+    </article>
+  </div>
+</div>

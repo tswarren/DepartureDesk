@@ -7,8 +7,15 @@ class ClientTripsController < ApplicationController
   before_action -> { require_permission!(:manage_bookings) }, except: :show
   before_action :set_trip, only: %i[show edit update]
 
+  # The trip's summary (S-24; UX audit A6, decision 7): each booking in
+  # brief with its travelers, the money, and what's next.
   def show
     @travelers = @trip.client.travelers.includes(:links).ordered
+    @bookings = @trip.client_bookings.includes(:offering, :price_lines, :acceptances, { client_charge: { installments: :applications } },
+      booking_travelers: %i[traveler traveler_type],
+      choice_selections: [ :inventory_allocations, { supplier_reservation_units: :supplier_reservation },
+                           { option: [ :choice, { inventory_group: :supplier_arrangement } ] } ])
+      .order(:created_at).to_a
   end
 
   def new

@@ -65,8 +65,11 @@ module BookingsHelper
     status_badge(booking.status_label, modifier: STATUS_MODIFIERS.fetch(booking.status))
   end
 
-  # Held until, or Hold expired with its time (BKG-09, D-80), as text and color.
+  # Space reserved once confirmed, else Held until or Hold expired with its
+  # time (BKG-09, D-80), as text and color.
   def booking_hold_badge(booking)
+    return status_badge("Space reserved", modifier: "info") if booking.inventory_allocations.any?(&:state_reserved?)
+
     state, at = booking.hold_state
     case state
     when :held then status_badge("Held until #{booking_time(at)}", modifier: "info")
@@ -99,5 +102,45 @@ module BookingsHelper
     choice = booking.offering.choices.find { |candidate| candidate.included? && candidate.made_per_unit? }
     labels = booking.choice_selections.select { |selection| choice && selection.option.offering_choice_id == choice.id }.map { |selection| selection.option.label }
     labels.join(", ").presence || "None chosen"
+  end
+
+  # The booking's services in package order, each with its price lines (S-26 Summary).
+  def booking_services(booking)
+    booking.choice_selections.sort_by { |selection| [ selection.option.choice.position, selection.option.position, selection.unit_number.to_i ] }
+  end
+
+  # Where one traveler is placed on each service, in words (S-26 Summary).
+  def booking_traveler_placements(booking, booking_traveler)
+    booking_services(booking).filter_map do |selection|
+      occupant = selection.occupants.find { |row| row.booking_traveler_id == booking_traveler.id }
+      next unless occupant
+
+      if selection.per_unit? && occupant.position
+        "#{selection.label}, #{occupant.position.ordinalize} guest"
+      elsif uses_no_capacity?(selection.inventory_group, booking_traveler)
+        "#{selection.label}, without a position"
+      else
+        selection.label
+      end
+    end
+  end
+
+  # A service's space in words: each allocation's state, or Not held.
+  def booking_service_space(selection)
+    allocations = selection.inventory_allocations.reject(&:state_released?)
+    return "Not held" if allocations.empty?
+
+    allocations.map(&:state).uniq.size == 1 ? allocation_state_label(allocations.first) : allocations.map { |allocation| allocation_state_label(allocation) }.tally.map { |label, count| "#{count} #{label.downcase}" }.join(", ")
+  end
+
+  # Each payment applied to this charge, with what went to each installment (CMN-28).
+  def booking_payments_applied(charge)
+    charge.installments.flat_map { |installment| installment.applications.map { |application| [ application, installment ] } }
+      .group_by { |application, _| application.client_payment }
+      .filter_map do |payment, rows|
+        amounts = rows.group_by(&:last).transform_values { |pairs| pairs.sum { |application, _| application.amount_minor_units } }.select { |_, amount| amount.positive? }
+        [ payment, amounts ] if amounts.any?
+      end
+      .sort_by { |payment, _| [ payment.paid_on, payment.payment_reference ] }
   end
 end

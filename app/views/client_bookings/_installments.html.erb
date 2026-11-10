@@ -5,8 +5,7 @@
   <header class="dd-panel-header"><h2 class="dd-panel-title">When the client pays</h2></header>
   <div class="dd-panel-body dd-stack">
     <% if booking.client_charge %>
-      <p class="dd-page-description">Set at confirmation from the accepted schedule; never changed.</p>
-      <%= render "client_bookings/money_summary", booking:, step: "price" %>
+      <p class="dd-page-description">Set at confirmation from the accepted schedule; never changed. What is paid and still due is under <%= link_to "Money", client_booking_path(booking, step: "money") %>.</p>
       <% if booking.client_charge.installments.any? %>
         <%= render "client_bookings/installments_table", installments: booking.client_charge.installments, currency: %>
       <% else %>

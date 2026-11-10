@@ -1,0 +1,50 @@
+<%# Money, once confirmed: this booking's balances, its installments, and each payment applied to it (CMN-08, CMN-24, CMN-28; UX audit decision 4). The trip's money panel stays the full record. %>
+<%# locals: (booking:) -%>
+<% charge = booking.client_charge %>
+<% currency = booking.currency %>
+<% next_due = charge.installments.reject(&:paid?).min_by(&:due_on) %>
+<article class="dd-panel" id="booking-balance">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">This booking's balance</h2></header>
+  <div class="dd-panel-body">
+    <%= render "client_bookings/money_summary", booking:, step: "money",
+          note: next_due ? "Next due: #{booking_money(next_due.open_minor_units, currency)} for the #{next_due.description.downcase}, on #{next_due.due_on.to_fs(:long)}." : "Nothing is still due on this booking." %>
+  </div>
+</article>
+
+<article class="dd-panel" id="booking-installments">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Installments</h2></header>
+  <div class="dd-panel-body">
+    <% if charge.installments.any? %>
+      <%= render "client_bookings/installments_table", installments: charge.installments, currency: %>
+    <% else %>
+      <p class="dd-empty-copy">No installments yet.</p>
+    <% end %>
+  </div>
+</article>
+
+<% applied = booking_payments_applied(charge) %>
+<article class="dd-panel" id="booking-payments">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Payments applied to this booking</h2></header>
+  <div class="dd-panel-body">
+    <% if applied.empty? %>
+      <p class="dd-empty-copy">None yet. A payment is recorded on the trip and applied to its installments.</p>
+    <% else %>
+      <ul class="dd-record-list" aria-label="Payments applied to <%= booking.booking_reference %>">
+        <% applied.each do |payment, amounts| %>
+          <li class="dd-record">
+            <div class="dd-record-main">
+              <strong class="dd-type-mono"><%= payment.payment_reference %></strong> · <%= payment.paid_on.to_fs(:long) %> · <%= payment.payer.source.display_name %> · <%= payment.method_label %> to <%= payment.collector_label %>
+              <% if payment.reversed? %><%= status_badge("Reversed", modifier: "danger") %><% end %>
+              <p class="dd-record-detail">
+                <%= amounts.map { |installment, amount| "#{booking_money(amount, currency)} applied to #{installment.description}" }.to_sentence %><%= " · reference #{payment.reference}" if payment.reference %>
+              </p>
+            </div>
+            <span class="dd-record-actions">
+              <% if payment.receipt %><%= link_to "Receipt #{payment.receipt.receipt_number}", receipt_path(payment.receipt), class: "dd-row-action dd-row-action--text" %><% else %><span class="dd-cell-subtext">No receipt: paid to a supplier</span><% end %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>

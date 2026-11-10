@@ -13,7 +13,8 @@
       <p class="dd-empty-copy">Link the trip to a Departure first.</p>
     <% else %>
       <dl class="dd-definition-list">
-        <div><dt>Still due from the client</dt><dd class="dd-type-mono"><%= booking_money(money.receivable_minor_units, currency) %></dd></div>
+        <% next_due = money.open_installments.first %>
+        <div><dt>Still due from the client</dt><dd class="dd-type-mono"><%= booking_money(money.receivable_minor_units, currency) %></dd><% if next_due %><dd class="dd-cell-subtext">Next: <%= booking_money(next_due.open_minor_units, currency) %> on <%= next_due.due_on.to_fs(:long) %></dd><% end %></div>
         <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(money.agency_cash_minor_units, currency) %></dd></div>
         <div><dt>Paid to suppliers</dt><dd class="dd-type-mono"><%= booking_money(money.supplier_route_minor_units, currency) %></dd></div>
         <div><dt>Credit not yet applied</dt><dd class="dd-type-mono"><%= booking_money(money.credit_minor_units, currency) %></dd></div>
@@ -29,7 +30,7 @@
       <% money.bookings.each do |booking| %>
         <% charge = booking.client_charge %>
         <section class="dd-stack" aria-labelledby="charge-<%= booking.id %>">
-          <h3 class="dd-section-title" id="charge-<%= booking.id %>"><%= link_to booking.booking_reference, client_booking_path(booking, step: "price", anchor: "installments"), class: "dd-type-mono" %></h3>
+          <h3 class="dd-section-title" id="charge-<%= booking.id %>"><%= link_to booking.booking_reference, client_booking_path(booking, step: "money"), class: "dd-type-mono" %></h3>
           <dl class="dd-definition-list">
             <div><dt>Charge</dt><dd class="dd-type-mono"><%= booking_money(charge.total_minor_units, currency) %></dd></div>
             <div><dt>Paid to the agency</dt><dd class="dd-type-mono"><%= booking_money(charge.paid_minor_units("agency"), currency) %></dd></div>

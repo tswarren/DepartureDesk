@@ -1,6 +1,7 @@
 require "application_system_test_case"
 
-# Slice 1 step 6b screens S-25, S-26 and the S-17 additions, at desktop width and 375px.
+# Slice 1 step 6b screens S-25, S-26 and the S-17 additions, at desktop width
+# and 375px, with the booking Summary, Money and trip summary (UX audit batch 5).
 class BookingScreensTest < ApplicationSystemTestCase
   setup do
     set_clock Time.utc(2027, 1, 12, 15)
@@ -43,11 +44,17 @@ class BookingScreensTest < ApplicationSystemTestCase
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     [ 1400, 375 ].each do |width|
       resize_window(width)
-      visit client_booking_path(booking)
+      visit client_booking_path(booking, step: "confirm")
       wait_for_turbo
       assert_selector "#supplier-cost"
       within("#acceptance") { assert_text "Covers the current price and terms" }
       assert_no_page_overflow
+      [ client_booking_path(booking), client_booking_path(booking, step: "money"), client_trip_path(booking.client_trip) ].each do |path|
+        visit path
+        wait_for_turbo
+        assert_selector "h1.dd-page-title"
+        assert_no_page_overflow
+      end
     end
   end
 
@@ -80,8 +87,9 @@ class BookingScreensTest < ApplicationSystemTestCase
       click_button "Add"
     end
     assert_text "Choice saved."
-    within("nav[aria-label='Booking steps']") { click_link "Price and hold" }
+    within("nav[aria-label='Booking steps']") { click_link "Price and installments" }
     within("#prices") { assert_text "$5,170.00" }
+    click_link "Next: hold space"
     within("#hold") { click_button "Hold space" }
     assert_text "Space held."
     within("#status") { assert_text "Held until Jan 13, 2027, 11:59 p.m." }
