@@ -157,3 +157,14 @@ Each batch is one pull request, in order, and each passes `bin/ci` and the 375px
 - **The Dashboard's update** (A2), deferred to the backlog (decision 1).
 - **The reseller view** waits for build step 9. Batch 5's booking steps and Summary are built so the reseller variant can reuse them.
 - **No new font, icon library or JavaScript framework** (AGENTS.md).
+
+## Backlog from the pass
+
+Found or left open while the batches were built. Each needs a demonstration or milestone test changed, or a field the specification doesn't have, so none enters Slice 1 without a decision log entry.
+
+| Item | Finding or screen | Rule or case it touches | Why it waits |
+| --- | --- | --- | --- |
+| The Departure inventory page as one table pattern for shells, pools and the night grid | D4, S-17 | INV-39; D4, D6 | D4 and D6 assert each group's own section on the page |
+| Long dates without a zero-padded day ("July 9, 2027") | C4 | D2 | D2 asserts "November 01, 2026" |
+| Breadcrumbs on client and supplier profiles | A5, S-22 | CLT-01 | The M1 directory acceptance test follows the "Clients" link by name, which a crumb makes ambiguous |
+| A field for the supplier's count threshold on the arrangement form | C3, S-13 | SUP-26 | No field exists; adding one is a record change |
