@@ -1,4 +1,7 @@
-<%# locals: (form:, values:, currency:) -%>
+<%# locals: (form:, values:, currency:, starts_on: nil) -%>
+<%# A client payment schedule line (CMN-09), summed up in a sentence as it is filled in (UX audit C2). %>
+<div class="dd-stack" data-controller="client-schedule-summary" data-client-schedule-summary-currency-value="<%= currency %>"
+     data-client-schedule-summary-starts-on-value="<%= starts_on&.iso8601 %>" data-action="input->client-schedule-summary#update change->client-schedule-summary#update">
 <div class="dd-field-group">
   <%= form.label :description, class: "dd-label" %>
   <%= form.text_field :description, maxlength: 120, **dd_field_options(form, :description, aria_describedby_extra: "schedule_description_hint") %>
@@ -56,4 +59,9 @@
     <span>Receiving this payment counts as the client's acceptance</span>
   </label>
   <p class="dd-field-hint">Only when the terms say so. Any other payment never counts as acceptance.</p>
+</div>
+<aside class="dd-payment-summary" aria-labelledby="schedule-summary-heading">
+  <h2 class="dd-payment-summary-title" id="schedule-summary-heading">In plain words</h2>
+  <p data-client-schedule-summary-target="output" aria-live="polite"></p>
+</aside>
 </div>

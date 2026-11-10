@@ -63,11 +63,13 @@
         <h3 class="dd-section-title" id="departure-wording-heading">This departure's terms</h3>
         <% if editable %>
           <%= form_with model: @terms_version, url: departure_client_terms_path(@departure), method: :patch, scope: :client_terms_version, class: "dd-form" do |form| %>
+            <%= render "shared/form_errors", object: form.object, title: "The terms weren't saved" %>
             <%= form.hidden_field :lock_version %>
             <div class="dd-field-group">
               <%= form.label :departure_wording, "Departure terms", class: "dd-label" %>
-              <%= form.text_area :departure_wording, rows: 5, maxlength: ClientTermsVersion::WORDING_LIMIT, aria: { describedby: "departure_wording_hint" }, class: "dd-field" %>
+              <%= form.text_area :departure_wording, rows: 5, maxlength: ClientTermsVersion::WORDING_LIMIT, **dd_field_options(form, :departure_wording, aria_describedby_extra: "departure_wording_hint") %>
               <p class="dd-field-hint" id="departure_wording_hint">Paragraphs, bold, italic, lists and links, as in the document footers.</p>
+              <%= dd_field_error(form, :departure_wording) %>
             </div>
             <%= form.submit "Save terms", class: "dd-button dd-button--secondary" %>
           <% end %>

@@ -57,8 +57,9 @@ class PackageScreensTest < ApplicationSystemTestCase
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     visit edit_departure_offering_choice_option_path(@alpha.departure, offering, tour, tour.options.sole)
     wait_for_turbo
+    find("summary", text: "Set one price here instead").click
     select "Child", from: "Traveler type"
-    fill_in "Price", with: "75"
+    fill_in "Amount (USD)", with: "75"
     click_button_and_expect "Save price", text: "Price saved."
     visit departure_offerings_path(@alpha.departure)
     assert_selector "th[scope=col]", text: /\Achild\z/i
@@ -135,5 +136,25 @@ class PackageScreensTest < ApplicationSystemTestCase
     assert_field "Amount (USD)"
     assert_no_field "Percentage"
     assert_no_field "For each"
+  end
+
+  test "the schedule line and tier forms say the line in a sentence as it is filled in (C2)" do
+    departure = @alpha.departure
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_client_schedule_line_path(departure)
+    wait_for_turbo
+    assert_text "Choose how much and when it is due."
+    select "Fixed amount per traveler", from: "Amount"
+    fill_in "Fixed amount (USD)", with: "250"
+    select "Days before departure", from: "Due"
+    fill_in "Days before departure", with: "90"
+    assert_text "$250.00 for each traveler, due 90 days before departure: Aug 8, 2027. It doesn't count as acceptance."
+
+    visit new_administration_cancellation_tier_path
+    wait_for_turbo
+    fill_in "From how many days before departure", with: "60"
+    select "Percentage of the service's charge", from: "Charge"
+    fill_in "Percentage", with: "50"
+    assert_text "Cancelling 60 days or more before departure costs 50% of the service's charge, until the next tier closer to departure."
   end
 end

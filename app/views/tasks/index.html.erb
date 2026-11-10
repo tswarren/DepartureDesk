@@ -6,7 +6,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Workspace</p>
     <h1 class="dd-page-title">My tasks</h1>
-    <p class="dd-page-description">Your open and in-progress tasks, soonest due first.</p>
+    <p class="dd-page-description">Your open and in-progress tasks by the week they fall due, overdue first.</p>
   </div>
 </header>
 
@@ -19,28 +19,36 @@
       </div>
     </div>
   <% else %>
-    <div class="dd-table-wrap">
-      <table class="dd-table">
-        <caption class="dd-visually-hidden">Your open tasks by due date</caption>
-        <thead>
-          <tr>
-            <th scope="col">Due</th>
-            <th scope="col">Task</th>
-            <th scope="col">Departure</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @tasks.each do |task| %>
-            <tr>
-              <td><%= local_due_label(task.due_at, task.due_time_zone) %></td>
-              <th scope="row"><%= link_to task.action, task_path(task) %></th>
-              <td><%= link_to task.departure.name, departure_tasks_path(task.departure) %></td>
-              <td><%= task_status_badges(task) %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
+    <div class="dd-panel-body dd-stack">
+      <% tasks_by_due_week(@tasks).each do |week, tasks| %>
+        <% heading_id = "tasks-#{week.parameterize}" %>
+        <section class="dd-stack" aria-labelledby="<%= heading_id %>">
+          <h2 class="dd-section-title" id="<%= heading_id %>"><%= week %></h2>
+          <div class="dd-table-wrap">
+            <table class="dd-table dd-stacked-table">
+              <caption class="dd-visually-hidden">Tasks due: <%= week.downcase %></caption>
+              <thead>
+                <tr>
+                  <th scope="col">Due</th>
+                  <th scope="col">Task</th>
+                  <th scope="col">Departure</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% tasks.each do |task| %>
+                  <tr>
+                    <td><span class="dd-cabin-field-label dd-visually-hidden">Due </span><%= local_due_label(task.due_at, task.due_time_zone) %></td>
+                    <th scope="row"><%= link_to task.action, task_path(task) %></th>
+                    <td><span class="dd-cabin-field-label dd-visually-hidden">Departure </span><%= link_to task.departure.name, departure_tasks_path(task.departure) %></td>
+                    <td><span class="dd-cabin-field-label dd-visually-hidden">Status </span><%= task_status_badges(task) %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      <% end %>
     </div>
   <% end %>
 </article>
