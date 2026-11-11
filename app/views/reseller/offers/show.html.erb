@@ -1,0 +1,57 @@
+<% content_for :title, "#{@offering.name} · #{reseller_scope.reseller.name} · DepartureDesk" %>
+<% departure = @offering.departure %>
+<% space = DepartureSummary.new(departure) %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Offers and bookings", reseller_root_path ], [ @offering.name, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Offer · <%= departure.name %></p>
+    <h1 class="dd-page-title"><%= @offering.name %></h1>
+    <p class="dd-page-description"><%= [ departure.starts_on&.to_fs(:long), departure.ends_on&.to_fs(:long) ].compact.join(" to ") %><%= " · #{departure.description}" if departure.description.present? %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Start a booking", new_reseller_offer_booking_path(@offering), class: "dd-button" %>
+  </div>
+</header>
+
+<article class="dd-panel" aria-labelledby="offer-choices">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="offer-choices">What clients book</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <% if @offering.description %><p class="dd-page-description"><%= @offering.description %></p><% end %>
+    <p class="dd-field-hint">Client prices, as the agency publishes them. Places left are counted now; space is taken only when a booking holds it.</p>
+    <% @choices.each do |choice| %>
+      <section class="dd-stack" aria-labelledby="offer-choice-<%= choice.id %>">
+        <h3 class="dd-section-title" id="offer-choice-<%= choice.id %>"><%= choice.name %></h3>
+        <p class="dd-page-description"><%= choice_summary(choice) %></p>
+        <% if choice.options.any? %>
+          <% grid = ClientPriceGrid.new(choice) %>
+          <div class="dd-table-wrap">
+            <table class="dd-table dd-stacked-table dd-price-grid">
+              <caption class="dd-visually-hidden"><%= choice.name %> options, client prices and places left</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Option</th>
+                  <% grid.columns.each do |column| %><th scope="col" class="num"><%= column.label %></th><% end %>
+                  <th scope="col" class="num">Places left</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% grid.options.each do |option| %>
+                  <% left = space.space(option.inventory_group, per_traveler: choice.made_per_traveler?) %>
+                  <tr>
+                    <th scope="row"><%= option.label %></th>
+                    <% grid.cells_for(option).each do |cell| %>
+                      <td class="num"><span class="dd-cabin-field-label dd-visually-hidden"><%= cell.column.label %></span><%= grid.shown(cell) || "—" %></td>
+                    <% end %>
+                    <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Places left </span><%= left.counted? ? (left.left.zero? ? "None left" : "#{left.left} left") : (left.note == :on_request ? "On request" : "Ask the agency") %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>

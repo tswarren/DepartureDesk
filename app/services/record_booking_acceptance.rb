@@ -14,6 +14,7 @@
 # accepted (step 6 plan, question 9).
 class RecordBookingAcceptance < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
   include UploadedFileCheck
 
   FIELDS = %w[accepted_by acceptance_method accepted_on note evidence_reference client_payment_id].freeze

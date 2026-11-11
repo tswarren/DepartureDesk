@@ -35,9 +35,11 @@ module ApplicationHelper
     status_badge(agency.status.titleize, modifier:)
   end
 
+  # S-03: a reseller user is shown with its relationship (step 9 plan, Screens).
   def agency_user_type_badge(agency_user)
     modifier = agency_user.agency_admin? ? "info" : "neutral"
-    status_badge(user_type_label(agency_user.user_type), modifier:)
+    badge = status_badge(user_type_label(agency_user.user_type), modifier:)
+    agency_user.reseller? && agency_user.reseller ? safe_join([ badge, tag.span(agency_user.reseller.name, class: "dd-cell-subtext") ], " ") : badge
   end
 
   def user_type_label(user_type)

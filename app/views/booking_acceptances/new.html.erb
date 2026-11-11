@@ -16,7 +16,7 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with model: @acceptance, url: client_booking_acceptances_path(@booking), scope: :booking_acceptance, multipart: true, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+    <%= form_with model: @acceptance, url: booking_route(:client_booking_acceptances, @booking), scope: :booking_acceptance, multipart: true, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
       <%= render "shared/form_errors", object: form.object %>
       <div class="dd-form-grid dd-form-grid--two-column">
         <div class="dd-field-group">
@@ -80,7 +80,11 @@
               <%= dd_field_error(form, :client_payment_id) %>
             </div>
           <% else %>
-            <p class="dd-field-hint">No payment is recorded on trip <%= link_to @booking.client_trip.trip_reference, client_trip_path(@booking.client_trip, anchor: "money") %> yet. Someone with Financial records records it there, then it can be chosen here.</p>
+            <% if reseller_area? %>
+              <p class="dd-field-hint">No payment is recorded on trip <%= @booking.client_trip.trip_reference %> yet. The agency records payments; send it the payment's amount, date and reference, then it can be chosen here.</p>
+            <% else %>
+              <p class="dd-field-hint">No payment is recorded on trip <%= link_to @booking.client_trip.trip_reference, client_trip_path(@booking.client_trip, anchor: "money") %> yet. Someone with Financial records records it there, then it can be chosen here.</p>
+            <% end %>
           <% end %>
         </fieldset>
       <% end %>

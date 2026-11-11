@@ -16,10 +16,15 @@
   <% else %>
     <p class="dd-field-hint">A payment received before confirmation is held as credit on the trip, and applied to the deposit once the booking is confirmed (CMN-24).</p>
   <% end %>
-  <p class="dd-inline-actions">
-    <% if record %>
-      <%= link_to "Record a payment", new_client_trip_payment_path(trip, booking_id: booking.id, step:), class: "dd-button dd-button--secondary" %>
-    <% end %>
-    <%= link_to "All payments and receipts on trip #{trip.trip_reference}", client_trip_path(trip, anchor: "money") %>
-  </p>
+  <% if reseller_area? %>
+    <%# CMN-19, ACC-15: a reseller passes on a payment's details; the agency records it. %>
+    <p class="dd-field-hint" id="reseller-payments">Payments are recorded by <%= Current.agency.name %>. If the client has already paid, send the agency the amount, the date and the payment's reference. Never send card details.</p>
+  <% else %>
+    <p class="dd-inline-actions">
+      <% if record %>
+        <%= link_to "Record a payment", new_client_trip_payment_path(trip, booking_id: booking.id, step:), class: "dd-button dd-button--secondary" %>
+      <% end %>
+      <%= link_to "All payments and receipts on trip #{trip.trip_reference}", client_trip_path(trip, anchor: "money") %>
+    </p>
+  <% end %>
 </div>

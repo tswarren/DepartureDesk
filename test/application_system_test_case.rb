@@ -110,7 +110,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     fill_in "Email address", with: agency_user.email_address
     fill_in "Password", with: password
     click_button "Sign in"
-    assert_selector "h1.dd-page-title", text: "My tasks"
+    # S-01: staff land on My tasks, a reseller user on its home.
+    assert_selector "h1.dd-page-title", text: agency_user.reseller? ? "Offers and bookings" : "My tasks"
     wait_for_turbo
   end
 

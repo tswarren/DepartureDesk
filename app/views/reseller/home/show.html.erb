@@ -1,0 +1,71 @@
+<% content_for :title, "#{reseller_scope.reseller.name} · DepartureDesk" %>
+<% timezone = Current.agency.default_timezone %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= reseller_scope.reseller.name %> · <%= Current.agency.name %></p>
+    <h1 class="dd-page-title">Offers and bookings</h1>
+    <p class="dd-page-description">The packages <%= Current.agency.name %> publishes to <%= reseller_scope.reseller.name %>, and the bookings it has assigned to you.</p>
+  </div>
+</header>
+
+<article class="dd-panel" aria-labelledby="reseller-offers">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="reseller-offers">Published offers</h2></header>
+  <div class="dd-panel-body">
+    <% if @offerings.empty? %>
+      <p class="dd-empty-copy">Nothing is published to <%= reseller_scope.reseller.name %> right now.</p>
+    <% else %>
+      <ul class="dd-record-list" aria-label="Published offers">
+        <% @offerings.each do |offering| %>
+          <% departure = offering.departure %>
+          <li class="dd-record">
+            <div class="dd-record-main">
+              <p><strong><%= link_to offering.name, reseller_offer_path(offering) %></strong> · <%= departure.name %></p>
+              <p class="dd-record-detail"><%= [ departure.starts_on&.to_fs(:long), departure.ends_on&.to_fs(:long) ].compact.join(" to ") %></p>
+            </div>
+            <span class="dd-record-actions">
+              <%= link_to "Start a booking", new_reseller_offer_booking_path(offering), class: "dd-button dd-button--secondary", aria: { label: "Start a booking on #{offering.name}" } %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" aria-labelledby="reseller-bookings">
+  <header class="dd-panel-header"><h2 class="dd-panel-title" id="reseller-bookings">Your bookings</h2></header>
+  <div class="dd-panel-body">
+    <% if @bookings.empty? %>
+      <p class="dd-empty-copy">No bookings yet. Start one from a published offer.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Bookings assigned to <%= reseller_scope.reseller.name %></caption>
+          <thead>
+            <tr>
+              <th scope="col">Booking</th>
+              <th scope="col">Client</th>
+              <th scope="col">Status</th>
+              <th scope="col">Space</th>
+              <th scope="col" class="num">Price</th>
+              <th scope="col" class="num">Still due</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @bookings.each do |booking| %>
+              <tr>
+                <th scope="row"><%= link_to booking.booking_reference, reseller_client_booking_path(booking), class: "dd-type-mono" %><span class="dd-cell-subtext"><%= booking.offering.name %></span></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Client </span><%= booking.client_trip.client.source.display_name %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Status </span><%= booking_status_badge(booking) %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= booking_hold_badge(booking) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Price </span><%= booking_money(booking.total_minor_units, booking.currency) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Still due </span><%= booking.client_charge ? booking_money(booking.client_charge.remainder_minor_units, booking.currency) : "Not charged yet" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>

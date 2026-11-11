@@ -7,13 +7,34 @@
 # arrangement and each affected inventory group in id order. Supply
 # commands take agency, Departure, arrangement, group, so both paths take
 # the group row last and are ordered on one timeline per group.
+#
+# A reseller user may act only through a command that declares
+# allow_reseller_actor, and only on bookings its relationship owns (ACC-14,
+# ACC-15; step 9 plan, question 8). Any other booking is not found.
 module BookingCommandSupport
   Need = Data.define(:selection, :group, :kind, :count)
+
+  def self.included(base)
+    base.extend(ClassMethods)
+  end
+
+  module ClassMethods
+    def allow_reseller_actor = @reseller_actor_allowed = true
+
+    def reseller_actor_allowed? = @reseller_actor_allowed == true
+  end
 
   private
 
   def ensure_actor!
-    ensure_directory_actor!(@actor, @agency, :manage_bookings)
+    if reseller_actor?
+      raise AgencyCommand::Error.new(AgencyCommand::UNAUTHORIZED, code: :unauthorized) unless self.class.reseller_actor_allowed?
+
+      ensure_reseller_actor!(:reseller_manage_bookings)
+      ensure_reseller_owns!(@agency.client_bookings.find(@booking.id)) if @booking
+    else
+      ensure_directory_actor!(@actor, @agency, :manage_bookings)
+    end
     ensure_active_agency!(@agency)
   end
 
@@ -21,7 +42,24 @@ module BookingCommandSupport
     @agency.lock!
     trip = @agency.client_trips.find(booking.client_trip_id)
     @departure = @agency.departures.lock.find(trip.departure_id)
-    @agency.client_bookings.lock.find(booking.id)
+    @agency.client_bookings.lock.find(booking.id).tap { |record| ensure_reseller_owns!(record) }
+  end
+
+  # ACC-14: a reseller reaches only the bookings its relationship owns.
+  def ensure_reseller_owns!(booking)
+    return unless reseller_actor?
+    return if booking.owner_reseller? && booking.owner_reseller_id == @actor.reseller_id
+
+    raise ActiveRecord::RecordNotFound.new("Couldn't find ClientBooking", "ClientBooking")
+  end
+
+  # Step 9 plan, question 5: a reseller books and holds only on an offering
+  # published to its relationship.
+  def ensure_published_to_reseller!(offering, action)
+    return unless reseller_actor?
+    return if OfferingPublication.open.exists?(offering_id: offering.id, reseller_id: @actor.reseller_id)
+
+    raise AgencyCommand::Error.new("#{offering.name} isn't published to #{@actor.reseller.name}, so #{action}.", code: :invalid_state)
   end
 
   def ensure_draft!(booking)

@@ -62,7 +62,12 @@ module NavigationHelper
     base + [ [ trip.trip_reference, (client_trip_path(trip) unless current) ] ]
   end
 
+  # A reseller's booking sits under its home (R-01).
   def booking_trail(booking, current: false)
+    if reseller_area?
+      return [ [ "Offers and bookings", reseller_root_path ], [ booking.booking_reference, (reseller_client_booking_path(booking) unless current) ] ]
+    end
+
     trip_trail(booking.client_trip) + [ [ booking.booking_reference, (client_booking_path(booking) unless current) ] ]
   end
 end

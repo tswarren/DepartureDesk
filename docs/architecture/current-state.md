@@ -1,10 +1,10 @@
 # Current application architecture
 
-**Status:** Implemented baseline, as of Slice 1 step 9a
+**Status:** Implemented baseline, as of Slice 1 step 9b
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; step 5's package offerings with client prices, and client terms; step 6a's travelers, their links to clients, and Client Trips; step 6b's draft bookings with their travelers, choices, price lines and held space; step 6c's acceptances and confirmation, with the client charge, booking supplier cost and expected commission; step 7's supplier reservations; step 8a's installments, client payments, credit, reversals and receipts; step 8b's supplier payments, the balance basis and commission confirmation; and step 9a's reseller relationships, publishing to their channels, and a booking's owner and seller of record. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
+DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; step 5's package offerings with client prices, and client terms; step 6a's travelers, their links to clients, and Client Trips; step 6b's draft bookings with their travelers, choices, price lines and held space; step 6c's acceptances and confirmation, with the client charge, booking supplier cost and expected commission; step 7's supplier reservations; step 8a's installments, client payments, credit, reversals and receipts; step 8b's supplier payments, the balance basis and commission confirmation; step 9a's reseller relationships, publishing to their channels, and a booking's owner and seller of record; and step 9b's reseller path: reseller-user invitations, the Reseller namespace with its home, offers and booking workspace, and the reseller's booking commands. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
 
 ## Shipped records and authorization catalog
 
@@ -14,7 +14,7 @@ DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017
 | `Office` | Optional agency-owned assignment and reporting context with no time zone (ADR 0016). It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and user type (`agency_admin`, `staff`, `reseller`). |
 | `UserPermission` | A staff user's grant from the five-permission catalog; the database refuses it for any other user type (ADR 0017). |
-| `Reseller` | A reseller relationship and its one channel (D-68); `reseller` users belong to one. Staff with Reseller relationships authorize one and set its direct-contact setting (ACC-13, DOC-08). Pause, suspension and ending are not built. |
+| `Reseller` | A reseller relationship and its one channel (D-68); `reseller` users belong to one. Staff with Reseller relationships authorize one, set its direct-contact setting (ACC-13, DOC-08) and invite its users through `InviteAgencyUser`. Pause, suspension and ending are not built. |
 | `OfferingPublication` | An offering published to one reseller's channel (DEP-07), open until staff withdraw it (DEP-09) or the Departure returns to Draft (DEP-08). Only the withdrawal is written after creation, once; publishing again makes a new row. |
 | `AgencyDocumentInclusion` | Per agency and document family, which profile fields and footer a document shows (SET-06, SET-07). |
 | `TravelerType` | The agency's ordered traveler types, seeded Adult, Child and Child 0–4 (BKG-21). |
@@ -91,7 +91,7 @@ Office is operational context, not authorization. `Current.office` resolves from
 
 ## Current permissions
 
-An Agency Admin satisfies every requirement except `reseller`. Staff hold the baseline plus their granted permissions. A `reseller` user satisfies no staff requirement; reseller actions arrive in Slice 1 step 9b.
+An Agency Admin satisfies every requirement except `reseller`. Staff hold the baseline plus their granted permissions. A `reseller` user satisfies no staff requirement, and only it satisfies `reseller` (`reseller_view_offers`, `reseller_manage_bookings`). A reseller session is served only from the `Reseller::` namespace under `/reseller`: one guard in `Authentication` sends it home from every staff screen except sign-out and the password page, and `ResellerArea` refuses a staff session there. Every reseller read goes through `ResellerScope` (the open publications to its relationship and the bookings it owns), so anything else is not found. Booking commands accept a reseller actor only when they declare `allow_reseller_actor`, and only on a booking its relationship owns; every other command refuses it through its staff requirement. The R-03 controllers subclass the staff booking controllers with `ResellerBookingAccess`, and the booking partials build their links with `booking_route`, so one set of views serves both areas.
 
 | Action | Requirement |
 | --- | --- |
@@ -118,11 +118,13 @@ An Agency Admin satisfies every requirement except `reseller`. Staff hold the ba
 | View the package, client prices and client terms | Baseline |
 | Edit the package, prices and a Departure's client terms | Departure management |
 | Edit the agency's client terms wording and default cancellation tiers | Agency Admin only |
-| Authorize a reseller relationship and set its direct-contact setting (`manage_reseller_relationships`, ACC-13) | Reseller relationships |
+| Authorize a reseller relationship, set its direct-contact setting and invite its users (`manage_reseller_relationships`, ACC-13) | Reseller relationships |
 | Publish a package to a reseller's channel and withdraw it (`publish_offerings`, DEP-07) | Departure management |
 | Assign a booking's owner and set a draft's seller of record (`assign_bookings`, ACC-18, FIN-05) | Departure management |
+| See the offers published to its relationship and the bookings it owns, with their charges and balance (`reseller_view_offers`, ACC-14, CMN-52) | Reseller user |
+| Create a booking with its client, travelers and trip on a published offer; hold, accept, confirm at current prices and terms, discard while held (`reseller_manage_bookings`, ACC-15, CLT-25, DEP-10, BKG-56) | Reseller user |
 
-Application code checks catalog actions, not user types or grant names. After sign-in, staff land on My tasks unless a protected page sent them to sign in (S-01).
+Application code checks catalog actions, not user types or grant names. After sign-in, staff land on My tasks unless a protected page sent them to sign in, and a reseller user on its home (S-01).
 
 ## Persistence and command boundaries
 

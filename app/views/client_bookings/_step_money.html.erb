@@ -27,7 +27,7 @@
   <header class="dd-panel-header"><h2 class="dd-panel-title">Payments applied to this booking</h2></header>
   <div class="dd-panel-body">
     <% if applied.empty? %>
-      <p class="dd-empty-copy">None yet. A payment is recorded on the trip and applied to its installments.</p>
+      <p class="dd-empty-copy">None yet. <%= reseller_area? ? "The agency records each payment and applies it to the installments." : "A payment is recorded on the trip and applied to its installments." %></p>
     <% else %>
       <ul class="dd-record-list" aria-label="Payments applied to <%= booking.booking_reference %>">
         <% applied.each do |payment, amounts| %>
@@ -40,7 +40,7 @@
               </p>
             </div>
             <span class="dd-record-actions">
-              <% if payment.receipt %><%= link_to "Receipt #{payment.receipt.receipt_number}", receipt_path(payment.receipt), class: "dd-row-action dd-row-action--text" %><% else %><span class="dd-cell-subtext">No receipt: paid to a supplier</span><% end %>
+              <% if payment.receipt && reseller_area? %><span class="dd-cell-subtext">Receipt <%= payment.receipt.receipt_number %></span><% elsif payment.receipt %><%= link_to "Receipt #{payment.receipt.receipt_number}", receipt_path(payment.receipt), class: "dd-row-action dd-row-action--text" %><% else %><span class="dd-cell-subtext">No receipt: paid to a supplier</span><% end %>
             </span>
           </li>
         <% end %>

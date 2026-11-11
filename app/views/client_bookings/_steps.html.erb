@@ -5,7 +5,7 @@
     <% progress.steps.each do |item| %>
       <% note = item.key == "money" ? "#{booking_money(booking.client_charge.remainder_minor_units, booking.currency)} still due" : item.note %>
       <li>
-        <%= link_to client_booking_path(booking, step: item.key), class: "dd-booking-step#{" dd-booking-step--done" if item.done}", aria: { current: ("step" if item.key == step) } do %>
+        <%= link_to booking_route(:client_booking, booking, step: item.key), class: "dd-booking-step#{" dd-booking-step--done" if item.done}", aria: { current: ("step" if item.key == step) } do %>
           <strong><%= item.number ? "#{item.number} · #{item.label}" : item.label %></strong>
           <span class="dd-booking-step-note"><%= item.done && item.key != "confirm" ? "Done · #{note}" : note %></span>
         <% end %>

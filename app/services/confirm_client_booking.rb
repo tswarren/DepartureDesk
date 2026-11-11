@@ -17,8 +17,12 @@
 #    commission is recorded either way (SUP-35, SMN-02, SMN-32, D-75).
 # 4. One Client booking confirmed event per arrangement names the shells
 #    the booking holds, and what it makes due posts (SMN-11, D-81).
+#
+# The reseller that owns the booking may confirm it too (BKG-45, ACC-15),
+# at the offering's current prices and terms only (DEP-10).
 class ConfirmClientBooking < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
   include SupplierAmountPosting
 
   class Blocked < AgencyCommand::Error
@@ -46,6 +50,8 @@ class ConfirmClientBooking < AgencyCommand
       blockers = BookingConfirmationCheck.new(booking).blockers
       raise Blocked.new(blockers) if blockers.any?
 
+      ensure_current_offer!(booking)
+
       now = Clock.current.now
       acceptance = booking.current_acceptance
       reserved = reserve!(booking, now)
@@ -67,6 +73,23 @@ class ConfirmClientBooking < AgencyCommand
   end
 
   private
+
+  # DEP-10: a reseller confirms only at the offering's current prices and
+  # terms. Price refresh (BKG-24) is outside the charter, so the agency
+  # confirms a booking whose prices or terms have changed.
+  def ensure_current_offer!(booking)
+    return unless reseller_actor?
+
+    wanted = desired_price_lines(booking)
+    current = booking.price_lines.all? do |line|
+      price = wanted.dig(price_key(line), :price)
+      price && price.amount_minor_units == line.amount_minor_units && price.currency == line.currency
+    end
+    current &&= booking.client_terms_version_id == @departure.current_client_terms&.id
+    return if current
+
+    raise Error.new("#{booking.booking_reference}'s prices or client terms differ from the package's current ones, so the agency must confirm it.", code: :invalid_state)
+  end
 
   def reserve!(booking, now)
     booking.inventory_allocations.select(&:lapsed?).each { |allocation| allocation.update!(state: "released", released_at: now) }

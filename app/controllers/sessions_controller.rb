@@ -1,5 +1,6 @@
 class SessionsController < ApplicationController
   allow_unauthenticated_access only: %i[new create]
+  allow_reseller_access only: :destroy
   rate_limit to: 10, within: 3.minutes, only: :create, by: -> { sign_in_rate_limit_key }, with: -> { redirect_to new_session_path, alert: Authentication::GENERIC_FAILURE }
 
   def new

@@ -30,7 +30,7 @@
           data-action="click->navigation-drawer#close"
           hidden></div>
         <%= render "layouts/topbar" %>
-        <%= render "layouts/sidebar" %>
+        <%= render Current.agency_user&.reseller? ? "layouts/reseller_sidebar" : "layouts/sidebar" %>
         <div class="dd-main" data-navigation-drawer-target="main">
           <main id="main-content" class="dd-workspace">
             <% if notice = flash[:notice] %>

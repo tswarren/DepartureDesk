@@ -1,6 +1,6 @@
 # Slice 1 step 9: The reseller path
 
-**Status:** Accepted 2026-11-09, with **D-99** logged, after the [UX consolidation pass](ux-consolidation-audit.md) merged (#283). 9a (the staff side) built 2026-11-10; 9b (the reseller path, D15) next. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 9 and the decision log entries it cites.
+**Status:** Accepted 2026-11-09, with **D-99** logged, after the [UX consolidation pass](ux-consolidation-audit.md) merged (#283). 9a (the staff side) merged 2026-11-10; 9b (the reseller path, D15) built 2026-11-10. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 9 and the decision log entries it cites.
 
 Charter build step 9 builds the reseller path, including publishing to a reseller channel (D-90) and the reseller holding and confirming BK-105 (D-94). It closes **D15**:
 

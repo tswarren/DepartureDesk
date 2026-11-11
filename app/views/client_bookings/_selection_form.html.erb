@@ -3,7 +3,7 @@
 <% form_id = selection ? "selection-#{selection.id}" : "new-selection-#{choice.id}" %>
 <% defaults = selection ? nil : default_occupants(booking, choice, choices) %>
 <% chosen = selection ? selection.occupants.map(&:booking_traveler_id) : defaults.ids %>
-<%= form_with url: (selection ? client_booking_selection_path(booking, selection) : client_booking_selections_path(booking)), method: (selection ? :patch : :post),
+<%= form_with url: (selection ? booking_route(:client_booking_selection, booking, selection) : booking_route(:client_booking_selections, booking)), method: (selection ? :patch : :post),
       scope: :choice_selection, class: "dd-form", id: form_id do |form| %>
   <%= hidden_field_tag :choice_id, choice.id, id: nil %>
   <%= form.hidden_field :lock_version, value: selection.lock_version, id: nil if selection %>

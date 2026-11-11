@@ -13,21 +13,21 @@ class ResellerStaffSideTest < ActiveSupport::TestCase
     @baseline = agency_users(:harbor_baseline_staff)
     @alpha = AlphaFixture.load!(agency: @agency, actor: @admin, bookings: :confirmed)
     set_clock Time.utc(2027, 2, 3, 15)
-    @reseller = SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Coral Coast Travel" }).call.record
+    @reseller = SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Bayside Journeys" }).call.record
   end
 
   test "an Agency Admin or staff with Reseller relationships authorizes a reseller, Active with direct contact on (ACC-13, DOC-08)" do
-    assert_equal [ "Coral Coast Travel", "active", true ], [ @reseller.name, @reseller.status, @reseller.direct_contact_allowed ]
+    assert_equal [ "Bayside Journeys", "active", true ], [ @reseller.name, @reseller.status, @reseller.direct_contact_allowed ]
     event = AuditEvent.find_by!(action: "reseller.authorized", subject_type: @reseller.class.name, subject_id: @reseller.id)
     assert_equal [ "Reseller", @admin.id ], [ event.subject_type, event.actor_agency_user_id ]
 
     refused = assert_raises(AgencyCommand::Error) { SaveReseller.new(agency: @agency, actor: @staff, attributes: { name: "Other" }).call }
     assert_equal :unauthorized, refused.code
     @staff.user_permissions.create!(agency: @agency, permission: "reseller_relationships", user_type: "staff")
-    other = SaveReseller.new(agency: @agency, actor: @staff.reload, attributes: { name: "Bayside Journeys", direct_contact_allowed: "0" }).call.record
+    other = SaveReseller.new(agency: @agency, actor: @staff.reload, attributes: { name: "Harbor Lane Travel", direct_contact_allowed: "0" }).call.record
     assert_not other.direct_contact_allowed
 
-    result = SaveReseller.new(agency: @agency, actor: @admin, reseller: @reseller, attributes: { name: "Coral Coast Travel" }, lock_version: @reseller.lock_version).call
+    result = SaveReseller.new(agency: @agency, actor: @admin, reseller: @reseller, attributes: { name: "Bayside Journeys" }, lock_version: @reseller.lock_version).call
     assert_equal :noop, result.status
     SaveReseller.new(agency: @agency, actor: @admin, reseller: @reseller, attributes: { direct_contact_allowed: "0" }, lock_version: @reseller.lock_version).call
     assert_equal [ "direct_contact_allowed" ], AuditEvent.find_by!(action: "reseller.updated", subject_type: @reseller.class.name, subject_id: @reseller.id).details["changed_fields"]
@@ -45,7 +45,7 @@ class ResellerStaffSideTest < ActiveSupport::TestCase
     assert AuditEvent.exists?(action: "departure.offering_published", subject_type: @alpha.departure.class.name, subject_id: @alpha.departure.id)
 
     again = assert_raises(AgencyCommand::Error) { publish! }
-    assert_match(/already published to Coral Coast Travel/, again.message)
+    assert_match(/already published to Bayside Journeys/, again.message)
     assert_raises(AgencyCommand::Error) { PublishOffering.new(agency: @agency, actor: @baseline, offering: @alpha.offering, reseller: @reseller).call }
 
     WithdrawOffering.new(agency: @agency, actor: @staff, publication:).call
@@ -53,7 +53,7 @@ class ResellerStaffSideTest < ActiveSupport::TestCase
     assert_equal @staff, publication.withdrawn_by
     assert_equal :noop, WithdrawOffering.new(agency: @agency, actor: @staff, publication:).call.status
     assert publish!.open?, "publishing again makes a new publication"
-    assert_equal 2, @alpha.offering.publications.count
+    assert_equal 2, @alpha.offering.publications.where(reseller: @reseller).count
 
     return_to_draft!
     refused = assert_raises(AgencyCommand::Error) { publish! }
@@ -61,8 +61,8 @@ class ResellerStaffSideTest < ActiveSupport::TestCase
   end
 
   test "returning to Draft withdraws every open publication and leaves bookings as they are (DEP-08)" do
-    other = SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Bayside Journeys" }).call.record
-    publications = [ publish!, publish!(other) ]
+    other = SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Harbor Lane Travel" }).call.record
+    publications = [ publish!, publish!(other), OfferingPublication.open.find_by!(offering: @alpha.offering, reseller: @alpha.reseller) ]
     statuses = @alpha.bookings.transform_values(&:status)
     return_to_draft!
     assert publications.map(&:reload).none?(&:open?)
@@ -83,7 +83,7 @@ class ResellerStaffSideTest < ActiveSupport::TestCase
   end
 
   test "assignment changes the owner and never the seller of record; the seller is fixed once confirmed (ACC-18, FIN-05, SC-ACC-03)" do
-    booking = @alpha.bookings.fetch("BK-105")
+    booking = @alpha.bookings.fetch("BK-101")
     AssignClientBooking.new(agency: @agency, actor: @staff, booking:, reseller: @reseller, lock_version: booking.lock_version).call
     booking.reload
     assert_equal [ "reseller", @reseller, "agency" ], [ booking.owner_kind, booking.owner_reseller, booking.seller_kind ]

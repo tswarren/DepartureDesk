@@ -1,6 +1,7 @@
 require "test_helper"
 
-# S-25 roster and S-17 inventory: query counts stay flat as bookings grow.
+# S-25 roster, S-17 inventory, S-04 Resellers and the reseller's R-01 and
+# R-02: query counts stay flat as bookings grow.
 class BookingQueryCountTest < ActionDispatch::IntegrationTest
   setup do
     set_clock Time.utc(2027, 1, 12, 15)
@@ -26,8 +27,7 @@ class BookingQueryCountTest < ActionDispatch::IntegrationTest
   end
 
   test "the roster, the Resellers list and a reseller's page don't grow with more resellers and bookings (S-04, S-25)" do
-    reseller = SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Coral Coast Travel" }).call.record
-    PublishOffering.new(agency: @agency, actor: @admin, offering: @alpha.offering, reseller:).call
+    reseller = @alpha.reseller
     assign = ->(booking) { AssignClientBooking.new(agency: @agency, actor: @admin, booking:, reseller:).call }
     assign.(@alpha.bookings.values.first)
     pages = [ departure_bookings_path(@alpha.departure), resellers_path, reseller_path(reseller) ]
@@ -36,6 +36,17 @@ class BookingQueryCountTest < ActionDispatch::IntegrationTest
 
     2.times { |index| SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Reseller #{index}" }).call }
     2.times { assign.(add_booking!) }
+    pages.each { |page| get page }
+    assert_equal before, pages.map { |page| select_query_count { get page } }
+  end
+
+  test "the reseller's home and offer don't grow with more of its bookings (R-01, R-02)" do
+    sign_in_as @alpha.reseller_user
+    pages = [ reseller_root_path, reseller_offer_path(@alpha.offering) ]
+    pages.each { |page| get page }
+    before = pages.map { |page| select_query_count { get page } }
+
+    2.times { AssignClientBooking.new(agency: @agency, actor: @admin, booking: add_booking!, reseller: @alpha.reseller).call }
     pages.each { |page| get page }
     assert_equal before, pages.map { |page| select_query_count { get page } }
   end

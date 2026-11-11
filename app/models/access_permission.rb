@@ -59,7 +59,11 @@ module AccessPermission
     # DEP-07, ACC-18, FIN-05: publishing to reseller channels, assigning a
     # booking's owner and recording its seller of record.
     publish_offerings: "departure_management",
-    assign_bookings: "departure_management"
+    assign_bookings: "departure_management",
+    # ACC-14, ACC-15, CLT-25, CMN-52: a reseller user's offers, and the
+    # bookings its relationship owns (step 9 plan, question 8).
+    reseller_view_offers: :reseller,
+    reseller_manage_bookings: :reseller
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

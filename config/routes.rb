@@ -35,8 +35,35 @@ Rails.application.routes.draw do
     end
   end
 
-  # S-04: reseller relationships (ACC-13, DOC-08).
-  resources :resellers, only: %i[index show new create edit update]
+  # S-04: reseller relationships (ACC-13, DOC-08), and inviting their users.
+  resources :resellers, only: %i[index show new create edit update] do
+    resources :users, only: %i[new create], controller: "reseller_users"
+  end
+
+  # R-01 to R-03: the reseller path (ACC-14, ACC-15, CLT-25, CMN-52; step 9
+  # plan, question 8). Served only to reseller users; staff never route here.
+  namespace :reseller do
+    root "home#show"
+    resources :offers, only: :show do
+      resources :bookings, only: %i[new create], controller: "booking_starts"
+    end
+    resources :travelers, only: %i[edit update]
+    resources :client_bookings, path: "bookings", only: :show do
+      resources :travelers, only: %i[create update destroy], controller: "booking_travelers" do
+        resource :move, only: :create, controller: "booking_traveler_moves"
+      end
+      resource :traveler_batch, only: :create, controller: "booking_traveler_batches"
+      resources :traveler_additions, only: :create, controller: "booking_traveler_additions"
+      resource :selection_range, only: :create, controller: "choice_selection_ranges"
+      resources :selections, only: %i[create update destroy], controller: "choice_selections"
+      resource :hold, only: %i[create update destroy], controller: "booking_holds"
+      resource :discard, only: :create, controller: "booking_discards"
+      resource :confirmation, only: :create, controller: "booking_confirmations"
+      resources :acceptances, only: %i[new create], controller: "booking_acceptances" do
+        resource :evidence, only: :show, controller: "booking_acceptance_evidence"
+      end
+    end
+  end
 
   resources :clients, only: %i[index new create]
   # S-22 to S-24: travelers, their links to clients, and Client Trips (CLT-02, CLT-05 to CLT-11, OVR-02).

@@ -43,15 +43,19 @@ class SearchClientDirectory
     matches.record_id
   SQL
 
-  def self.call(agency:, actor:, query: nil, status: "active", kind: "all")
-    new(agency:, actor:, query:, status:, kind:).call
+  # creator: "reseller" keeps only clients a reseller user created (D-78; step 9 plan, question 7).
+  CREATORS = %w[any reseller].freeze
+
+  def self.call(agency:, actor:, query: nil, status: "active", kind: "all", creator: "any")
+    new(agency:, actor:, query:, status:, kind:, creator:).call
   end
 
-  def self.composed_relation(agency:, actor:, query: nil, status: "active", kind: "all")
-    new(agency:, actor:, query:, status:, kind:).composed_relation
+  def self.composed_relation(agency:, actor:, query: nil, status: "active", kind: "all", creator: "any")
+    new(agency:, actor:, query:, status:, kind:, creator:).composed_relation
   end
 
-  def initialize(agency:, actor:, query:, status:, kind:)
+  def initialize(agency:, actor:, query:, status:, kind:, creator: "any")
+    @creator = CREATORS.include?(creator) ? creator : "any"
     @agency = agency
     @actor = actor
     @query = query.to_s
@@ -111,9 +115,12 @@ class SearchClientDirectory
         "clients.client_reference",
         "clients.status"
       )
+      .then { |relation| @creator == "reseller" ? relation.where(clients: { created_by_id: reseller_user_ids }) : relation }
       .order(FINAL_ORDER)
       .limit(FETCH_LIMIT)
   end
+
+  def reseller_user_ids = @agency.agency_users.where(user_type: "reseller").select(:id)
 
   def ranked_branches
     return browse_branches if @query.blank?

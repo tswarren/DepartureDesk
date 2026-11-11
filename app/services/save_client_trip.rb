@@ -1,7 +1,8 @@
 # Creates a Client Trip for one responsible client (CLT-02), on at most one
 # Departure (OVR-02), with its reference issued at creation (REF-04, D-94),
 # or changes its Departure. The responsible client is fixed once the trip
-# exists.
+# exists. A reseller user creates a trip only for a client its users
+# created, while creating that client's booking (CLT-25).
 class SaveClientTrip < AgencyCommand
   include TravelerCommandSupport
   include ReferenceIssuance
@@ -15,7 +16,13 @@ class SaveClientTrip < AgencyCommand
   end
 
   def call
-    ensure_actor!(:manage_bookings)
+    if reseller_actor?
+      ensure_reseller_actor!(:reseller_manage_bookings)
+      ensure_active_agency!(@agency)
+      raise Error.new(UNAUTHORIZED, code: :unauthorized) if @trip || !ResellerScope.new(@actor).clients.exists?(id: @attributes["client_id"])
+    else
+      ensure_actor!(:manage_bookings)
+    end
 
     ActiveRecord::Base.transaction do
       @agency.lock!

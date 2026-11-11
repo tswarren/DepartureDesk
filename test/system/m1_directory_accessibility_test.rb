@@ -77,6 +77,9 @@ class M1DirectoryAccessibilityTest < ApplicationSystemTestCase
     assert_equal "status", focused_name
     assert_visible_focus
     page.send_keys(:tab)
+    assert_equal "creator", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
     assert_equal "Apply", focused_button_or_link
     assert_visible_focus
 

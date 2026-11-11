@@ -11,11 +11,14 @@
     <span>Menu</span>
   </button>
 
-  <%= link_to root_path, class: "dd-brand", aria: { label: "DepartureDesk home" } do %>
+  <% reseller_user = Current.agency_user&.reseller? %>
+  <%= link_to reseller_user ? reseller_root_path : root_path, class: "dd-brand", aria: { label: "DepartureDesk home" } do %>
     <%= render "layouts/brand", compact_mark: true %>
   <% end %>
 
-  <% if Current.office %>
+  <% if reseller_user %>
+    <span class="dd-topbar-office"><%= Current.agency_user.reseller.name %></span>
+  <% elsif Current.office %>
     <%= link_to office_choice_label(Current.office), edit_current_office_path, class: "dd-topbar-office" %>
   <% else %>
     <%= link_to "Choose office", edit_current_office_path, class: "dd-topbar-office" %>

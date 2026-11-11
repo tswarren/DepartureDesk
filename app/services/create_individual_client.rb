@@ -3,7 +3,11 @@ class CreateIndividualClient < AgencyCommand
   COMMAND = "CreateIndividualClient"
 
   # also_traveling (CLT-11) creates a traveler with the same name, linked as Self.
-  def initialize(agency:, actor:, names:, acknowledgement_token: nil, acknowledgement_reason: nil, also_traveling: false)
+  # for_reseller_booking: a reseller user creates the client of the booking it
+  # is creating (CLT-25), with no duplicate check (D-78); only that command
+  # passes it.
+  def initialize(agency:, actor:, names:, acknowledgement_token: nil, acknowledgement_reason: nil, also_traveling: false, for_reseller_booking: false)
+    @for_reseller_booking = for_reseller_booking == true
     @also_traveling = ActiveModel::Type::Boolean.new.cast(also_traveling)
     @agency = agency
     @actor = actor
@@ -13,7 +17,11 @@ class CreateIndividualClient < AgencyCommand
   end
 
   def call
-    ensure_directory_actor!(@actor, @agency, :manage_client_directory)
+    if reseller_actor? && @for_reseller_booking
+      ensure_reseller_actor!(:reseller_manage_bookings)
+    else
+      ensure_directory_actor!(@actor, @agency, :manage_client_directory)
+    end
     ensure_active_agency!(@agency)
 
     ActiveRecord::Base.transaction do
@@ -44,6 +52,8 @@ class CreateIndividualClient < AgencyCommand
   private
 
   def acknowledge!(person_id, client_id)
+    return if reseller_actor?
+
     DirectoryDuplicateGate.new(
       agency: @agency,
       actor: @actor,

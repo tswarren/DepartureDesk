@@ -1,0 +1,51 @@
+<% content_for :title, "Start a booking · #{@offering.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Offers and bookings", reseller_root_path ], [ @offering.name, reseller_offer_path(@offering) ], [ "Start a booking", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Offer · <%= @offering.departure.name %></p>
+    <h1 class="dd-page-title">Start a booking</h1>
+    <p class="dd-page-description">For a new client of <%= reseller_scope.reseller.name %>. The booking starts as a draft; you add travelers and choose options next.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @start, url: reseller_offer_bookings_path(@offering), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">The client</legend>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :first_name, class: "dd-label" %>
+            <%= form.text_field :first_name, **dd_field_options(form, :first_name, required: true, autocomplete: "off") %>
+            <%= dd_field_error(form, :first_name) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :last_name, class: "dd-label" %>
+            <%= form.text_field :last_name, **dd_field_options(form, :last_name, required: true, autocomplete: "off") %>
+            <%= dd_field_error(form, :last_name) %>
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <%= form.hidden_field :traveling, value: "0", id: nil %>
+          <label class="dd-choice">
+            <%= form.check_box :traveling, { include_hidden: false }, "1", "0" %>
+            <span>The client is also traveling</span>
+          </label>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :date_of_birth, "Date of birth (optional)", class: "dd-label" %>
+          <%= form.date_field :date_of_birth, **dd_field_options(form, :date_of_birth, aria_describedby_extra: "booking_start_dob_hint") %>
+          <p class="dd-field-hint" id="booking_start_dob_hint">For the client as a traveler. Confirming needs it; it can be added later.</p>
+          <%= dd_field_error(form, :date_of_birth) %>
+        </div>
+      </fieldset>
+      <div class="dd-form-actions">
+        <%= form.submit "Start booking", class: "dd-button" %>
+        <%= link_to "Cancel", reseller_offer_path(@offering), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

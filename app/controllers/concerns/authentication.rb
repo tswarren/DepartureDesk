@@ -6,12 +6,19 @@ module Authentication
   included do
     before_action :resume_session
     before_action :require_authentication
-    helper_method :authenticated?
+    before_action :keep_resellers_in_their_area
+    helper_method :authenticated?, :reseller_area?
   end
 
   class_methods do
     def allow_unauthenticated_access(**options)
       skip_before_action :require_authentication, **options
+      skip_before_action :keep_resellers_in_their_area, **options
+    end
+
+    # Account screens every signed-in user shares, such as signing out.
+    def allow_reseller_access(**options)
+      skip_before_action :keep_resellers_in_their_area, **options
     end
   end
 
@@ -57,10 +64,23 @@ module Authentication
     session.delete(:return_to_after_authenticating) || landing_url
   end
 
-  # S-01: staff land on My tasks; anyone else on the root.
+  # S-01: staff land on My tasks, a reseller user on its home; anyone else on the root.
   def landing_url
+    return reseller_root_url if Current.agency_user&.reseller?
+
     Current.agency_user&.permitted?(:use_tasks) ? tasks_url : root_url
   end
+
+  # Step 9 plan, question 8: a reseller session is served only from the
+  # Reseller namespace. Every staff screen sends it to its home.
+  def keep_resellers_in_their_area
+    return unless Current.agency_user&.reseller?
+    return if reseller_area?
+
+    redirect_to reseller_root_path, alert: (AgencyCommand::UNAUTHORIZED unless request.path == root_path)
+  end
+
+  def reseller_area? = false
 
   def start_new_session_for(agency_user)
     agency_user.sessions.create!(

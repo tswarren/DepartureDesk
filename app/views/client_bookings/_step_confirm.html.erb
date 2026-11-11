@@ -21,11 +21,11 @@
     <% end %>
     <% if booking.status_confirmed? %>
       <p class="dd-page-description">Confirmed <%= booking_time(booking.confirmed_at) %>; the client charge, <%= booking_money(booking.client_charge.total_minor_units, booking.currency) %>, was made from the accepted prices; its lines never change.</p>
-      <% if Current.agency_user.permitted?(:view_client_money) %>
-        <p><%= link_to "The booking's money: what is paid and still due", client_booking_path(booking, step: "money") %></p>
+      <% if booking_client_money_visible? %>
+        <p><%= link_to "The booking's money: what is paid and still due", booking_route(:client_booking, booking, step: "money") %></p>
       <% end %>
     <% elsif manage %>
-      <%= button_to "Confirm booking", client_booking_confirmation_path(booking), class: "dd-button" %>
+      <%= button_to "Confirm booking", booking_route(:client_booking_confirmation, booking), class: "dd-button" %>
     <% end %>
   </div>
 </article>

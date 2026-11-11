@@ -1,4 +1,6 @@
 class AccountPasswordsController < ApplicationController
+  allow_reseller_access
+
   def edit
   end
 

@@ -1,0 +1,47 @@
+<% content_for :title, "Edit #{@traveler.display_name} · DepartureDesk" %>
+<% back = @booking ? reseller_client_booking_path(@booking, step: "travelers") : reseller_root_path %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Offers and bookings", reseller_root_path ], *([ [ @booking.booking_reference, back ] ] if @booking), [ "Edit #{@traveler.display_name}", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Traveler</p>
+    <h1 class="dd-page-title">Edit <%= @traveler.display_name %></h1>
+    <p class="dd-page-description">Their legal name and date of birth, as on their travel document. Confirming a booking needs both.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @traveler, url: reseller_traveler_path(@traveler, booking_id: @booking&.id), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :given_names, class: "dd-label" %>
+          <%= form.text_field :given_names, **dd_field_options(form, :given_names, maxlength: Traveler::NAME_LIMIT, autocomplete: "off") %>
+          <%= dd_field_error(form, :given_names) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :middle_name, "Middle name (optional)", class: "dd-label" %>
+          <%= form.text_field :middle_name, **dd_field_options(form, :middle_name, maxlength: Traveler::NAME_LIMIT, autocomplete: "off") %>
+          <%= dd_field_error(form, :middle_name) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :surname, class: "dd-label" %>
+          <%= form.text_field :surname, **dd_field_options(form, :surname, maxlength: Traveler::NAME_LIMIT, autocomplete: "off") %>
+          <%= dd_field_error(form, :surname) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :date_of_birth, class: "dd-label" %>
+          <%= form.date_field :date_of_birth, **dd_field_options(form, :date_of_birth) %>
+          <%= dd_field_error(form, :date_of_birth) %>
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save traveler", class: "dd-button" %>
+        <%= link_to "Cancel", back, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
