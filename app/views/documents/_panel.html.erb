@@ -1,0 +1,63 @@
+<%# S-35, R-04: issued documents and their manual deliveries (DOC-01, DOC-11, DOC-21). Issuing renders the PDF once; every download is that stored file. %>
+<%# locals: (rows:) -%>
+<article class="dd-panel" id="documents">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Documents</h2></header>
+  <div class="dd-panel-body">
+    <ul class="dd-record-list" aria-label="Documents">
+      <% rows.each do |row| %>
+        <% version = row.version %>
+        <li class="dd-record" id="document-<%= row.type %>">
+          <div class="dd-record-main dd-stack">
+            <p><strong><%= row.label %></strong>
+              <% if version %>
+                <span class="dd-type-mono"><%= version.display_number %></span> <%= status_badge("Issued", modifier: "success") %>
+              <% else %>
+                <%= status_badge("Not issued", modifier: "neutral") %>
+              <% end %>
+            </p>
+            <% if version %>
+              <p class="dd-record-detail"><%= document_issued_line(version) %>. It never changes; a correction is a new version.</p>
+              <% if version.deliveries.any? %>
+                <ul class="dd-plain-list" aria-label="Deliveries of <%= version.display_number %>">
+                  <% version.deliveries.each do |delivery| %>
+                    <li class="dd-field-hint">Delivered <%= delivery.delivered_on.strftime("%b %-d, %Y") %>, <%= delivery.method_label.downcase %>, to <%= delivery.recipient %> · recorded by <%= delivery.recorded_by.display_name %> (manual)</li>
+                  <% end %>
+                </ul>
+              <% end %>
+              <%= disclosure("Record a delivery") do %>
+                <%= form_with url: row.deliveries_url, scope: :document_delivery, class: "dd-form", id: "delivery-#{version.id}" do |form| %>
+                  <div class="dd-form-grid dd-form-grid--two-column">
+                    <div class="dd-field-group">
+                      <%= form.label :delivery_method, "Method", class: "dd-label", for: "delivery_method_#{version.id}" %>
+                      <%= form.select :delivery_method, DocumentDelivery::METHOD_LABELS.invert, {}, id: "delivery_method_#{version.id}", class: "dd-field" %>
+                    </div>
+                    <div class="dd-field-group">
+                      <%= form.label :recipient, "Recipient", class: "dd-label", for: "delivery_recipient_#{version.id}" %>
+                      <%= form.text_field :recipient, value: version.snapshot["recipient"], id: "delivery_recipient_#{version.id}", maxlength: DocumentDelivery::RECIPIENT_LIMIT, required: true, class: "dd-field" %>
+                    </div>
+                    <div class="dd-field-group">
+                      <%= form.label :delivered_on, "Date delivered", class: "dd-label", for: "delivery_on_#{version.id}" %>
+                      <%= form.date_field :delivered_on, value: Clock.current.today_in(Current.agency.default_timezone).iso8601, id: "delivery_on_#{version.id}", required: true, class: "dd-field" %>
+                    </div>
+                  </div>
+                  <p class="dd-field-hint">For a delivery made outside DepartureDesk. Nothing is sent from here.</p>
+                  <div class="dd-form-actions"><%= form.submit "Record delivery", class: "dd-button dd-button--secondary", name: nil %></div>
+                <% end %>
+              <% end %>
+            <% elsif row.reason %>
+              <p class="dd-record-detail"><%= row.reason %></p>
+            <% end %>
+          </div>
+          <span class="dd-record-actions">
+            <% if version %>
+              <%= link_to "Download", row.download_url, class: "dd-button dd-button--secondary", target: "_blank", rel: "noopener", aria: { label: "Download #{row.label.downcase} #{version.display_number}" } %>
+            <% elsif row.issue_url %>
+              <%= button_to "Issue #{row.label.downcase}", row.issue_url, class: "dd-button", form_class: "dd-inline-form",
+                    form: { data: { turbo_confirm: "Issue the #{row.label.downcase}? It is stored as issued and can't be changed." } } %>
+            <% end %>
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</article>

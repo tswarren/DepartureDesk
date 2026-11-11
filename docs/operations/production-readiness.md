@@ -9,6 +9,7 @@ This checklist must be completed and adapted to the selected hosting environment
 ## Platform and secrets
 
 - [ ] Select the deployment platform, image build, release-command, and rollback strategy.
+- [ ] Include Chromium and the fonts the document template uses (Liberation Sans and Liberation Mono) in the production image, and run a renderer smoke test at release: issuing a document renders it with Chromium (ADR 0019 amendment 2026-11-10). Set `DOCUMENT_CHROMIUM_PATH` if the binary isn't on the path.
 - [ ] Configure `DATABASE_URL` for the primary PostgreSQL 18 database.
 - [ ] Configure `QUEUE_DATABASE_URL` for the separate Solid Queue database.
 - [ ] Provide `RAILS_MASTER_KEY` through the platform's secret store.

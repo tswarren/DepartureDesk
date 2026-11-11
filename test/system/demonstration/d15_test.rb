@@ -89,6 +89,18 @@ class DemonstrationD15Test < ApplicationSystemTestCase
     assert_equal [ @alpha.reseller, @alpha.reseller ], [ booking.owner_reseller, booking.seller_reseller ]
     assert_equal 710_500, booking.client_charge.lines.select { |line| line.description.include?("O01") }.sum(&:amount_minor_units)
 
+    # R-04: she issues and downloads BK-105's confirmation; its invoice isn't offered (DOC-24, D-100).
+    @scenario.agency.update!(contact_email: "bookings@harbor.example") if @scenario.agency.contact_email.blank?
+    visit reseller_client_booking_path(booking, step: "summary")
+    within("#documents") do
+      assert_no_text "Invoice"
+      accept_confirm { click_button "Issue booking confirmation" }
+    end
+    assert_text "Booking confirmation issued."
+    confirmation = booking.document_versions.reload.sole
+    assert_equal "Coral Coast Travel", confirmation.snapshot["booked_through"]
+    within("#documents") { assert_selector "a[aria-label='Download booking confirmation #{confirmation.number}']" }
+
     # 4. Charge lines, installments and balance, with no supplier cost, commission or margin.
     within("nav[aria-label='Booking steps']") { click_link "Money" }
     within("#booking-balance") { assert_text "Still due" }

@@ -71,7 +71,7 @@ These describe shipped behavior. A charter step may change one only through a de
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
 13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.
 14. `ProvisionAgency` and agency lifecycle changes are privileged. They require an actor identifier, invent no platform user, and never return or log a plaintext password or token.
-15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, `SupplierContact`, `Departure`, `TravelerType`, `SupplierArrangement`, `Traveler`, `ClientTrip`, `ClientBooking`, `SupplierReservation`, `ClientPayment`, `SupplierPayment` and `Reseller` only. Do not audit expected failures.
+15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, `SupplierContact`, `Departure`, `TravelerType`, `SupplierArrangement`, `Traveler`, `ClientTrip`, `ClientBooking`, `SupplierReservation`, `ClientPayment`, `SupplierPayment`, `Reseller` and `DocumentVersion` only. Do not audit expected failures.
 16. Do not infer household, payer, occupancy, or payment state. Those records do not exist yet.
 
 ## Development environment

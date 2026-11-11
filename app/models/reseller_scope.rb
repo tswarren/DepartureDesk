@@ -48,6 +48,11 @@ class ResellerScope
     agency.clients.where(id: trips.select(:client_id)).or(agency.clients.where(created_by_id: user_ids))
   end
 
+  # DOC-24, R-04: the confirmations of its bookings; never their invoices or receipts.
+  def document_versions
+    DocumentVersion.where(agency_id: agency.id, document_type: "confirmation", client_booking_id: bookings.select(:id))
+  end
+
   def published?(offering) = publications.exists?(offering_id: offering.id)
 
   private

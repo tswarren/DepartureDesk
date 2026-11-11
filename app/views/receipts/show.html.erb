@@ -7,7 +7,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Agency receipt · <%= @receipt.departure.name %></p>
     <h1 class="dd-page-title"><span class="dd-type-mono"><%= @receipt.receipt_number %></span></h1>
-    <p class="dd-page-description">As issued <%= @receipt.issued_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %>. A receipt is never changed; its PDF arrives with documents.</p>
+    <p class="dd-page-description">As issued <%= @receipt.issued_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %>. A receipt is never changed; its PDF is issued once and kept as issued.</p>
   </div>
 </header>
 
@@ -37,3 +37,5 @@
     <% end %>
   </div>
 </article>
+
+<%= render "documents/panel", rows: receipt_document_rows(@receipt) %>
