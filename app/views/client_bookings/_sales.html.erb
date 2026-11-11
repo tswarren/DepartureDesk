@@ -1,0 +1,41 @@
+<%# Who handles the booking and who sold it (ACC-18, FIN-05; step 9 plan question 6): the creator, owner and seller of record are separate facts. Staff with Departure management change the owner, and the seller of record while the booking is a draft. %>
+<%# locals: (booking:) -%>
+<% can_assign = Current.agency_user.permitted?(:assign_bookings) && !booking.status_discarded? && !booking.status_cancelled? %>
+<% resellers = can_assign ? Current.agency.resellers.active.order(:name).to_a : [] %>
+<% options = [ [ "Agency", "" ] ] + resellers.map { |reseller| [ reseller.name, reseller.id ] } %>
+<article class="dd-panel" id="summary-sales">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Owner and seller</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <dl class="dd-definition-list">
+      <div><dt>Owner</dt><dd><%= booking.owner_label %></dd></div>
+      <div><dt>Seller of record</dt><dd><%= booking.seller_label %></dd></div>
+      <div><dt>Created by</dt><dd><%= booking.created_by.display_name %><%= ", #{booking.created_by.reseller.name}" if booking.created_by.reseller? %></dd></div>
+    </dl>
+    <% if can_assign && resellers.any? %>
+      <%= disclosure("Change the owner") do %>
+        <%= form_with url: client_booking_assignment_path(booking), method: :patch, class: "dd-form" do |form| %>
+          <%= hidden_field_tag :lock_version, booking.lock_version, id: nil %>
+          <div class="dd-field-group">
+            <%= label_tag :booking_owner, "Owner", class: "dd-label" %>
+            <%= select_tag :reseller_id, options_for_select(options, booking.owner_reseller_id.to_s), id: "booking_owner", class: "dd-field", aria: { describedby: "booking_owner_hint" } %>
+            <p class="dd-field-hint" id="booking_owner_hint">The owner handles the booking, and a reseller owner can see it. The seller of record doesn't change.</p>
+          </div>
+          <div class="dd-form-actions"><%= form.submit "Save owner", class: "dd-button dd-button--secondary" %></div>
+        <% end %>
+      <% end %>
+      <% if booking.status_draft? %>
+        <%= disclosure("Change the seller of record") do %>
+          <%= form_with url: client_booking_seller_of_record_path(booking), method: :patch, class: "dd-form" do |form| %>
+            <%= hidden_field_tag :lock_version, booking.lock_version, id: nil %>
+            <div class="dd-field-group">
+              <%= label_tag :booking_seller, "Seller of record", class: "dd-label" %>
+              <%= select_tag :reseller_id, options_for_select(options, booking.seller_reseller_id.to_s), id: "booking_seller", class: "dd-field", aria: { describedby: "booking_seller_hint" } %>
+              <p class="dd-field-hint" id="booking_seller_hint">Who sold the booking. It is fixed once the booking is confirmed, and reassigning the owner never changes it.</p>
+            </div>
+            <div class="dd-form-actions"><%= form.submit "Save seller of record", class: "dd-button dd-button--secondary" %></div>
+          <% end %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

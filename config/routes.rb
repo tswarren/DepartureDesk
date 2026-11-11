@@ -35,6 +35,9 @@ Rails.application.routes.draw do
     end
   end
 
+  # S-04: reseller relationships (ACC-13, DOC-08).
+  resources :resellers, only: %i[index show new create edit update]
+
   resources :clients, only: %i[index new create]
   # S-22 to S-24: travelers, their links to clients, and Client Trips (CLT-02, CLT-05 to CLT-11, OVR-02).
   resources :travelers, only: %i[show new create edit update]
@@ -62,6 +65,9 @@ Rails.application.routes.draw do
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
     resource :discard, only: :create, controller: "booking_discards"
     resource :confirmation, only: :create, controller: "booking_confirmations"
+    # ACC-18, FIN-05: the booking's owner and its seller of record.
+    resource :assignment, only: :update, controller: "booking_assignments"
+    resource :seller_of_record, only: :update, controller: "booking_sellers"
     # S-27: record acceptance (BKG-39, BKG-41), with its evidence (ADR 0019 amendment).
     resources :acceptances, only: %i[new create], controller: "booking_acceptances" do
       resource :evidence, only: :show, controller: "booking_acceptance_evidence"
@@ -210,6 +216,8 @@ Rails.application.routes.draw do
       end
       resources :prices, only: %i[create destroy], controller: "offering_prices"
       resource :night_options, only: %i[new create], controller: "offering_night_options"
+      # S-10: publishing to reseller channels (DEP-07, DEP-09).
+      resources :publications, only: %i[create destroy], controller: "offering_publications"
     end
     resource :client_terms, only: %i[show create update], controller: "departure_client_terms"
     resource :client_terms_next_version, only: :create, controller: "departure_client_terms_next_versions"

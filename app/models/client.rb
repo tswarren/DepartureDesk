@@ -5,6 +5,8 @@ class Client < ApplicationRecord
   belongs_to :agency
   belongs_to :client_person, optional: true
   belongs_to :client_organization, optional: true
+  # D-78: who created the profile; nil for profiles made before step 9.
+  belongs_to :created_by, class_name: "AgencyUser", optional: true
   has_many :traveler_links, dependent: :restrict_with_exception
   has_many :travelers, through: :traveler_links
   has_many :client_trips, dependent: :restrict_with_exception

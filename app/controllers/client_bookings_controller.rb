@@ -7,7 +7,7 @@ class ClientBookingsController < ApplicationController
 
   def show
     @booking = Current.agency.client_bookings
-      .includes(:offering, :created_by, :client_terms_version, client_trip: [ :departure, { client: %i[client_person client_organization] } ],
+      .includes(:offering, :owner_reseller, :seller_reseller, { created_by: :reseller }, :client_terms_version, client_trip: [ :departure, { client: %i[client_person client_organization] } ],
         booking_travelers: %i[traveler traveler_type],
         choice_selections: [ :occupants, :inventory_allocations, { supplier_reservation_units: :supplier_reservation },
                              { option: [ :choice, { inventory_group: [ :capacity_rules, { supplier_arrangement: :supplier } ] } ] } ],

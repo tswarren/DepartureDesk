@@ -48,6 +48,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-96 | Amend the charter for step 8: client payment reversal (CMN-27), an arrangement balance basis for schedule lines, D9 and D10's payments, commission confirmation only, two PRs | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-97 | Settle Agreement A's unsold cabins: released Jul 15, 2027, deposits kept; final payment $23,850 | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-98 | Amend the charter: a UX consolidation pass between steps 8 and 9, changing no rule, record, permission or case; several PRs | [UX consolidation audit](../planning/first-slice/ux-consolidation-audit.md) |
+| D-99 | Amend the charter for step 9: the reseller creates BK-105 and owns it on creation, Coral Coast Travel as the fixture's reseller, two PRs | [Charter](../planning/first-slice/first-slice-charter.md), [step 9 plan](../planning/first-slice/slice-1-step-9-plan.md) |
 
 ## Blocking decisions
 

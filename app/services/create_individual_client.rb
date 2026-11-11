@@ -28,7 +28,8 @@ class CreateIndividualClient < AgencyCommand
         id: decision&.dig("client_id") || client_id,
         client_person: person,
         client_reference: issue_client_reference!(@agency),
-        status: "active"
+        status: "active",
+        created_by: @actor
       )
       audit!(agency: @agency, action: "client_person.created", subject: person, actor: @actor, details: { "client_person_id" => person.id })
       audit!(agency: @agency, action: "client.created", subject: client, actor: @actor, details: { "client_id" => client.id, "client_person_id" => person.id })
@@ -68,7 +69,7 @@ class CreateIndividualClient < AgencyCommand
 
   def create_self_traveler!(person, client)
     traveler = @agency.travelers.create!(given_names: person.first_name, middle_name: person.middle_name, surname: person.last_name,
-      suffix: person.suffix, preferred_name: person.preferred_name)
+      suffix: person.suffix, preferred_name: person.preferred_name, created_by: @actor)
     audit!(agency: @agency, action: "traveler.created", subject: traveler, actor: @actor, details: { "traveler_id" => traveler.id, "self_of_client_id" => client.id })
     @agency.traveler_links.create!(client:, traveler:, relationship: "self")
     audit!(agency: @agency, action: "client.traveler_linked", subject: client, actor: @actor, details: { "traveler_id" => traveler.id, "relationship" => "self" })

@@ -11,7 +11,7 @@ class DepartureBookingsController < ApplicationController
 
   def index
     @bookings = Current.agency.client_bookings.joins(:client_trip).where(client_trips: { departure_id: @departure.id })
-      .includes(:price_lines, :inventory_allocations, { offering: :choices }, booking_travelers: :traveler,
+      .includes(:price_lines, :inventory_allocations, :owner_reseller, { offering: :choices }, booking_travelers: :traveler,
         choice_selections: [ { supplier_reservation_units: :supplier_reservation }, { option: [ :choice, { inventory_group: :supplier_arrangement } ] } ],
         client_trip: { client: %i[client_person client_organization] })
       .order("client_trips.trip_reference", :sequence)

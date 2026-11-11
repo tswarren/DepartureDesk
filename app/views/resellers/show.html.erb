@@ -1,0 +1,72 @@
+<% content_for :title, "#{@reseller.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Resellers", resellers_path ], [ @reseller.name, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Reseller</p>
+    <h1 class="dd-page-title"><%= @reseller.name %></h1>
+    <p class="dd-page-description"><%= reseller_status_badge(@reseller) %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Edit", edit_reseller_path(@reseller), class: "dd-button dd-button--secondary" %>
+  </div>
+</header>
+
+<div class="dd-grid dd-grid--main dd-grid--top">
+  <div class="dd-stack">
+    <article class="dd-panel" aria-labelledby="reseller-publications">
+      <header class="dd-panel-header"><h2 class="dd-panel-title" id="reseller-publications">Published to this reseller</h2></header>
+      <div class="dd-panel-body">
+        <% if @publications.empty? %>
+          <p class="dd-empty-copy">Nothing is published to <%= @reseller.name %>. Publish a package from its Departure's Package tab.</p>
+        <% else %>
+          <ul class="dd-record-list" aria-label="Packages published to <%= @reseller.name %>">
+            <% @publications.each do |publication| %>
+              <% departure = publication.offering.departure %>
+              <li class="dd-record">
+                <div class="dd-record-main">
+                  <p><%= link_to publication.offering.name, departure_offerings_path(departure, anchor: "channels-#{publication.offering_id}") %> · <%= departure.name %></p>
+                  <p class="dd-record-detail">Published <%= publication.published_at.in_time_zone(Current.agency.default_timezone).to_date.to_fs(:long) %></p>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </article>
+
+    <article class="dd-panel" aria-labelledby="reseller-bookings">
+      <header class="dd-panel-header"><h2 class="dd-panel-title" id="reseller-bookings">Bookings it owns</h2></header>
+      <div class="dd-panel-body">
+        <% if @bookings.empty? %>
+          <p class="dd-empty-copy">No bookings. A booking is assigned to a reseller from its Summary.</p>
+        <% else %>
+          <ul class="dd-record-list" aria-label="Bookings owned by <%= @reseller.name %>">
+            <% @bookings.each do |booking| %>
+              <li class="dd-record">
+                <div class="dd-record-main">
+                  <p><%= link_to booking.booking_reference, client_booking_path(booking), class: "dd-type-mono" %> · <%= booking.client_trip.client.source.display_name %> <%= booking_status_badge(booking) %></p>
+                  <p class="dd-record-detail"><%= booking.offering.name %><%= " · #{booking.client_trip.departure.name}" if booking.client_trip.departure %></p>
+                </div>
+                <span class="dd-record-figure dd-type-mono"><%= booking_money(booking.total_minor_units, booking.currency) %></span>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </article>
+  </div>
+
+  <div class="dd-stack">
+    <article class="dd-panel" aria-labelledby="reseller-details">
+      <header class="dd-panel-header"><h2 class="dd-panel-title" id="reseller-details">Relationship</h2></header>
+      <div class="dd-panel-body">
+        <dl class="dd-definition-list">
+          <div><dt>Status</dt><dd><%= @reseller.status_label %></dd></div>
+          <div><dt>Direct contact</dt><dd><%= @reseller.direct_contact_allowed? ? "The agency may send documents directly to this reseller's clients." : "Documents on its bookings go only to the reseller." %></dd></div>
+        </dl>
+      </div>
+    </article>
+  </div>
+</div>

@@ -1,10 +1,10 @@
 # Current application architecture
 
-**Status:** Implemented baseline, as of Slice 1 step 8b
+**Status:** Implemented baseline, as of Slice 1 step 9a
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; step 5's package offerings with client prices, and client terms; step 6a's travelers, their links to clients, and Client Trips; step 6b's draft bookings with their travelers, choices, price lines and held space; step 6c's acceptances and confirmation, with the client charge, booking supplier cost and expected commission; step 7's supplier reservations; step 8a's installments, client payments, credit, reversals and receipts; and step 8b's supplier payments, the balance basis and commission confirmation. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
+DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; step 5's package offerings with client prices, and client terms; step 6a's travelers, their links to clients, and Client Trips; step 6b's draft bookings with their travelers, choices, price lines and held space; step 6c's acceptances and confirmation, with the client charge, booking supplier cost and expected commission; step 7's supplier reservations; step 8a's installments, client payments, credit, reversals and receipts; step 8b's supplier payments, the balance basis and commission confirmation; and step 9a's reseller relationships, publishing to their channels, and a booking's owner and seller of record. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
 
 ## Shipped records and authorization catalog
 
@@ -14,11 +14,12 @@ DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017
 | `Office` | Optional agency-owned assignment and reporting context with no time zone (ADR 0016). It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and user type (`agency_admin`, `staff`, `reseller`). |
 | `UserPermission` | A staff user's grant from the five-permission catalog; the database refuses it for any other user type (ADR 0017). |
-| `Reseller` | A reseller relationship; `reseller` users belong to one. Schema only until Slice 1 step 9. |
+| `Reseller` | A reseller relationship and its one channel (D-68); `reseller` users belong to one. Staff with Reseller relationships authorize one and set its direct-contact setting (ACC-13, DOC-08). Pause, suspension and ending are not built. |
+| `OfferingPublication` | An offering published to one reseller's channel (DEP-07), open until staff withdraw it (DEP-09) or the Departure returns to Draft (DEP-08). Only the withdrawal is written after creation, once; publishing again makes a new row. |
 | `AgencyDocumentInclusion` | Per agency and document family, which profile fields and footer a document shows (SET-06, SET-07). |
 | `TravelerType` | The agency's ordered traveler types, seeded Adult, Child and Child 0–4 (BKG-21). |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for commands on Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, SupplierContact, Departure, TravelerType and SupplierArrangement subjects. Actions and subject types are closed catalogs. |
+| `AuditEvent` | Append-only evidence for commands on Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, SupplierContact, Departure, TravelerType, SupplierArrangement, Traveler, ClientTrip, ClientBooking, SupplierReservation, ClientPayment, SupplierPayment and Reseller subjects. Actions and subject types are closed catalogs. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
 | `ClientOrganization` | Agency-scoped organization known to the directory. Not a Supplier. |
 | `Client` | Explicit commercial identity for exactly one Client Person or Client Organization, with an immutable `CL-` reference. |
@@ -57,7 +58,7 @@ DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017
 | `ClientTermsVersion`, `ClientPaymentScheduleLine` | A Departure's numbered client terms (BKG-28, D-76): the agency wording as copied, the Departure's own wording, the tier override, and the payment schedule template (CMN-09, D-77), with one balance line and at most one payment that counts as acceptance (BKG-41). Staff may start by copying another Departure's terms. A locked version and its rows are refused by a trigger; step 6 locks on acceptance. |
 | `Traveler`, `TravelerLink` | A traveler profile, always one person (CLT-05): legal name as given names, middle name, surname and suffix, a preferred name never sent to suppliers (CLT-28), date of birth, supplier-required gender or sex, email and phone. No passport fields. It saves with details missing but needs a name. A link to a client has a relationship (Self, Family member, Employee or member, Other) and grants nothing (CLT-09, CLT-10); Self only for a person client, at most one per client. Creating a person client may add its Self traveler (CLT-11). |
 | `ClientTrip` | One responsible client (CLT-02), at most one Departure (OVR-02), and a `T-` reference issued at creation (REF-04, D-94) that never changes. Status is derived (BKG-03); with no bookings yet it is Not booked. |
-| `ClientBooking`, `BookingTraveler` | A purchase of the trip's Departure's package (BKG-05) with a reference from its trip (REF-04), status Draft, Confirmed, Discarded or Cancelled (BKG-06), agency-owned, created only while the Departure is On sale (DEP-05). Travelers are profiles or placeholders, each with a traveler type (CLT-13, CLT-15). Confirmation is refused in 6b with the list of what is missing (BKG-45, D16). |
+| `ClientBooking`, `BookingTraveler` | A purchase of the trip's Departure's package (BKG-05) with a reference from its trip (REF-04), status Draft, Confirmed, Discarded or Cancelled (BKG-06), an owner and a seller of record that are each the agency or a reseller, separate from its creator (ACC-18, FIN-05), created only while the Departure is On sale (DEP-05). Travelers are profiles or placeholders, each with a traveler type (CLT-13, CLT-15). Confirmation is refused in 6b with the list of what is missing (BKG-45, D16). |
 | `ChoiceSelection`, `SelectionOccupant` | A chosen option (BKG-14). A per-unit selection is one numbered unit whose occupants have positions in it; occupants whose type uses no capacity have none (INV-39). A per-traveler selection lists participants. A removed selection with allocation history is kept as removed. |
 | `BookingPriceLine` | A traveler's proposed price on a selection, from `OfferingPriceLookup`, re-proposed only when the booking's contents change; an offering price change touches none (BKG-23). |
 | `InventoryAllocation` | A hold or reservation of a whole shell, positions in a shell, or pool places (INV-17). Held, Reserved or Released, forward only and never deleted (INV-18, D-88). A hold expires at 11:59 p.m. agency time on the last day of the hold duration and stops consuming at read time; it extends once, and a replacement after an edit keeps its expiry and extension. `GroupCapacity` derives what is left, refuses agency reductions below consuming allocations (INV-26) and flags a capacity conflict after a supplier release. |
@@ -90,7 +91,7 @@ Office is operational context, not authorization. `Current.office` resolves from
 
 ## Current permissions
 
-An Agency Admin satisfies every requirement except `reseller`. Staff hold the baseline plus their granted permissions. A `reseller` user satisfies no staff requirement; reseller actions arrive in Slice 1 step 9.
+An Agency Admin satisfies every requirement except `reseller`. Staff hold the baseline plus their granted permissions. A `reseller` user satisfies no staff requirement; reseller actions arrive in Slice 1 step 9b.
 
 | Action | Requirement |
 | --- | --- |
@@ -117,6 +118,9 @@ An Agency Admin satisfies every requirement except `reseller`. Staff hold the ba
 | View the package, client prices and client terms | Baseline |
 | Edit the package, prices and a Departure's client terms | Departure management |
 | Edit the agency's client terms wording and default cancellation tiers | Agency Admin only |
+| Authorize a reseller relationship and set its direct-contact setting (`manage_reseller_relationships`, ACC-13) | Reseller relationships |
+| Publish a package to a reseller's channel and withdraw it (`publish_offerings`, DEP-07) | Departure management |
+| Assign a booking's owner and set a draft's seller of record (`assign_bookings`, ACC-18, FIN-05) | Departure management |
 
 Application code checks catalog actions, not user types or grant names. After sign-in, staff land on My tasks unless a protected page sent them to sign in (S-01).
 

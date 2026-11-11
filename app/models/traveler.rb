@@ -10,6 +10,8 @@ class Traveler < ApplicationRecord
   SUFFIX_LIMIT = 20
 
   belongs_to :agency
+  # D-78: who created the profile; nil for profiles made before step 9.
+  belongs_to :created_by, class_name: "AgencyUser", optional: true
   has_many :links, class_name: "TravelerLink", inverse_of: :traveler, dependent: :restrict_with_exception
   has_many :clients, through: :links
 

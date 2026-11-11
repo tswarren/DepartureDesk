@@ -1,0 +1,47 @@
+<%# S-10: the package's reseller channels (DEP-07 to DEP-09; D-68, one channel per reseller). Publishing needs Departure management and a Ready to sell Departure. %>
+<%# locals: (departure:, offering:, resellers:) -%>
+<% can_publish = Current.agency_user.permitted?(:publish_offerings) && !departure.departed? %>
+<section class="dd-stack" id="channels-<%= offering.id %>" aria-labelledby="channels-title-<%= offering.id %>">
+  <div class="dd-section-header">
+    <h3 class="dd-section-title" id="channels-title-<%= offering.id %>">Reseller channels</h3>
+  </div>
+  <% if resellers.empty? %>
+    <p class="dd-empty-copy">
+      No resellers yet.
+      <% if Current.agency_user.permitted?(:manage_reseller_relationships) %><%= link_to "Authorize a reseller", new_reseller_path %> to publish this package to it.<% end %>
+    </p>
+  <% else %>
+    <% if can_publish && !departure.ready_to_sell? %>
+      <p class="dd-field-hint">This Departure is a draft, so its package can't be published. Mark it Ready to sell first.</p>
+    <% end %>
+    <ul class="dd-record-list" aria-label="Reseller channels for <%= offering.name %>">
+      <% resellers.each do |reseller| %>
+        <% publication = offering.open_publication_for(reseller) %>
+        <li class="dd-record">
+          <div class="dd-record-main">
+            <p><%= reseller.name %> <%= publication ? status_badge("Published", modifier: "success") : status_badge("Not published", modifier: "neutral") %></p>
+            <p class="dd-record-detail">
+              <% if publication %>
+                Since <%= publication.published_at.in_time_zone(Current.agency.default_timezone).to_date.to_fs(:long) %>. <%= reseller.name %> sees this package and can book it.
+              <% elsif !reseller.active? %>
+                <%= reseller.status_label %>, so nothing can be published to it.
+              <% else %>
+                <%= reseller.name %> doesn't see this package.
+              <% end %>
+            </p>
+          </div>
+          <% if can_publish %>
+            <% if publication %>
+              <%= button_to "Withdraw", departure_offering_publication_path(departure, offering, publication), method: :delete,
+                    class: "dd-row-action dd-row-action--text", aria: { label: "Withdraw #{offering.name} from #{reseller.name}" },
+                    form: { data: { turbo_confirm: "Withdraw #{offering.name} from #{reseller.name}? Its bookings stay as they are." } } %>
+            <% elsif departure.ready_to_sell? && reseller.active? %>
+              <%= button_to "Publish", departure_offering_publications_path(departure, offering), params: { reseller_id: reseller.id },
+                    class: "dd-row-action dd-row-action--text", aria: { label: "Publish #{offering.name} to #{reseller.name}" } %>
+            <% end %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>

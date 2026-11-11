@@ -21,6 +21,10 @@ module ApplicationHelper
     status_badge(office.status.titleize, modifier: office.active? ? "success" : "neutral")
   end
 
+  def reseller_status_badge(reseller)
+    status_badge(reseller.status_label, modifier: reseller.active? ? "success" : "neutral")
+  end
+
   def agency_status_badge(agency)
     modifier = case agency.status
     when "active" then "success"

@@ -19,7 +19,7 @@ class SaveTraveler < AgencyCommand
 
     ActiveRecord::Base.transaction do
       @agency.lock!
-      traveler = @traveler ? @agency.travelers.lock.find(@traveler.id).tap { |record| ensure_version!(record) } : @agency.travelers.new
+      traveler = @traveler ? @agency.travelers.lock.find(@traveler.id).tap { |record| ensure_version!(record) } : @agency.travelers.new(created_by: @actor)
       creating = traveler.new_record?
       traveler.assign_attributes(@attributes.merge(date_attribute))
       changed = traveler.changed - %w[lock_version updated_at]

@@ -52,7 +52,14 @@ module AccessPermission
     # SMN-18: only Financial records records supplier payments.
     manage_supplier_payments: "financial_records",
     # SMN-33: recording the supplier's confirmation of a commission.
-    confirm_commission: %w[supplier_arrangements financial_records]
+    confirm_commission: %w[supplier_arrangements financial_records],
+    # ACC-13: authorizing a reseller relationship and setting its
+    # direct-contact setting.
+    manage_reseller_relationships: "reseller_relationships",
+    # DEP-07, ACC-18, FIN-05: publishing to reseller channels, assigning a
+    # booking's owner and recording its seller of record.
+    publish_offerings: "departure_management",
+    assign_bookings: "departure_management"
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

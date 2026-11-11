@@ -1,0 +1,22 @@
+<%# locals: (reseller:) -%>
+<%= form_with model: reseller, class: "dd-form" do |form| %>
+  <%= render "shared/form_errors", object: form.object %>
+  <% if reseller.persisted? %><%= form.hidden_field :lock_version %><% end %>
+  <div class="dd-field-group">
+    <%= form.label :name, class: "dd-label" %>
+    <%= form.text_field :name, **dd_field_options(form, :name, required: true, maxlength: Reseller::NAME_LIMIT) %>
+    <%= dd_field_error(form, :name) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.hidden_field :direct_contact_allowed, value: "0", id: nil %>
+    <label class="dd-choice">
+      <%= form.check_box :direct_contact_allowed, { include_hidden: false, aria: { describedby: "direct_contact_hint" } }, "1", "0" %>
+      <span>Agency may send documents directly to this reseller's clients</span>
+    </label>
+    <p class="dd-field-hint" id="direct_contact_hint">On by default. When it is off, documents on this reseller's bookings go only to the reseller.</p>
+  </div>
+  <div class="dd-form-actions">
+    <%= form.submit reseller.persisted? ? "Save reseller" : "Authorize reseller", class: "dd-button" %>
+    <%= link_to "Cancel", reseller.persisted? ? reseller_path(reseller) : resellers_path, class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

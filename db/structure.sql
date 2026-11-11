@@ -528,6 +528,30 @@ $$;
 
 
 --
+-- Name: reject_offering_publication_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_offering_publication_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'offering_publications rows cannot be deleted';
+  END IF;
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.offering_id IS DISTINCT FROM OLD.offering_id
+    OR NEW.reseller_id IS DISTINCT FROM OLD.reseller_id
+    OR NEW.published_at IS DISTINCT FROM OLD.published_at
+    OR NEW.published_by_id IS DISTINCT FROM OLD.published_by_id
+    OR OLD.withdrawn_at IS NOT NULL THEN
+    RAISE EXCEPTION 'an offering publication only records its withdrawal, once';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1206,11 +1230,17 @@ CREATE TABLE public.client_bookings (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     installment_basis character varying,
+    owner_reseller_id uuid,
+    seller_kind character varying DEFAULT 'agency'::character varying NOT NULL,
+    seller_reseller_id uuid,
     CONSTRAINT client_bookings_confirmed_at CHECK ((((status)::text = ANY (ARRAY[('confirmed'::character varying)::text, ('cancelled'::character varying)::text])) = (confirmed_at IS NOT NULL))),
     CONSTRAINT client_bookings_counters CHECK (((sequence >= 1) AND (lock_version >= 0))),
     CONSTRAINT client_bookings_discarded_at CHECK ((((status)::text = 'discarded'::text) = (discarded_at IS NOT NULL))),
-    CONSTRAINT client_bookings_owner_kind CHECK (((owner_kind)::text = 'agency'::text)),
+    CONSTRAINT client_bookings_owner_kind CHECK (((owner_kind)::text = ANY ((ARRAY['agency'::character varying, 'reseller'::character varying])::text[]))),
+    CONSTRAINT client_bookings_owner_reseller CHECK ((((owner_kind)::text = 'reseller'::text) = (owner_reseller_id IS NOT NULL))),
     CONSTRAINT client_bookings_reference_format CHECK (((booking_reference)::text ~ '^T-[0-9]{5,}-[0-9]+$'::text)),
+    CONSTRAINT client_bookings_seller_kind CHECK (((seller_kind)::text = ANY ((ARRAY['agency'::character varying, 'reseller'::character varying])::text[]))),
+    CONSTRAINT client_bookings_seller_reseller CHECK ((((seller_kind)::text = 'reseller'::text) = (seller_reseller_id IS NOT NULL))),
     CONSTRAINT client_bookings_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('confirmed'::character varying)::text, ('discarded'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
@@ -1657,6 +1687,7 @@ CREATE TABLE public.clients (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     client_organization_id uuid,
+    created_by_id uuid,
     CONSTRAINT clients_exactly_one_source CHECK ((num_nonnulls(client_person_id, client_organization_id) = 1)),
     CONSTRAINT clients_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clients_reference_format CHECK (((client_reference)::text ~ '^CL-[0-9]{6}$'::text)),
@@ -1993,6 +2024,26 @@ CREATE TABLE public.offering_prices (
     CONSTRAINT offering_prices_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT offering_prices_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT offering_prices_occupancy_position CHECK (((occupancy_position)::text = ANY (ARRAY[('any'::character varying)::text, ('single'::character varying)::text, ('guest_1'::character varying)::text, ('guest_2'::character varying)::text, ('guest_3'::character varying)::text, ('guest_4'::character varying)::text, ('guest_5'::character varying)::text, ('guest_6'::character varying)::text, ('guest_7'::character varying)::text, ('guest_8'::character varying)::text, ('guest_9'::character varying)::text])))
+);
+
+
+--
+-- Name: offering_publications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.offering_publications (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    offering_id uuid NOT NULL,
+    reseller_id uuid NOT NULL,
+    published_at timestamp(6) with time zone NOT NULL,
+    published_by_id uuid NOT NULL,
+    withdrawn_at timestamp(6) with time zone,
+    withdrawn_by_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT offering_publications_withdrawn_after_published CHECK (((withdrawn_at IS NULL) OR (withdrawn_at >= published_at))),
+    CONSTRAINT offering_publications_withdrawn_pair CHECK (((withdrawn_at IS NULL) = (withdrawn_by_id IS NULL)))
 );
 
 
@@ -2816,6 +2867,7 @@ CREATE TABLE public.travelers (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    created_by_id uuid,
     CONSTRAINT travelers_contacts CHECK ((((email_address IS NULL) OR (((email_address)::text = lower(btrim((email_address)::text))) AND ((email_address)::text ~~ '%_@_%'::text) AND (char_length((email_address)::text) <= 254))) AND ((phone IS NULL) OR ((btrim((phone)::text) <> ''::text) AND (char_length((phone)::text) <= 40))))),
     CONSTRAINT travelers_date_of_birth CHECK (((date_of_birth IS NULL) OR (date_of_birth >= '1900-01-01'::date))),
     CONSTRAINT travelers_gender CHECK (((gender IS NULL) OR ((gender)::text = ANY (ARRAY[('female'::character varying)::text, ('male'::character varying)::text, ('unspecified'::character varying)::text])))),
@@ -3328,6 +3380,14 @@ ALTER TABLE ONLY public.offering_options
 
 ALTER TABLE ONLY public.offering_prices
     ADD CONSTRAINT offering_prices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: offering_publications offering_publications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_publications
+    ADD CONSTRAINT offering_publications_pkey PRIMARY KEY (id);
 
 
 --
@@ -3947,6 +4007,13 @@ CREATE UNIQUE INDEX index_client_bookings_on_id_and_agency_id ON public.client_b
 --
 
 CREATE INDEX index_client_bookings_on_offering ON public.client_bookings USING btree (offering_id);
+
+
+--
+-- Name: index_client_bookings_on_owner_reseller; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_bookings_on_owner_reseller ON public.client_bookings USING btree (owner_reseller_id) WHERE (owner_reseller_id IS NOT NULL);
 
 
 --
@@ -4752,6 +4819,27 @@ CREATE UNIQUE INDEX index_offering_options_one_per_group_in_choice ON public.off
 --
 
 CREATE UNIQUE INDEX index_offering_prices_one_per_option_position_type ON public.offering_prices USING btree (offering_option_id, occupancy_position, traveler_type_id) NULLS NOT DISTINCT;
+
+
+--
+-- Name: index_offering_publications_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offering_publications_on_id_and_agency_id ON public.offering_publications USING btree (id, agency_id);
+
+
+--
+-- Name: index_offering_publications_on_reseller; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_offering_publications_on_reseller ON public.offering_publications USING btree (reseller_id, withdrawn_at);
+
+
+--
+-- Name: index_offering_publications_one_open_per_channel; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offering_publications_one_open_per_channel ON public.offering_publications USING btree (offering_id, reseller_id) WHERE (withdrawn_at IS NULL);
 
 
 --
@@ -5959,6 +6047,13 @@ CREATE TRIGGER offering_options_reject_other_departure BEFORE INSERT OR UPDATE O
 
 
 --
+-- Name: offering_publications offering_publications_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER offering_publications_reject_mutation BEFORE DELETE OR UPDATE ON public.offering_publications FOR EACH ROW EXECUTE FUNCTION public.reject_offering_publication_mutation();
+
+
+--
 -- Name: offices offices_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6663,6 +6758,22 @@ ALTER TABLE ONLY public.client_bookings
 
 
 --
+-- Name: client_bookings fk_client_bookings_owner_reseller_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_owner_reseller_same_agency FOREIGN KEY (owner_reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
+-- Name: client_bookings fk_client_bookings_seller_reseller_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_seller_reseller_same_agency FOREIGN KEY (seller_reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
 -- Name: client_bookings fk_client_bookings_terms_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6884,6 +6995,14 @@ ALTER TABLE ONLY public.client_trips
 
 ALTER TABLE ONLY public.client_trips
     ADD CONSTRAINT fk_client_trips_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: clients fk_clients_creator_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT fk_clients_creator_same_agency FOREIGN KEY (created_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
 
 
 --
@@ -7220,6 +7339,46 @@ ALTER TABLE ONLY public.offering_prices
 
 ALTER TABLE ONLY public.offering_prices
     ADD CONSTRAINT fk_offering_prices_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
+-- Name: offering_publications fk_offering_publications_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_publications
+    ADD CONSTRAINT fk_offering_publications_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: offering_publications fk_offering_publications_offering_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_publications
+    ADD CONSTRAINT fk_offering_publications_offering_same_agency FOREIGN KEY (offering_id, agency_id) REFERENCES public.offerings(id, agency_id);
+
+
+--
+-- Name: offering_publications fk_offering_publications_publisher_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_publications
+    ADD CONSTRAINT fk_offering_publications_publisher_same_agency FOREIGN KEY (published_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: offering_publications fk_offering_publications_reseller_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_publications
+    ADD CONSTRAINT fk_offering_publications_reseller_same_agency FOREIGN KEY (reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
+-- Name: offering_publications fk_offering_publications_withdrawer_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_publications
+    ADD CONSTRAINT fk_offering_publications_withdrawer_same_agency FOREIGN KEY (withdrawn_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
 
 
 --
@@ -7999,6 +8158,14 @@ ALTER TABLE ONLY public.travelers
 
 
 --
+-- Name: travelers fk_travelers_creator_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.travelers
+    ADD CONSTRAINT fk_travelers_creator_same_agency FOREIGN KEY (created_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
 -- Name: trigger_event_shells fk_trigger_event_shells_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8173,6 +8340,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261110100000'),
 ('20261109100000'),
 ('20261108120000'),
 ('20261108100000'),

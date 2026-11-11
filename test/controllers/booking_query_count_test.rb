@@ -25,6 +25,21 @@ class BookingQueryCountTest < ActionDispatch::IntegrationTest
     assert_equal inventory_three, select_query_count { get inventory }
   end
 
+  test "the roster, the Resellers list and a reseller's page don't grow with more resellers and bookings (S-04, S-25)" do
+    reseller = SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Coral Coast Travel" }).call.record
+    PublishOffering.new(agency: @agency, actor: @admin, offering: @alpha.offering, reseller:).call
+    assign = ->(booking) { AssignClientBooking.new(agency: @agency, actor: @admin, booking:, reseller:).call }
+    assign.(@alpha.bookings.values.first)
+    pages = [ departure_bookings_path(@alpha.departure), resellers_path, reseller_path(reseller) ]
+    pages.each { |page| get page }
+    before = pages.map { |page| select_query_count { get page } }
+
+    2.times { |index| SaveReseller.new(agency: @agency, actor: @admin, attributes: { name: "Reseller #{index}" }).call }
+    2.times { assign.(add_booking!) }
+    pages.each { |page| get page }
+    assert_equal before, pages.map { |page| select_query_count { get page } }
+  end
+
   private
 
   def add_booking!
@@ -36,6 +51,7 @@ class BookingQueryCountTest < ActionDispatch::IntegrationTest
     tour = @alpha.offering.choices.find_by!(name: "Private Miami tour").options.sole
     [ cabin, tour ].each { |option| SaveChoiceSelection.new(agency: @agency, actor: @admin, booking:, attributes: { offering_option_id: option.id, occupant_ids: [ guest.id ] }).call }
     HoldBookingSpace.new(agency: @agency, actor: @admin, booking:).call
+    booking
   end
 
   def select_query_count

@@ -1,0 +1,49 @@
+<% content_for :title, "Resellers · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">System</p>
+    <h1 class="dd-page-title">Resellers</h1>
+    <p class="dd-page-description">Agencies authorized to sell this agency's packages. Each has one channel: it sees only the packages published to it and the bookings it owns.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Authorize reseller", new_reseller_path, class: "dd-button" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <% if @resellers.none? %>
+    <div class="dd-panel-body">
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No resellers</h2>
+        <p class="dd-empty-copy">Authorize a reseller, then publish a Departure's package to it from the Departure's Package tab.</p>
+      </div>
+    </div>
+  <% else %>
+    <div class="dd-table-wrap">
+      <table class="dd-table dd-stacked-table">
+        <caption class="dd-visually-hidden">Reseller relationships</caption>
+        <thead>
+          <tr>
+            <th scope="col">Reseller</th>
+            <th scope="col">Status</th>
+            <th scope="col">Direct contact</th>
+            <th scope="col" class="num">Packages published</th>
+            <th scope="col" class="num">Bookings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @resellers.each do |reseller| %>
+            <tr>
+              <th scope="row"><%= link_to reseller.name, reseller_path(reseller) %></th>
+              <td><span class="dd-cabin-field-label dd-visually-hidden">Status </span><%= reseller_status_badge(reseller) %></td>
+              <td><span class="dd-cabin-field-label dd-visually-hidden">Direct contact </span><%= reseller.direct_contact_allowed? ? "Allowed" : "Through the reseller only" %></td>
+              <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Packages published </span><%= @counts[:publications].fetch(reseller.id, 0) %></td>
+              <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Bookings </span><%= @counts[:bookings].fetch(reseller.id, 0) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</article>

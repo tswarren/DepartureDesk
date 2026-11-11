@@ -23,7 +23,8 @@ class CreateClientForPerson < AgencyCommand
       client = @agency.clients.create!(
         client_person: person,
         client_reference: issue_client_reference!(@agency),
-        status: "active"
+        status: "active",
+        created_by: @actor
       )
       audit!(agency: @agency, action: "client.created", subject: client, actor: @actor, details: { "client_id" => client.id, "client_person_id" => person.id })
       Result.new(status: :created, record: client)

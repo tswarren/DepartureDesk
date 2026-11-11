@@ -7,6 +7,7 @@ class Offering < ApplicationRecord
   belongs_to :agency
   belongs_to :departure
   has_many :choices, -> { order(:position, :created_at) }, class_name: "OfferingChoice", inverse_of: :offering, dependent: :restrict_with_exception
+  has_many :publications, -> { order(:published_at) }, class_name: "OfferingPublication", inverse_of: :offering, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id
 
@@ -15,6 +16,11 @@ class Offering < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :currency, format: { with: Agency::CURRENCY_FORMAT }
+
+  # DEP-07: the open publication to this reseller's channel, if any.
+  def open_publication_for(reseller)
+    publications.find { |publication| publication.open? && publication.reseller_id == reseller.id }
+  end
 
   # What it still needs before step 6 will book it.
   def booking_blockers
