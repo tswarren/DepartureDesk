@@ -6,7 +6,7 @@
   <header class="dd-panel-header dd-section-header">
     <h2 class="dd-panel-title">Client acceptance</h2>
     <% if manage && booking.price_lines.any? && covering.nil? %>
-      <%= link_to latest ? "Record acceptance again" : "Record acceptance", new_client_booking_acceptance_path(booking), class: "dd-button dd-button--secondary" %>
+      <%= link_to latest ? "Record acceptance again" : "Record acceptance", booking_route(:new_client_booking_acceptance, booking), class: "dd-button dd-button--secondary" %>
     <% end %>
   </header>
   <div class="dd-panel-body dd-stack">
@@ -26,13 +26,13 @@
         <div><dt>Price accepted</dt><dd><%= booking_money(latest.accepted_total_minor_units, latest.currency) %></dd></div>
         <div><dt>Client terms</dt><dd>Version <%= latest.client_terms_version.version_number %></dd></div>
         <% if latest.evidence.attached? %>
-          <div><dt>Evidence</dt><dd><%= link_to latest.evidence.filename.to_s, client_booking_acceptance_evidence_path(booking, latest) %></dd></div>
+          <div><dt>Evidence</dt><dd><%= link_to latest.evidence.filename.to_s, booking_route(:client_booking_acceptance_evidence, booking, latest) %></dd></div>
         <% end %>
         <% if latest.evidence_reference %><div><dt>Evidence kept</dt><dd><%= latest.evidence_reference %></dd></div><% end %>
         <% if latest.note %><div><dt>Note</dt><dd><%= latest.note %></dd></div><% end %>
         <% if latest.by_designated_payment? %>
           <% if (payment = latest.client_payment) %>
-            <div><dt>Payment</dt><dd><%= link_to payment.payment_reference, client_trip_path(booking.client_trip, anchor: "money"), class: "dd-type-mono" %> · <%= booking_money(payment.amount_minor_units, payment.currency) %> on <%= payment.paid_on.to_fs(:long) %><%= " · reversed" if payment.reversed? %></dd></div>
+            <div><dt>Payment</dt><dd><%= reseller_area? ? tag.span(payment.payment_reference, class: "dd-type-mono") : link_to(payment.payment_reference, client_trip_path(booking.client_trip, anchor: "money"), class: "dd-type-mono") %> · <%= booking_money(payment.amount_minor_units, payment.currency) %> on <%= payment.paid_on.to_fs(:long) %><%= " · reversed" if payment.reversed? %></dd></div>
           <% end %>
         <% end %>
         <div><dt>Recorded by</dt><dd><%= latest.recorded_by.display_name %>, <%= booking_time(latest.recorded_at) %></dd></div>

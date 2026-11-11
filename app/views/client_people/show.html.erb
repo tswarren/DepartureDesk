@@ -39,6 +39,12 @@
           <% end %>
         </dd>
       </div>
+      <% if (creator = @client_person.client&.created_by) %>
+        <div>
+          <dt>Created by</dt>
+          <dd><%= creator.display_name %><%= ", #{creator.reseller.name}" if creator.reseller? %></dd>
+        </div>
+      <% end %>
     </dl>
   </div>
 </article>

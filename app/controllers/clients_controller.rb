@@ -7,12 +7,14 @@ class ClientsController < ApplicationController
   def index
     @status = directory_status_filter
     @kind = directory_kind_filter
+    @creator = params[:creator].presence_in(SearchClientDirectory::CREATORS) || "any"
     @search = SearchClientDirectory.call(
       agency: Current.agency,
       actor: Current.agency_user,
       query: params[:q],
       status: @status,
-      kind: @kind
+      kind: @kind,
+      creator: @creator
     )
   rescue AgencyCommand::Error => error
     @search = SearchClientDirectory::Outcome.new(records: [], truncated: false)

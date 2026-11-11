@@ -4,6 +4,7 @@
 # transaction (step 6 plan, questions 14 and 15).
 class MoveBookingTraveler < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   DIRECTIONS = %w[up down].freeze
 

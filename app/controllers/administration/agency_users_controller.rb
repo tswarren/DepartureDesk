@@ -5,7 +5,7 @@ module Administration
     before_action :set_agency_user, only: %i[show edit update suspend reactivate close replace_invitation revoke_invitation]
 
     def index
-      @agency_users = agency_users.includes(:user_permissions).order(:last_name, :first_name)
+      @agency_users = agency_users.includes(:user_permissions, :reseller).order(:last_name, :first_name)
     end
 
     def show

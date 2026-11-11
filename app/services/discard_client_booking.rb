@@ -1,8 +1,10 @@
 # Discards a booking that was never confirmed: its holds are released at
 # once, with no charge, refund or initiator (BKG-06, BKG-56). The
-# reference is never reused (REF-03, SC-REF-06).
+# reference is never reused (REF-03, SC-REF-06). A reseller discards only
+# while the booking's hold is active (BKG-56, ACC-15).
 class DiscardClientBooking < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:)
     @agency = agency
@@ -16,6 +18,9 @@ class DiscardClientBooking < AgencyCommand
     ActiveRecord::Base.transaction do
       booking = lock_booking!
       ensure_draft!(booking)
+      if reseller_actor? && booking.hold_state.first != :held
+        raise Error.new("A reseller discards a booking only while its hold is active. Ask the agency to discard it.", code: :invalid_state)
+      end
       held = booking.inventory_allocations.select(&:state_held?)
       lock_groups!(held.map(&:inventory_group))
       now = Clock.current.now

@@ -4,14 +4,15 @@
 <% services = booking_services(booking) %>
 <% lines_by_selection = booking.price_lines.group_by(&:choice_selection_id) %>
 <% charge = booking.client_charge %>
-<% money = Current.agency_user.permitted?(:view_client_money) %>
+<% money = booking_client_money_visible? %>
+<% supplier_view = Current.agency_user.permitted?(:view_supplier_reservations) %>
 <% next_due = charge&.installments&.reject(&:paid?)&.min_by(&:due_on) %>
 <div class="dd-grid dd-grid--main dd-grid--top">
   <div class="dd-stack">
     <article class="dd-panel" id="summary-travelers">
       <header class="dd-panel-header dd-section-header">
         <h2 class="dd-panel-title">Who is going</h2>
-        <%= link_to "Travelers", client_booking_path(booking, step: "travelers"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Travelers" } %>
+        <%= link_to "Travelers", booking_route(:client_booking, booking, step: "travelers"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Travelers" } %>
       </header>
       <div class="dd-panel-body">
         <% if booking.booking_travelers.empty? %>
@@ -40,7 +41,7 @@
     <article class="dd-panel" id="summary-services">
       <header class="dd-panel-header dd-section-header">
         <h2 class="dd-panel-title">Services</h2>
-        <%= link_to "Rooms and options", client_booking_path(booking, step: "rooms"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Rooms and options" } %>
+        <%= link_to "Rooms and options", booking_route(:client_booking, booking, step: "rooms"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Rooms and options" } %>
       </header>
       <div class="dd-panel-body">
         <% if services.empty? %>
@@ -48,23 +49,25 @@
         <% else %>
           <div class="dd-table-wrap">
             <table class="dd-table dd-stacked-table">
-              <caption class="dd-visually-hidden">Services with their price, space and supplier status</caption>
-              <thead><tr><th scope="col">Service</th><th scope="col" class="num">Price</th><th scope="col">Space</th><th scope="col">Supplier</th></tr></thead>
+              <caption class="dd-visually-hidden">Services with their price, space<%= " and supplier status" if supplier_view %></caption>
+              <thead><tr><th scope="col">Service</th><th scope="col" class="num">Price</th><th scope="col">Space</th><% if supplier_view %><th scope="col">Supplier</th><% end %></tr></thead>
               <tbody>
                 <% services.each do |selection| %>
                   <% status = supplier_status(selection, booking) %>
                   <tr>
-                    <th scope="row"><%= selection.label %><span class="dd-cell-subtext"><%= selection.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></span></th>
+                    <th scope="row"><%= selection.label %><% if supplier_view %><span class="dd-cell-subtext"><%= selection.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></span><% end %></th>
                     <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Price </span><%= booking_money((lines_by_selection[selection.id] || []).sum(&:amount_minor_units), currency) %></td>
                     <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= booking_service_space(selection) %></td>
-                    <td>
-                      <span class="dd-cabin-field-label dd-visually-hidden">Supplier </span>
-                      <% if status.nil? %>—<% elsif status.modifier %><%= status_badge(status.label, modifier: status.modifier) %><% else %><%= status.label %><% end %>
-                    </td>
+                    <% if supplier_view %>
+                      <td>
+                        <span class="dd-cabin-field-label dd-visually-hidden">Supplier </span>
+                        <% if status.nil? %>—<% elsif status.modifier %><%= status_badge(status.label, modifier: status.modifier) %><% else %><%= status.label %><% end %>
+                      </td>
+                    <% end %>
                   </tr>
                 <% end %>
               </tbody>
-              <tfoot><tr><th scope="row">Total</th><td class="num"><strong><%= booking_money(booking.total_minor_units, currency) %></strong></td><td colspan="2"></td></tr></tfoot>
+              <tfoot><tr><th scope="row">Total</th><td class="num"><strong><%= booking_money(booking.total_minor_units, currency) %></strong></td><td colspan="<%= supplier_view ? 2 : 1 %>"></td></tr></tfoot>
             </table>
           </div>
         <% end %>
@@ -78,7 +81,7 @@
     <article class="dd-panel" id="summary-acceptance">
       <header class="dd-panel-header dd-section-header">
         <h2 class="dd-panel-title">Acceptance</h2>
-        <%= link_to "Accept and confirm", client_booking_path(booking, step: "confirm"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Accept and confirm" } %>
+        <%= link_to "Accept and confirm", booking_route(:client_booking, booking, step: "confirm"), class: "dd-row-action dd-row-action--text", aria: { label: "Change on Accept and confirm" } %>
       </header>
       <div class="dd-panel-body">
         <% if (acceptance = booking.latest_acceptance) %>
@@ -99,7 +102,7 @@
       <article class="dd-panel" id="summary-money">
         <header class="dd-panel-header dd-section-header">
           <h2 class="dd-panel-title">Money</h2>
-          <%= link_to charge ? "Money" : "Price and installments", client_booking_path(booking, step: charge ? "money" : "price"), class: "dd-row-action dd-row-action--text",
+          <%= link_to charge ? "Money" : "Price and installments", booking_route(:client_booking, booking, step: charge ? "money" : "price"), class: "dd-row-action dd-row-action--text",
                 aria: { label: charge ? "More on Money" : "More on Price and installments" } %>
         </header>
         <div class="dd-panel-body dd-stack">
@@ -127,11 +130,11 @@
     <article class="dd-panel" id="summary-next">
       <header class="dd-panel-header"><h2 class="dd-panel-title">What's next</h2></header>
       <div class="dd-panel-body">
-        <% awaiting = services.select { |selection| supplier_status(selection, booking)&.label.in?([ "Awaiting supplier", "Requested", "Request from the supplier" ]) } %>
+        <% awaiting = supplier_view ? services.select { |selection| supplier_status(selection, booking)&.label.in?([ "Awaiting supplier", "Requested", "Request from the supplier" ]) } : [] %>
         <% items = [] %>
         <% if booking.status_draft? %>
           <% blockers.each { |blocker| items << link_to(blocker.message, booking_section_path(booking, blocker.anchor)) } %>
-          <% items << link_to("Confirm the booking.", client_booking_path(booking, step: "confirm", anchor: "confirm")) if blockers.empty? %>
+          <% items << link_to("Confirm the booking.", booking_route(:client_booking, booking, step: "confirm", anchor: "confirm")) if blockers.empty? %>
         <% end %>
         <% awaiting.each do |selection| %>
           <% items << (supplier_status(selection, booking).needs_request ? "Request #{selection.label} from the supplier." : "The supplier's answer for #{selection.label}.") %>

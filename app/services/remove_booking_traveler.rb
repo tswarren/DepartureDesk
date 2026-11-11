@@ -2,6 +2,7 @@
 # re-holding what changed (step 6 plan, question 15).
 class RemoveBookingTraveler < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, booking_traveler:)
     @agency = agency

@@ -4,6 +4,7 @@
 # SaveBookingTraveler for each, so a refusal adds none.
 class AddBookingTravelers < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, rows:)
     @agency = agency

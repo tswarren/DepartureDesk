@@ -4,6 +4,7 @@
 # changed (questions 14 and 15).
 class SaveChoiceSelection < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, attributes:, selection: nil, lock_version: nil)
     @agency = agency

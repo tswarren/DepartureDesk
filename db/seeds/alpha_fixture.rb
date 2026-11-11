@@ -14,12 +14,15 @@
 # Slice 1 roster's clients, travelers and Client Trips (step 6a, D-94); and,
 # with bookings: :held, a held booking on each trip (step 6b, D-95), and with
 # bookings: :confirmed, each accepted and confirmed at its roster date (step
-# 6c, D-94). Each
-# Slice 1 step extends this script with the records it builds.
+# 6c, D-94). The reseller Coral Coast Travel, its user and the package's
+# publication to it are seeded at every level (step 9, D-99 (2)); from
+# bookings: :held on, that user creates BK-105 itself, with its client and
+# travelers (D-99 (1)). Each Slice 1 step extends this script with the
+# records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
 module AlphaFixture
-  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips, :bookings)
+  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips, :bookings, :reseller, :reseller_user)
   BOOKING_LEVELS = %i[none trips held confirmed paid].freeze
 
   DEPARTURE_NAME = "Alpha Omega"
@@ -116,7 +119,9 @@ module AlphaFixture
     }
   }.freeze
 
-  def self.load!(agency:, actor:, confirm_cruise: true, bookings: :none)
+  # reseller_password: the reseller user's password, which only the
+  # development seed passes; otherwise it gets a random one nobody knows.
+  def self.load!(agency:, actor:, confirm_cruise: true, bookings: :none, reseller_password: nil)
     raise ArgumentError, "bookings must be one of #{BOOKING_LEVELS.inspect}" unless bookings.in?(BOOKING_LEVELS)
 
     suppliers = SUPPLIERS.transform_values { |definition| supplier!(agency, actor, definition) }
@@ -134,14 +139,35 @@ module AlphaFixture
     terms_defaults!(agency, actor)
     offering = package!(agency, actor, departure, arrangements)
     client_terms = client_terms!(agency, actor, departure)
-    trips = bookings == :none ? {} : roster!(agency, actor, departure)
-    roster_bookings = bookings.in?(%i[held confirmed paid]) ? roster_bookings!(agency, actor, trips, confirm: bookings.in?(%i[confirmed paid])) : {}
+    reseller, reseller_user = reseller!(agency, actor, offering, reseller_password)
+    by_reseller = bookings.in?(%i[held confirmed paid])
+    actors = ->(label) { by_reseller && label == RESELLER_BOOKING ? reseller_user : actor }
+    trips = bookings == :none ? {} : roster!(agency, actors, departure, offering)
+    roster_bookings = by_reseller ? roster_bookings!(agency, actors, trips, confirm: bookings.in?(%i[confirmed paid])) : {}
     if bookings == :paid
       roster_payments!(agency, actor, roster_bookings, arrangements)
       supplier_payment!(agency, actor, departure, arrangements.fetch(:cruise))
     end
-    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings)
+    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings, reseller:, reseller_user:)
   end
+
+  # D-99 (2): the fixture's reseller, its one user (placeholder name and
+  # email) and the package published to it (DEP-07). The user is made
+  # active directly, as ProvisionAgency makes the first Agency Admin.
+  RESELLER_NAME = "Coral Coast Travel"
+  RESELLER_USER = { first_name: "Dana", last_name: "Whitfield", email_address: "dana@coralcoast.example" }.freeze
+  # D-99 (1): the roster booking the reseller creates.
+  RESELLER_BOOKING = "BK-105"
+
+  def self.reseller!(agency, actor, offering, password)
+    reseller = agency.resellers.find_by(name: RESELLER_NAME) ||
+      created!(SaveReseller.new(agency:, actor:, attributes: { name: RESELLER_NAME, direct_contact_allowed: "1" }).call, RESELLER_NAME)
+    user = agency.agency_users.find_by(email_address: RESELLER_USER.fetch(:email_address)) ||
+      agency.agency_users.create!(**RESELLER_USER, user_type: "reseller", reseller:, status: "active", password: password || SecureRandom.base58(24))
+    PublishOffering.new(agency:, actor:, offering:, reseller:).call unless offering.open_publication_for(reseller)
+    [ reseller, user ]
+  end
+  private_class_method :reseller!
 
   # Creates the Draft arrangement and its inventory once; later loads reuse it.
   def self.arrangement!(agency, actor, departure, supplier, definition)
@@ -459,9 +485,14 @@ module AlphaFixture
   }.freeze
 
   # One responsible client, its travelers and a Client Trip on the Departure
-  # per roster booking, keyed by the roster's booking label.
-  def self.roster!(agency, actor, departure)
+  # per roster booking, keyed by the roster's booking label. A reseller
+  # creates its booking's profiles only with the booking (CLT-25), so its
+  # trip comes with a draft booking holding its travelers.
+  def self.roster!(agency, actors, departure, offering)
     ROSTER.to_h do |label, travelers|
+      actor = actors.call(label)
+      next [ label, reseller_roster_trip!(agency, actor, offering, travelers) ] if actor.reseller?
+
       lead, *others = travelers
       client = roster_client!(agency, actor, lead)
       others.each do |details|
@@ -486,7 +517,21 @@ module AlphaFixture
     end
     client
   end
-  private_class_method :roster!, :roster_client!
+  # D-99 (1): the reseller starts the booking for a new client who travels
+  # (CLT-11), then adds the others as new travelers linked as family.
+  def self.reseller_roster_trip!(agency, actor, offering, travelers)
+    lead, *others = travelers
+    person = agency.client_people.find_by(first_name: lead[:given_names], last_name: lead[:surname])
+    return person.client.client_trips.find_by!(departure: offering.departure) if person
+
+    booking = created!(StartResellerBooking.new(agency:, actor:, offering:, person: { first_name: lead[:given_names], last_name: lead[:surname] },
+      traveling: true, date_of_birth: lead[:date_of_birth].iso8601).call, "the reseller's #{lead[:given_names]} #{lead[:surname]} booking")
+    others.each do |details|
+      AddTravelerToBooking.new(agency:, actor:, booking:, relationship: "family_member", attributes: details.merge(date_of_birth: details[:date_of_birth].iso8601)).call
+    end
+    booking.client_trip
+  end
+  private_class_method :roster!, :roster_client!, :reseller_roster_trip!
 
   # D-94 and D-95: each Slice 1 roster booking's cabin, hotel rooms (each a
   # list of given names, guest order), extension nights and tour
@@ -551,16 +596,19 @@ module AlphaFixture
   # A booking on each roster trip, with its travelers, choices and a hold
   # placed at the current clock; with confirm:, each is held, accepted and
   # confirmed at its roster date instead. Reused when the trip already has one.
-  def self.roster_bookings!(agency, actor, trips, confirm: false)
+  # A booking with no choices yet (the reseller's, made with its trip) is filled in.
+  def self.roster_bookings!(agency, actors, trips, confirm: false)
     trips.to_h do |label, trip|
+      actor = actors.call(label)
       booking = trip.client_bookings.where.not(status: "discarded").first
+      fill = ->(record) { record.nil? || (record.status_draft? && record.choice_selections.none?) }
       if confirm
         Clock.use(Clock.fixed(ROSTER_CONFIRMATIONS.fetch(label).fetch(:on))) do
-          booking ||= roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label))
+          booking = roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label), booking) if fill.call(booking)
           confirm_roster_booking!(agency, actor, booking.reload, ROSTER_CONFIRMATIONS.fetch(label)) if booking.status_draft?
         end
       else
-        booking ||= roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label))
+        booking = roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label), booking) if fill.call(booking)
       end
       [ label, booking.reload ]
     end
@@ -575,16 +623,22 @@ module AlphaFixture
     ConfirmClientBooking.new(agency:, actor:, booking: booking.reload).call
   end
 
-  def self.roster_booking!(agency, actor, trip, plan)
-    booking = created!(CreateClientBooking.new(agency:, actor:, trip:).call, "the #{trip.trip_reference} booking")
+  def self.roster_booking!(agency, actor, trip, plan, booking = nil)
+    booking ||= created!(CreateClientBooking.new(agency:, actor:, trip:).call, "the #{trip.trip_reference} booking")
     sailing = STARTS_ON
     types = agency.traveler_types.index_by(&:name)
-    travelers = trip.client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, -link.traveler.age_on(sailing).to_i ] }.to_h do |link|
+    links = trip.client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, -link.traveler.age_on(sailing).to_i ] }
+    links.each do |link|
       age = link.traveler.age_on(sailing)
       type = age < 5 ? types.fetch("Child 0–4") : (age < 18 ? types.fetch("Child") : types.fetch("Adult"))
-      row = created!(SaveBookingTraveler.new(agency:, actor:, booking:, attributes: { traveler_id: link.traveler.id, traveler_type_id: type.id }).call, link.traveler.given_names)
-      [ link.traveler.given_names, row ]
+      row = booking.booking_travelers.reload.find { |candidate| candidate.traveler_id == link.traveler_id }
+      if row
+        SaveBookingTraveler.new(agency:, actor:, booking:, booking_traveler: row, attributes: { traveler_type_id: type.id }).call
+      else
+        created!(SaveBookingTraveler.new(agency:, actor:, booking:, attributes: { traveler_id: link.traveler.id, traveler_type_id: type.id }).call, link.traveler.given_names)
+      end
     end
+    travelers = booking.booking_travelers.reload.includes(:traveler).sort_by(&:position).to_h { |row| [ row.traveler.given_names, row ] }
     choices = booking.offering.choices.includes(:options).index_by(&:name)
     select = lambda do |choice, label, names|
       option = choices.fetch(choice).options.find { |candidate| candidate.label == label }

@@ -3,6 +3,7 @@
 # (step 6 plan, question 20).
 class ExtendBookingHold < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:)
     @agency = agency

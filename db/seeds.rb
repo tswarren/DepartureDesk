@@ -37,11 +37,13 @@ if Rails.env.development?
   unless AlphaFixture::BOOKING_LEVELS.include?(bookings)
     abort "ALPHA_FIXTURE_BOOKINGS must be one of #{AlphaFixture::BOOKING_LEVELS.join(", ")}."
   end
-  alpha = AlphaFixture.load!(agency:, actor: administrator, bookings:)
+  # D-99 (2): the reseller user signs in with the same development password.
+  alpha = AlphaFixture.load!(agency:, actor: administrator, bookings:, reseller_password: seed_password)
   puts "Alpha fixture ready:"
   alpha.suppliers.each_value { |supplier| puts "  Supplier: #{supplier.display_name} (#{supplier.supplier_reference})" }
   puts "  Departure: #{alpha.departure.name} #{alpha.departure.departure_reference} (#{alpha.departure.summary_label_text})"
   alpha.arrangements.each_value { |arrangement| puts "  Arrangement: #{arrangement.arrangement_reference} #{arrangement.supplier.display_name} (#{arrangement.status})" }
   alpha.trips.each { |label, trip| puts "  Trip: #{trip.trip_reference} #{trip.client.source.display_name} (roster #{label})" }
   alpha.bookings.each { |label, booking| puts "  Booking: #{booking.booking_reference} (roster #{label}, #{booking.status})" }
+  puts "  Reseller: #{alpha.reseller.name}, user #{alpha.reseller_user.email_address} (#{alpha.reseller_user.id})"
 end

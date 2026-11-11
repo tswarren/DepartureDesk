@@ -5,7 +5,7 @@
   <div class="dd-section-header">
     <p><strong><%= selection.label %></strong></p>
     <% if manage %>
-      <%= button_to "Remove", client_booking_selection_path(booking, selection), method: :delete, params: { choice_id: choice.id },
+      <%= button_to "Remove", booking_route(:client_booking_selection, booking, selection), method: :delete, params: { choice_id: choice.id },
             class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
             aria: { label: "Remove #{selection.label}" } %>
     <% end %>

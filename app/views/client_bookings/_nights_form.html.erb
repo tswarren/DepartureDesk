@@ -10,7 +10,7 @@
 <% room_choice = rooms.first&.choice %>
 <% rooms = rooms.select { |selection| selection.choice.id == room_choice&.id }.sort_by(&:unit_number) %>
 <% travelers = booking.booking_travelers.index_by(&:id) %>
-<%= form_with url: client_booking_selection_range_path(booking), scope: :selection_range, class: "dd-form", id: form_id, data: { controller: "conditional-fields" } do |form| %>
+<%= form_with url: booking_route(:client_booking_selection_range, booking), scope: :selection_range, class: "dd-form", id: form_id, data: { controller: "conditional-fields" } do |form| %>
   <%= form.hidden_field :choice_id, value: choice.id, id: nil %>
   <%= hidden_field_tag :choice_id, choice.id, id: nil %>
   <h4 class="dd-section-title">Add nights</h4>

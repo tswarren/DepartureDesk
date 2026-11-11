@@ -2,6 +2,7 @@
 # selection is kept as removed while allocation history points at it.
 class RemoveChoiceSelection < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, selection:)
     @agency = agency

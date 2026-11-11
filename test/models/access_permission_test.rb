@@ -15,24 +15,27 @@ class AccessPermissionTest < ActiveSupport::TestCase
               manage_supplier_reservations: "supplier_arrangements", manage_client_money: "financial_records",
               manage_supplier_payments: "financial_records", manage_reseller_relationships: "reseller_relationships",
               publish_offerings: "departure_management", assign_bookings: "departure_management" }.freeze
+  RESELLER = %i[reseller_view_offers reseller_manage_bookings].freeze
   ANY_OF = { view_supplier_costs: %w[departure_management supplier_arrangements financial_records],
              record_amounts_due: %w[supplier_arrangements financial_records],
              override_booking_supplier_cost: %w[supplier_arrangements financial_records],
              confirm_commission: %w[supplier_arrangements financial_records] }.freeze
 
   test "the catalog covers exactly the listed actions" do
-    assert_equal (BASELINE + ADMIN_ONLY + GRANTED.keys + ANY_OF.keys).sort, AccessPermission::CATALOG.keys.sort
+    assert_equal (BASELINE + ADMIN_ONLY + GRANTED.keys + ANY_OF.keys + RESELLER).sort, AccessPermission::CATALOG.keys.sort
   end
 
-  test "agency_admin is allowed every action without grants" do
-    AccessPermission::CATALOG.each_key do |action|
+  test "agency_admin is allowed every staff action without grants, and no reseller action" do
+    AccessPermission::CATALOG.except(*RESELLER).each_key do |action|
       assert AccessPermission.allowed?("agency_admin", [], action), action
     end
+    RESELLER.each { |action| assert_not AccessPermission.allowed?("agency_admin", [], action), action }
   end
 
   test "staff without grants holds baseline actions only" do
     BASELINE.each { |action| assert AccessPermission.allowed?("staff", [], action), action }
-    (ADMIN_ONLY + GRANTED.keys + ANY_OF.keys).each { |action| assert_not AccessPermission.allowed?("staff", [], action), action }
+    (ADMIN_ONLY + GRANTED.keys + ANY_OF.keys + RESELLER).each { |action| assert_not AccessPermission.allowed?("staff", [], action), action }
+    RESELLER.each { |action| assert_not AccessPermission.allowed?("staff", AccessPermission::PERMISSIONS, action), action }
   end
 
   test "staff with a grant holds the action it unlocks and nothing admin-only" do
@@ -54,10 +57,11 @@ class AccessPermissionTest < ActiveSupport::TestCase
     end
   end
 
-  test "a reseller satisfies no staff requirement, whatever it holds" do
-    AccessPermission::CATALOG.each_key do |action|
+  test "a reseller satisfies no staff requirement, whatever it holds, and only the reseller actions (step 9 plan, question 8)" do
+    AccessPermission::CATALOG.except(*RESELLER).each_key do |action|
       assert_not AccessPermission.allowed?("reseller", AccessPermission::PERMISSIONS, action), action
     end
+    RESELLER.each { |action| assert AccessPermission.allowed?("reseller", [], action), action }
   end
 
   test "an unknown user type is refused and an unknown action raises" do

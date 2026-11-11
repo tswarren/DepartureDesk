@@ -12,7 +12,8 @@ Moved from [AGENTS.md](../../AGENTS.md), which points here. Sessions, tenancy, i
 - The current seed credential is development-only and must not be printed.
 - Agency Admin capabilities are catalog checks on the agency user, not a property on a global user.
 - Agency Admins may edit the current agency profile, offices, traveler types, agency users and their permissions. They may not create agencies or change agency lifecycle status from a tenant route.
-- Invitations offer `agency_admin` or `staff`. Reseller invitations wait for Slice 1 step 9.
+- An Agency Admin invites `agency_admin` or `staff` users. A `reseller` user is invited from its relationship's page (S-04) by an Agency Admin or staff with Reseller relationships, to one active relationship (Slice 1 step 9b; ACC-13).
+- A reseller session is served only from the `Reseller::` namespace under `/reseller`. The guard in `Authentication` sends it home from every staff controller unless the controller declares `allow_reseller_access` (sign-out, the password page); `ResellerArea` refuses a staff session in the namespace. Reseller reads go through `ResellerScope`, never `Current.agency` alone, so a record outside it is not found.
 - Invitation acceptance is the documented invitee exception: the invitee is the audit actor and is not yet an Agency Admin until acceptance commits.
 - Last-Agency-Admin mutations lock agency, then the affected user, then recheck.
 - Agency provisioning and lifecycle are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.

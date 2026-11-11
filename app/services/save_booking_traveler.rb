@@ -1,9 +1,11 @@
 # Adds or edits a traveler on a draft booking (CLT-13, CLT-15): a traveler
 # profile or a placeholder, with the traveler type staff choose (BKG-21).
 # A change that affects prices or space re-proposes the prices and re-holds
-# in the same transaction (step 6 plan, questions 14 and 15).
+# in the same transaction (step 6 plan, questions 14 and 15). A reseller
+# adds only travelers it can see (CLT-25).
 class SaveBookingTraveler < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   FIELDS = %w[traveler_id placeholder_label traveler_type_id position].freeze
 
@@ -44,7 +46,8 @@ class SaveBookingTraveler < AgencyCommand
   def resolved_attributes(booking, record)
     result = {}
     if @attributes.key?("traveler_id") || @attributes.key?("placeholder_label")
-      traveler = @attributes["traveler_id"] && (@agency.travelers.find_by(id: @attributes["traveler_id"]) || raise(Error.new("Traveler must be one of this agency's.", code: :invalid)))
+      travelers = reseller_actor? ? ResellerScope.new(@actor).travelers : @agency.travelers
+      traveler = @attributes["traveler_id"] && (travelers.find_by(id: @attributes["traveler_id"]) || raise(Error.new("Traveler must be one of this agency's.", code: :invalid)))
       result["traveler_id"] = traveler&.id
       result["placeholder_label"] = traveler ? nil : @attributes["placeholder_label"]
     end

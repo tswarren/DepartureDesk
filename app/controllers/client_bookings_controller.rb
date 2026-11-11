@@ -6,7 +6,7 @@ class ClientBookingsController < ApplicationController
   before_action :set_booking, only: :show
 
   def show
-    @booking = Current.agency.client_bookings
+    @booking = booking_scope
       .includes(:offering, :owner_reseller, :seller_reseller, { created_by: :reseller }, :client_terms_version, client_trip: [ :departure, { client: %i[client_person client_organization] } ],
         booking_travelers: %i[traveler traveler_type],
         choice_selections: [ :occupants, :inventory_allocations, { supplier_reservation_units: :supplier_reservation },
@@ -21,11 +21,11 @@ class ClientBookingsController < ApplicationController
     @choices = @booking.offering.choices.includes(options: :inventory_group)
     @blockers = BookingConfirmationCheck.new(@booking).blockers
     on_booking = @booking.booking_travelers.map(&:traveler_id)
-    @linked_travelers = @trip.client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, link.created_at ] }
+    @linked_travelers = linkable_travelers.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, link.created_at ] }
       .reject { |link| on_booking.include?(link.traveler_id) }
     @traveler_types = Current.agency.traveler_types.active.ordered
     @traveler_query = params[:traveler_q].to_s.squish
-    @found_travelers = @traveler_query.length >= 2 ? Current.agency.travelers.matching(@traveler_query, unlinked_from: @trip.client, limit: 10).to_a : []
+    @found_travelers = @traveler_query.length >= 2 && directory_search? ? Current.agency.travelers.matching(@traveler_query, unlinked_from: @trip.client, limit: 10).to_a : []
     @blocked = flash[:blockers]
     @progress = BookingProgress.new(@booking, @blockers)
     @step = params[:step].presence_in(@progress.available) || @progress.current
@@ -40,4 +40,11 @@ class ClientBookingsController < ApplicationController
 
     redirect_to client_trip_path(trip), alert: error.message
   end
+
+  private
+
+  # The client's travelers offered for adding to the booking.
+  def linkable_travelers = @trip.client.traveler_links
+
+  def directory_search? = Current.agency_user.permitted?(:manage_client_directory)
 end

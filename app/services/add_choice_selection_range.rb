@@ -6,6 +6,7 @@
 # any night adds none.
 class AddChoiceSelectionRange < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, attributes:)
     @agency = agency

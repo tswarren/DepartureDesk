@@ -68,5 +68,28 @@
         </dl>
       </div>
     </article>
+
+    <article class="dd-panel" id="reseller-users" aria-labelledby="reseller-users-heading">
+      <header class="dd-panel-header dd-section-header">
+        <h2 class="dd-panel-title" id="reseller-users-heading">Users</h2>
+        <% if @reseller.active? %><%= link_to "Invite a user", new_reseller_user_path(@reseller), class: "dd-button dd-button--secondary" %><% end %>
+      </header>
+      <div class="dd-panel-body">
+        <% if @users.empty? %>
+          <p class="dd-empty-copy">No users yet. An invited user signs in and sees only what is published to <%= @reseller.name %> and the bookings it owns.</p>
+        <% else %>
+          <ul class="dd-record-list" aria-label="<%= @reseller.name %> users">
+            <% @users.each do |user| %>
+              <li class="dd-record">
+                <div class="dd-record-main">
+                  <p><strong><%= user.display_name %></strong> <%= status_badge(user.status.humanize, modifier: user.active? ? "success" : "neutral") %></p>
+                  <p class="dd-record-detail"><%= user.email_address %></p>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </article>
   </div>
 </div>

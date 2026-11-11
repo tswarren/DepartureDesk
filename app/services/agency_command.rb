@@ -57,6 +57,18 @@ class AgencyCommand
     }.merge(extra)
   end
 
+  # Step 9 plan, question 8: a reseller user acts only through the commands
+  # that accept one, as an active user of an active relationship in the
+  # agency. Every other command refuses it through its staff requirement.
+  def reseller_actor? = @actor&.reseller?
+
+  def ensure_reseller_actor!(action)
+    ensure_directory_actor!(@actor, @agency, action)
+    return if @actor.reseller&.active? && @actor.reseller.agency_id == @agency.id
+
+    raise Error.new(UNAUTHORIZED, code: :unauthorized)
+  end
+
   def ensure_active_agency!(agency)
     return if agency&.active?
 

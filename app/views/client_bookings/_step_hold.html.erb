@@ -35,12 +35,12 @@
     <% end %>
     <% if manage %>
       <div class="dd-inline-actions">
-        <%= button_to "Hold space", client_booking_hold_path(booking), method: :post, class: "dd-button" %>
+        <%= button_to "Hold space", booking_route(:client_booking_hold, booking), method: :post, class: "dd-button" %>
         <% if hold_state == :held && !booking.hold_extended? %>
-          <%= button_to "Extend hold", client_booking_hold_path(booking), method: :patch, class: "dd-button dd-button--secondary" %>
+          <%= button_to "Extend hold", booking_route(:client_booking_hold, booking), method: :patch, class: "dd-button dd-button--secondary" %>
         <% end %>
         <% if hold_state == :held %>
-          <%= button_to "Release held space", client_booking_hold_path(booking), method: :delete, class: "dd-button dd-button--quiet",
+          <%= button_to "Release held space", booking_route(:client_booking_hold, booking), method: :delete, class: "dd-button dd-button--quiet",
                 form: { data: { turbo_confirm: "Release all of this booking's held space?" } } %>
         <% end %>
       </div>

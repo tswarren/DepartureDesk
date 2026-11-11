@@ -31,6 +31,11 @@
           <%= form.label :status, "Status", class: "dd-label" %>
           <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
         </div>
+        <div class="dd-field-group">
+          <%= form.label :creator, "Created by", class: "dd-label" %>
+          <%= form.select :creator, [ [ "Anyone", "any" ], [ "A reseller", "reseller" ] ], { selected: @creator }, class: "dd-field", aria: { describedby: "creator_hint" } %>
+          <p class="dd-field-hint" id="creator_hint">A reseller creates profiles as it books, with no duplicate check, so review them here.</p>
+        </div>
       </div>
       <div class="dd-form-actions">
         <%= form.submit "Apply", class: "dd-button" %>

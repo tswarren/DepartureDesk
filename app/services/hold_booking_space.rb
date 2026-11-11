@@ -3,9 +3,11 @@
 # On-request and rate-only services take nothing and don't block. The hold
 # lasts the Departure's hold duration and expires at 11:59 p.m. agency
 # time on its last day (BKG-09, SET-10). Lapsed holds are released first
-# (BKG-10). Staff may pick a whole unit's shell.
+# (BKG-10). Staff may pick a whole unit's shell. A reseller holds only on
+# an offering published to it (ACC-15; step 9 plan, question 5).
 class HoldBookingSpace < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, shell_choices: {})
     @agency = agency
@@ -21,6 +23,7 @@ class HoldBookingSpace < AgencyCommand
       booking = lock_booking!
       ensure_draft!(booking)
       ensure_on_sale!(@departure, "space can't be held")
+      ensure_published_to_reseller!(booking.offering, "space can't be held")
       raise Error.new("Add the travelers before holding space.", code: :invalid) if booking.booking_travelers.empty?
       problems = occupancy_problems(booking)
       raise Error.new("Space can't be held: #{problems.join(" ")}", code: :invalid) if problems.any?

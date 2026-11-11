@@ -3,7 +3,7 @@
 class BookingTravelerAdditionsController < ApplicationController
   include BookingAccess
 
-  before_action -> { require_permission!(:manage_client_directory) }
+  before_action :require_directory_management!
   before_action :set_booking
 
   def create

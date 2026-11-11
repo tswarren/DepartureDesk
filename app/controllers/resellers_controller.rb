@@ -17,6 +17,7 @@ class ResellersController < ApplicationController
   end
 
   def show
+    @users = @reseller.agency_users.order(:last_name, :first_name)
     @publications = @reseller.offering_publications.open.includes(offering: :departure).order(:published_at)
     @bookings = @reseller.owned_bookings.where.not(status: "discarded")
       .includes(:price_lines, :offering, client_trip: [ :departure, { client: %i[client_person client_organization] } ])

@@ -3,6 +3,7 @@
 # Capacity returns at once (INV-24).
 class ReleaseBookingHold < AgencyCommand
   include BookingCommandSupport
+  allow_reseller_actor
 
   def initialize(agency:, actor:, booking:, selection: nil)
     @agency = agency

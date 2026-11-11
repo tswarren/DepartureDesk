@@ -82,6 +82,12 @@ module BookingsHelper
     time.in_time_zone(Current.agency.default_timezone).strftime("%b %-d, %Y, %-l:%M %p").sub("AM", "a.m.").sub("PM", "p.m.")
   end
 
+  # CMN-19, CMN-52: every staff user sees client money, and so does the
+  # reseller that owns the booking.
+  def booking_client_money_visible?
+    reseller_area? ? Current.agency_user.permitted?(:reseller_view_offers) : Current.agency_user.permitted?(:view_client_money)
+  end
+
   def booking_money(minor_units, currency)
     Money.new(minor_units, currency).format
   end

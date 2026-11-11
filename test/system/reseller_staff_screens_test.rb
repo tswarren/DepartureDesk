@@ -9,15 +9,15 @@ class ResellerStaffScreensTest < ApplicationSystemTestCase
     @scenario = AlphaScenario.load!(bookings: :confirmed)
     @alpha = @scenario.alpha
     set_clock Time.utc(2027, 2, 3, 15)
-    @reseller = SaveReseller.new(agency: @scenario.agency, actor: @scenario.actor, attributes: { name: "Coral Coast Travel" }).call.record
+    @reseller = SaveReseller.new(agency: @scenario.agency, actor: @scenario.actor, attributes: { name: "Bayside Journeys" }).call.record
   end
 
   teardown do
     AlphaScenario.cleanup!(@scenario)
   end
 
-  test "staff publish the package to Coral Coast Travel and assign it a booking, and the screens reflow at 375px" do
-    booking = @alpha.bookings.fetch("BK-105")
+  test "staff publish the package to Bayside Journeys and assign it a booking, and the screens reflow at 375px" do
+    booking = @alpha.bookings.fetch("BK-101")
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
 
     visit departure_offerings_path(@alpha.departure)
@@ -25,17 +25,17 @@ class ResellerStaffScreensTest < ApplicationSystemTestCase
       assert_text "Not published"
       click_button "Publish"
     end
-    assert_text "#{@alpha.offering.name} published to Coral Coast Travel."
+    assert_text "#{@alpha.offering.name} published to Bayside Journeys."
     within("#channels-#{@alpha.offering.id}") { assert_text "Published" }
 
     visit client_booking_path(booking)
     within("#summary-sales") do
       find("summary", text: "Change the owner").click
-      select "Coral Coast Travel", from: "Owner"
+      select "Bayside Journeys", from: "Owner"
       click_button "Save owner"
     end
-    assert_text "Booking assigned to Coral Coast Travel."
-    within("#summary-sales") { assert_text "Coral Coast Travel" }
+    assert_text "Booking assigned to Bayside Journeys."
+    within("#summary-sales") { assert_text "Bayside Journeys" }
 
     paths = [ resellers_path, new_reseller_path, reseller_path(@reseller), edit_reseller_path(@reseller), departure_offerings_path(@alpha.departure), client_booking_path(booking) ]
     [ 1400, 375 ].each do |width|
