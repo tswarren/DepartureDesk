@@ -1,6 +1,6 @@
 # ADR 0019: Issued document storage
 
-- Status: Accepted 2026-11-01. Decision log entry D-67. Amended 2026-11-05 for arrangement documents (Slice 1 step 3a) and 2026-11-07 for acceptance evidence (Slice 1 step 6c); the agency logo was placed in scope by Slice 1 step 1.
+- Status: Accepted 2026-11-01. Decision log entry D-67. Amended 2026-11-05 for arrangement documents (Slice 1 step 3a), 2026-11-07 for acceptance evidence (Slice 1 step 6c) and 2026-11-10 for the issuing order and renderer (Slice 1 step 10); the agency logo was placed in scope by Slice 1 step 1.
 - Date: 2026-11-01
 - Decision owners: DepartureDesk maintainers
 - Amends: `AGENTS.md`, which forbade Active Storage tables while they were unused.
@@ -99,6 +99,20 @@ Slice 1 step 6c keeps the evidence of a client's acceptance with its acceptance 
 
 Active Storage's framework routes stay off.
 
+## Amendment 2026-11-10: issuing order and renderer (Slice 1 step 10)
+
+Slice 1 step 10 implements this ADR for the booking confirmation, the invoice and the receipt's PDF ([step 10 plan](../planning/first-slice/slice-1-step-10-plan.md)).
+
+| Rule | As built |
+| --- | --- |
+| Issuing order | The invoice number is gapless (REF-05), and the PDF shows it, so it can't be rendered before the number exists. `IssueDocument` therefore does everything in one transaction: lock the agency and the subject, draw the number, build the snapshot, render the PDF, upload the blob, then create the `document_versions` row, attach the blob and write the audit event. If the transaction fails, the blob is purged, and the number goes back to its sequence. A crash after the upload leaves only an unattached blob, which the cleanup job removes. A committed version therefore always has its file, as before. |
+| Renderer | Chromium's command line (`--headless --print-to-pdf --no-pdf-header-footer`), with a timeout, through `DocumentRenderer`. No gem. It finds `chromium`, `chromium-browser`, `google-chrome` or `google-chrome-stable` on the path, or `DOCUMENT_CHROMIUM_PATH`. The page is self-contained: inline styles, the logo as a data URI, no network. |
+| Snapshot | Each version stores, in `snapshot` (jsonb), exactly the values it shows, built by `DocumentSnapshot` from recorded data. The template renders only from it. |
+| Versions | `document_versions` as in the table above, with `document_type`, `number` and `version_number`; its subject is a client booking or a receipt. A unique index allows one first version per booking and type, and per receipt, so a second issue is refused until reissue (DOC-12) is built in Slice 1b. Manual deliveries (DOC-21) are append-only `document_deliveries` rows. |
+| Database guards | Triggers refuse updating (except Active Storage touching `updated_at`) or deleting `document_versions`, any change to `document_deliveries`, and deleting or updating an `active_storage_attachments` row whose `record_type` is `DocumentVersion`. |
+| Downloads | `DocumentVersionsController` (and its reseller subclass, which serves only the reseller's own confirmations) checks the stored SHA-256 and sends the PDF inline under `default-src 'none'; sandbox`. |
+| Cleanup | `PurgeUnattachedBlobsJob`, daily on the `documents` queue, purges blobs unattached for more than a day. |
+
 ## Consequences
 
 ### Positive
@@ -130,4 +144,4 @@ Rejected. Signed framework URLs work for anyone who holds them, which bypasses r
 
 ## Implementation boundary
 
-Implemented in charter Slice 1 step 10 (D13) and used for reissue in Slice 1b (D17).
+Implemented in charter Slice 1 step 10 (D13), as amended 2026-11-10, and used for reissue in Slice 1b (D17).

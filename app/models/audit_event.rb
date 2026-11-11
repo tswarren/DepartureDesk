@@ -28,6 +28,8 @@ class AuditEvent < ApplicationRecord
     agency_user.password_reset
     reseller.authorized
     reseller.updated
+    document_version.issued
+    document_version.delivery_recorded
     session.office_selected
     client_person.created
     client_person.updated
@@ -172,7 +174,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation ClientPayment SupplierPayment Reseller].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip ClientBooking SupplierReservation ClientPayment SupplierPayment Reseller DocumentVersion].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

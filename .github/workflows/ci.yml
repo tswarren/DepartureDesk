@@ -97,7 +97,8 @@ jobs:
           sudo apt-get install --no-install-recommends -y \
             libpq-dev \
             postgresql-client \
-            libvips
+            libvips \
+            poppler-utils
 
       - name: Checkout code
         uses: actions/checkout@v7
@@ -149,7 +150,8 @@ jobs:
           sudo apt-get install --no-install-recommends -y \
             libpq-dev \
             postgresql-client \
-            libvips
+            libvips \
+            poppler-utils
 
       - name: Checkout code
         uses: actions/checkout@v7

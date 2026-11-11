@@ -77,6 +77,7 @@
 
   <div class="dd-stack">
     <%= render "client_bookings/sales", booking: %>
+    <%= render "documents/panel", rows: booking_document_rows(booking) %>
 
     <article class="dd-panel" id="summary-acceptance">
       <header class="dd-panel-header dd-section-header">

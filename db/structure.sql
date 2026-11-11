@@ -398,6 +398,51 @@ $$;
 
 
 --
+-- Name: reject_document_attachment_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_document_attachment_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.record_type = 'DocumentVersion' THEN
+    RAISE EXCEPTION 'an issued document''s PDF cannot be removed or replaced';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+
+--
+-- Name: reject_document_delivery_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_document_delivery_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'document_deliveries rows are append-only';
+END;
+$$;
+
+
+--
+-- Name: reject_document_version_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_document_version_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND (to_jsonb(NEW) - 'updated_at') = (to_jsonb(OLD) - 'updated_at') THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'document_versions rows are append-only';
+END;
+$$;
+
+
+--
 -- Name: reject_frozen_supplier_rate_band_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1817,6 +1862,60 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY (ARRAY[('draft'::character varying)::text, ('ready_to_sell'::character varying)::text])))
+);
+
+
+--
+-- Name: document_deliveries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.document_deliveries (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    document_version_id uuid NOT NULL,
+    delivery_method character varying NOT NULL,
+    recipient character varying NOT NULL,
+    delivered_on date NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT document_deliveries_method CHECK (((delivery_method)::text = ANY ((ARRAY['own_email'::character varying, 'printed'::character varying, 'in_person'::character varying])::text[]))),
+    CONSTRAINT document_deliveries_recipient CHECK (((length(btrim((recipient)::text)) >= 1) AND (length(btrim((recipient)::text)) <= 200)))
+);
+
+
+--
+-- Name: document_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.document_versions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    document_type character varying NOT NULL,
+    number character varying NOT NULL,
+    version_number integer DEFAULT 1 NOT NULL,
+    client_booking_id uuid,
+    receipt_id uuid,
+    supersedes_id uuid,
+    reissue_reason text,
+    issued_at timestamp(6) with time zone NOT NULL,
+    issued_by_id uuid NOT NULL,
+    template_version character varying NOT NULL,
+    renderer_version character varying NOT NULL,
+    sha256 character varying NOT NULL,
+    snapshot jsonb NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT document_versions_number_format CHECK (((number)::text ~ (
+CASE document_type
+    WHEN 'confirmation'::text THEN '^CNF-'::text
+    WHEN 'invoice'::text THEN '^INV-'::text
+    ELSE '^RCP-'::text
+END || '[0-9]{5,}$'::text))),
+    CONSTRAINT document_versions_reissue CHECK (((version_number >= 1) AND ((supersedes_id IS NULL) = (version_number = 1)) AND ((supersedes_id IS NULL) = (reissue_reason IS NULL)))),
+    CONSTRAINT document_versions_sha256 CHECK (((sha256)::text ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT document_versions_snapshot CHECK ((jsonb_typeof(snapshot) = 'object'::text)),
+    CONSTRAINT document_versions_subject CHECK (((((document_type)::text = 'receipt'::text) = (receipt_id IS NOT NULL)) AND (((document_type)::text = 'receipt'::text) = (client_booking_id IS NULL)))),
+    CONSTRAINT document_versions_type CHECK (((document_type)::text = ANY ((ARRAY['confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying])::text[])))
 );
 
 
@@ -3319,6 +3418,22 @@ ALTER TABLE ONLY public.departures
 
 
 --
+-- Name: document_deliveries document_deliveries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_deliveries
+    ADD CONSTRAINT document_deliveries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_versions document_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: expected_commissions expected_commissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4682,6 +4797,41 @@ CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures US
 
 
 --
+-- Name: index_document_deliveries_on_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_document_deliveries_on_version ON public.document_deliveries USING btree (document_version_id);
+
+
+--
+-- Name: index_document_versions_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_document_versions_on_id_and_agency_id ON public.document_versions USING btree (id, agency_id);
+
+
+--
+-- Name: index_document_versions_on_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_document_versions_on_number ON public.document_versions USING btree (agency_id, document_type, number, version_number);
+
+
+--
+-- Name: index_document_versions_one_per_booking; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_document_versions_one_per_booking ON public.document_versions USING btree (client_booking_id, document_type) WHERE ((supersedes_id IS NULL) AND (client_booking_id IS NOT NULL));
+
+
+--
+-- Name: index_document_versions_one_per_receipt; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_document_versions_one_per_receipt ON public.document_versions USING btree (receipt_id) WHERE ((supersedes_id IS NULL) AND (receipt_id IS NOT NULL));
+
+
+--
 -- Name: index_expected_commissions_on_arrangement; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4903,6 +5053,13 @@ CREATE UNIQUE INDEX index_payee_accounts_on_supplier_and_name ON public.payee_ac
 --
 
 CREATE UNIQUE INDEX index_receipts_on_agency_and_number ON public.receipts USING btree (agency_id, receipt_number);
+
+
+--
+-- Name: index_receipts_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_receipts_on_id_and_agency_id ON public.receipts USING btree (id, agency_id);
 
 
 --
@@ -5767,6 +5924,13 @@ CREATE UNIQUE INDEX index_user_permissions_on_agency_user_permission ON public.u
 
 
 --
+-- Name: active_storage_attachments active_storage_attachments_keep_documents; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER active_storage_attachments_keep_documents BEFORE DELETE OR UPDATE ON public.active_storage_attachments FOR EACH ROW EXECUTE FUNCTION public.reject_document_attachment_change();
+
+
+--
 -- Name: agencies agencies_reject_workspace_code_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6023,6 +6187,20 @@ CREATE TRIGGER departure_decisions_reject_mutation BEFORE DELETE OR UPDATE ON pu
 --
 
 CREATE TRIGGER departures_reject_identity_change BEFORE UPDATE ON public.departures FOR EACH ROW EXECUTE FUNCTION public.reject_departure_identity_change();
+
+
+--
+-- Name: document_deliveries document_deliveries_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER document_deliveries_reject_mutation BEFORE DELETE OR UPDATE ON public.document_deliveries FOR EACH ROW EXECUTE FUNCTION public.reject_document_delivery_mutation();
+
+
+--
+-- Name: document_versions document_versions_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER document_versions_reject_mutation BEFORE DELETE OR UPDATE ON public.document_versions FOR EACH ROW EXECUTE FUNCTION public.reject_document_version_mutation();
 
 
 --
@@ -7123,6 +7301,70 @@ ALTER TABLE ONLY public.departure_team_members
 
 ALTER TABLE ONLY public.departure_team_members
     ADD CONSTRAINT fk_departure_team_members_user_same_agency FOREIGN KEY (agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: document_deliveries fk_document_deliveries_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_deliveries
+    ADD CONSTRAINT fk_document_deliveries_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: document_deliveries fk_document_deliveries_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_deliveries
+    ADD CONSTRAINT fk_document_deliveries_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: document_deliveries fk_document_deliveries_version_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_deliveries
+    ADD CONSTRAINT fk_document_deliveries_version_same_agency FOREIGN KEY (document_version_id, agency_id) REFERENCES public.document_versions(id, agency_id);
+
+
+--
+-- Name: document_versions fk_document_versions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_document_versions_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: document_versions fk_document_versions_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_document_versions_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: document_versions fk_document_versions_issuer_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_document_versions_issuer_same_agency FOREIGN KEY (issued_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: document_versions fk_document_versions_receipt_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_document_versions_receipt_same_agency FOREIGN KEY (receipt_id, agency_id) REFERENCES public.receipts(id, agency_id);
+
+
+--
+-- Name: document_versions fk_document_versions_supersedes_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_document_versions_supersedes_same_agency FOREIGN KEY (supersedes_id, agency_id) REFERENCES public.document_versions(id, agency_id);
 
 
 --
@@ -8340,6 +8582,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261110110000'),
 ('20261110100000'),
 ('20261109100000'),
 ('20261108120000'),

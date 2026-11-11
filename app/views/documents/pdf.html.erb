@@ -1,0 +1,147 @@
+<%# The one fixed layout of an issued document (DOC-51), rendered only from its snapshot (DOC-11). Self-contained: inline styles, the logo as a data URI, no network. %>
+<%# locals: (snapshot:, logo_data_uri: nil) -%>
+<% s = snapshot %>
+<% agency = s["agency"] %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title><%= s["title"] %> <%= s["number"] %></title>
+  <style>
+    @page { size: letter; margin: 18mm 16mm; }
+    * { box-sizing: border-box; }
+    body { font-family: "Liberation Sans", Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #13212e; line-height: 1.4; margin: 0; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; border-bottom: 2px solid #002340; padding-bottom: 12px; margin-bottom: 18px; }
+    .agency { font-size: 9.5pt; }
+    .agency strong { font-size: 13pt; display: block; margin-bottom: 2px; }
+    .logo { max-height: 56px; max-width: 200px; margin-bottom: 6px; display: block; }
+    .doc { text-align: right; }
+    .doc h1 { font-size: 18pt; margin: 0 0 4px; color: #002340; }
+    .number { font-family: "Liberation Mono", monospace; font-size: 11pt; }
+    .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-bottom: 18px; }
+    .facts div span { display: block; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #5b6b78; }
+    .booked-through { font-weight: bold; margin: 0 0 14px; }
+    h2 { font-size: 11.5pt; color: #002340; margin: 18px 0 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #d5dde3; vertical-align: top; }
+    th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #5b6b78; }
+    .num { text-align: right; white-space: nowrap; }
+    tfoot td, tfoot th { font-weight: bold; border-bottom: 0; color: #13212e; font-size: 10.5pt; text-transform: none; letter-spacing: 0; }
+    ul { margin: 0; padding-left: 18px; }
+    .disclosure { white-space: pre-line; font-size: 8.5pt; margin-top: 18px; }
+    footer { margin-top: 24px; border-top: 1px solid #d5dde3; padding-top: 10px; font-size: 9pt; }
+    footer p { margin: 0 0 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="agency">
+      <% if logo_data_uri %><img class="logo" src="<%= logo_data_uri %>" alt=""><% end %>
+      <% if agency["display_name"] %><strong><%= agency["display_name"] %></strong><% end %>
+      <% if agency["legal_name"] %><div><%= agency["legal_name"] %></div><% end %>
+      <% Array(agency["mailing_address"]).each do |line| %><div><%= line %></div><% end %>
+      <% if agency["contact_name"] %><div><%= agency["contact_name"] %></div><% end %>
+      <% if agency["contact_email"] %><div><%= agency["contact_email"] %></div><% end %>
+      <% if agency["phone"] %><div><%= agency["phone"] %></div><% end %>
+    </div>
+    <div class="doc">
+      <h1><%= s["title"] %></h1>
+      <div class="number"><%= s["number"] %></div>
+      <div>Issued <%= s["issued_on"] %></div>
+    </div>
+  </header>
+
+  <% if s["booked_through"] %><p class="booked-through">Booked through <%= s["booked_through"] %></p><% end %>
+
+  <% case s["document_type"] %>
+  <% when "confirmation", "invoice" %>
+    <div class="facts">
+      <div><span><%= s["document_type"] == "invoice" ? "Bill to" : "Client" %></span><%= s["recipient"] %></div>
+      <div><span>Booking</span><%= s["booking_reference"] %> · trip <%= s["trip_reference"] %></div>
+      <div><span>Package</span><%= s["offering"] %></div>
+      <% if s["departure"] %><div><span>Departure</span><%= s["departure"] %><% if s["dates"].present? %>, <%= s["dates"] %><% end %></div><% end %>
+      <% if s["confirmed_on"] %><div><span>Confirmed</span><%= s["confirmed_on"] %></div><% end %>
+      <% if s["client_terms"] %><div><span>Client terms</span><%= s["client_terms"] %></div><% end %>
+    </div>
+  <% end %>
+
+  <% case s["document_type"] %>
+  <% when "confirmation" %>
+    <h2>Travelers</h2>
+    <ul><% s["travelers"].each do |name| %><li><%= name %></li><% end %></ul>
+    <h2>Services</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Travelers</th></tr></thead>
+      <tbody>
+        <% s["services"].each do |service| %>
+          <tr><td><%= service["label"] %></td><td><%= service["travelers"].presence&.join(", ") || "Whole trip" %></td></tr>
+        <% end %>
+      </tbody>
+      <tfoot><tr><th>Total price</th><td class="num"><%= s["total"] %></td></tr></tfoot>
+    </table>
+  <% when "invoice" %>
+    <h2>Charges</h2>
+    <table>
+      <thead><tr><th>Description</th><th>Traveler</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <% s["lines"].each do |line| %>
+          <tr><td><%= line["description"] %></td><td><%= line["traveler"] || "—" %></td><td class="num"><%= line["amount"] %></td></tr>
+        <% end %>
+      </tbody>
+      <tfoot><tr><th colspan="2">Total</th><td class="num"><%= s["total"] %></td></tr></tfoot>
+    </table>
+    <h2>Installments</h2>
+    <table>
+      <thead><tr><th>Installment</th><th>Due</th><th class="num">Amount</th><th class="num">Paid</th><th class="num">Open</th></tr></thead>
+      <tbody>
+        <% s["installments"].each do |installment| %>
+          <tr><td><%= installment["description"] %></td><td><%= installment["due_on"] %></td><td class="num"><%= installment["amount"] %></td><td class="num"><%= installment["paid"] %></td><td class="num"><%= installment["open"] %></td></tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if s["payments"].any? %>
+      <h2>Payments received</h2>
+      <table>
+        <thead><tr><th>Payment</th><th>Date</th><th>Paid to</th><th class="num">Applied</th></tr></thead>
+        <tbody>
+          <% s["payments"].each do |payment| %>
+            <tr><td><%= payment["reference"] %></td><td><%= payment["paid_on"] %></td><td><%= payment["paid_to"] %></td><td class="num"><%= payment["amount"] %></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <table>
+      <tfoot>
+        <tr><th>Paid</th><td class="num"><%= s["paid"] %></td></tr>
+        <tr><th>Still due</th><td class="num"><%= s["still_due"] %></td></tr>
+      </tfoot>
+    </table>
+  <% when "receipt" %>
+    <div class="facts">
+      <div><span>Received from</span><%= s["recipient"] %></div>
+      <div><span>Amount</span><%= s["amount"] %></div>
+      <div><span>Date paid</span><%= s["paid_on"] %></div>
+      <div><span>Collected by</span><%= s["collected_by"] %></div>
+      <div><span>Method</span><%= s["method"] %></div>
+      <div><span>Payment</span><%= s["payment_reference"] %></div>
+      <div><span>Departure</span><%= s["departure"] %></div>
+    </div>
+    <h2>Applied</h2>
+    <% if s["applied"].empty? %>
+      <p>Held as credit, not yet applied.</p>
+    <% else %>
+      <table>
+        <thead><tr><th>Booking</th><th>Installment</th><th>Due</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          <% s["applied"].each do |row| %>
+            <tr><td><%= row["booking_reference"] %></td><td><%= row["installment"] %></td><td><%= row["due_on"] %></td><td class="num"><%= row["amount"] %></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  <% end %>
+
+  <% if agency["seller_of_travel_disclosure"] %><div class="disclosure"><%= agency["seller_of_travel_disclosure"] %></div><% end %>
+  <% if s["footer_markdown"] %><footer><%= FooterMarkdown.render(s["footer_markdown"]) %></footer><% end %>
+</body>
+</html>

@@ -60,10 +60,15 @@ module AccessPermission
     # booking's owner and recording its seller of record.
     publish_offerings: "departure_management",
     assign_bookings: "departure_management",
+    # ACC-30, DOC-01, DOC-21: every staff user issues and downloads the
+    # confirmation, invoice and receipt, and records their manual delivery.
+    issue_documents: :baseline,
     # ACC-14, ACC-15, CLT-25, CMN-52: a reseller user's offers, and the
     # bookings its relationship owns (step 9 plan, question 8).
     reseller_view_offers: :reseller,
-    reseller_manage_bookings: :reseller
+    reseller_manage_bookings: :reseller,
+    # DOC-24, R-04: the reseller issues and downloads its booking's confirmation.
+    reseller_issue_confirmation: :reseller
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

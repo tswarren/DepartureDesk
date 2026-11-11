@@ -20,6 +20,7 @@ class ClientBooking < ApplicationRecord
   has_many :expected_commissions, dependent: :restrict_with_exception
   has_many :installment_proposals, -> { order(:position) }, inverse_of: :client_booking, dependent: :delete_all
   has_many :supplier_reservations, -> { order(:requested_at) }, inverse_of: :client_booking, dependent: :restrict_with_exception
+  has_many :document_versions, -> { order(:issued_at) }, inverse_of: :client_booking, dependent: :restrict_with_exception
 
   # ACC-18, FIN-05: the creator, the owner (who handles it now) and the seller
   # of record are separate facts. Owner and seller are each the agency or one

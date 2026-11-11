@@ -48,6 +48,9 @@ Rails.application.routes.draw do
       resources :bookings, only: %i[new create], controller: "booking_starts"
     end
     resources :travelers, only: %i[edit update]
+    resources :document_versions, path: "documents", only: :show do
+      resources :deliveries, only: :create, controller: "document_deliveries"
+    end
     resources :client_bookings, path: "bookings", only: :show do
       resources :travelers, only: %i[create update destroy], controller: "booking_travelers" do
         resource :move, only: :create, controller: "booking_traveler_moves"
@@ -59,6 +62,8 @@ Rails.application.routes.draw do
       resource :hold, only: %i[create update destroy], controller: "booking_holds"
       resource :discard, only: :create, controller: "booking_discards"
       resource :confirmation, only: :create, controller: "booking_confirmations"
+      # R-04: the booking confirmation (DOC-24).
+      resources :documents, only: :create, controller: "booking_documents"
       resources :acceptances, only: %i[new create], controller: "booking_acceptances" do
         resource :evidence, only: :show, controller: "booking_acceptance_evidence"
       end
@@ -78,7 +83,14 @@ Rails.application.routes.draw do
     resource :credit_application, only: :create, controller: "client_credit_applications"
   end
   # S-26: the booking workspace (BKG-05 to BKG-11, BKG-14 to BKG-16, BKG-45, CLT-13, CLT-15, INV-17 to INV-23).
-  resources :receipts, only: :show
+  resources :receipts, only: :show do
+    # S-35: the receipt's PDF (DOC-01, CMN-55).
+    resource :document, only: :create, controller: "receipt_documents"
+  end
+  # S-35: issued documents, downloaded as stored, and their manual deliveries (DOC-11, DOC-21; ADR 0019).
+  resources :document_versions, path: "documents", only: :show do
+    resources :deliveries, only: :create, controller: "document_deliveries"
+  end
   resources :client_bookings, path: "bookings", only: :show do
     resources :travelers, only: %i[create update destroy], controller: "booking_travelers" do
       resource :move, only: :create, controller: "booking_traveler_moves"
@@ -92,6 +104,8 @@ Rails.application.routes.draw do
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
     resource :discard, only: :create, controller: "booking_discards"
     resource :confirmation, only: :create, controller: "booking_confirmations"
+    # S-35: issue the confirmation or invoice (DOC-01).
+    resources :documents, only: :create, controller: "booking_documents"
     # ACC-18, FIN-05: the booking's owner and its seller of record.
     resource :assignment, only: :update, controller: "booking_assignments"
     resource :seller_of_record, only: :update, controller: "booking_sellers"

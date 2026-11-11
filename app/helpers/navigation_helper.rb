@@ -14,6 +14,7 @@ module NavigationHelper
     booking_acceptance_evidence booking_acceptances booking_confirmations booking_discards booking_holds booking_supplier_costs booking_supplier_reservations
     booking_traveler_additions booking_traveler_batches booking_traveler_moves booking_travelers choice_selection_ranges choice_selections
     booking_assignments booking_sellers commission_confirmations installment_proposals
+    booking_documents receipt_documents document_versions document_deliveries
   ].freeze
 
   def primary_navigation_current?(item)

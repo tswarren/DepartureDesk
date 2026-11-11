@@ -18,6 +18,10 @@ development: &recurring_defaults
     class: PostDueSupplierAmountsJob
     queue: supplier_money
     schedule: every hour at minute 5
+  purge_unattached_blobs:
+    class: PurgeUnattachedBlobsJob
+    queue: documents
+    schedule: every day at 3am
 
 production:
   <<: *recurring_defaults
