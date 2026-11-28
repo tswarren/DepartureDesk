@@ -52,7 +52,7 @@ gem "countries", "8.1.0", require: "countries"
 gem "addressable"
 
 # Use Image_Processing for image processing [https://github.com/janko/image_processing]
-gem "image_processing", "~> 2.1"
+gem "image_processing", "~> 2.2"
 
 # Use Ruby-Vips for image processing [https://github.com/jcupitt/ruby-vips]
 gem "ruby-vips", "~> 2.3"
